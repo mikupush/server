@@ -1,0 +1,19 @@
+services:
+  server:
+    build: .
+    ports:
+      - "8080:8080"
+
+  postgres:
+    image: postgres:17.6
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: miku_push
+      POSTGRES_PASSWORD: miku_push
+      POSTGRES_DB: miku_push
+
+volumes:
+  postgres:

@@ -1,0 +1,13 @@
+/target
+*.log
+config.yml
+config.*.yml
+!config.example.yml
+*.db
+.idea
+.vscode
+Dockerfile
+README.md
+.editorconfig
+docker-compose.yml
+docker-compose.*.yml
