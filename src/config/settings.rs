@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use serde::Deserialize;
 use log::{debug, warn};
 use crate::config::{DataBase, Server};
+use crate::config::upload::Upload;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Settings {
@@ -10,12 +11,14 @@ pub struct Settings {
     pub server: Server,
     #[serde(default)]
     pub database: DataBase,
+    #[serde(default)]
+    pub upload: Upload
 }
 
 impl Settings {
     pub fn load() -> Self {
         Settings::load_from_file()
-            .or(Some(Settings::default()))
+            .or_else(|| Some(Settings::default()))
             .unwrap()
     }
 
@@ -35,7 +38,7 @@ impl Settings {
             Ok(file) => file
         };
 
-        match serde_json::from_reader(file) {
+        match serde_yaml::from_reader(file) {
             Err(e) => {
                 warn!("failed to parse configuration file: {}: {}", path.display(), e);
                 None
@@ -85,6 +88,7 @@ impl Default for Settings {
         Settings {
             server: Server::default(),
             database: DataBase::default(),
+            upload: Upload::default()
         }
     }
 }
