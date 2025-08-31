@@ -1,36 +1,26 @@
-use crate::config::Settings;
 use crate::database::DbPool;
 use crate::errors::FileUploadError;
 use crate::model::FileUpload;
 use crate::routes::FileCreate;
 use crate::schema::file_uploads;
+use crate::services::FileSizeLimiter;
 use chrono::Utc;
 use diesel::OptionalExtension;
 use diesel::{QueryDsl, RunQueryDsl};
-use log::debug;
 
 #[derive(Debug, Clone)]
 pub struct FileRegister {
     pool: DbPool,
-    settings: Settings
+    limiter: FileSizeLimiter
 }
 
 impl FileRegister {
-    pub fn new(pool: DbPool, settings: Settings) -> Self {
-        Self { pool, settings }
+    pub fn new(pool: DbPool, limiter: FileSizeLimiter) -> Self {
+        Self { pool, limiter }
     }
 
     pub fn register_file(&self, file_create: FileCreate) -> Result<(), FileUploadError> {
-        if self.settings.upload.is_limited() {
-            let file_size = file_create.size as u64;
-            let limit = self.settings.upload.max_size().unwrap();
-            debug!("file size is limited by: {} bytes", limit);
-
-            if file_size > limit {
-                debug!("file size limit exceeded: {} > {} bytes", file_size, limit);
-                return Err(FileUploadError::MaxFileSizeExceeded)
-            }
-        }
+        self.limiter.check_file_size(file_create.size as u64)?;
 
         let file_upload = FileUpload {
             id: file_create.id,
@@ -40,14 +30,11 @@ impl FileRegister {
             uploaded_at: Utc::now().naive_utc()
         };
 
-        let mut connection = self.pool.get()
-            .map_err(|err| FileUploadError::Other { message: err.to_string() })?;
-
+        let mut connection = self.pool.get()?;
         let existing: Option<FileUpload> = file_uploads::table
             .find(file_create.id)
             .first(&mut connection)
-            .optional()
-            .map_err(|err| FileUploadError::Other { message: err.to_string() })?;
+            .optional()?;
 
         if existing.is_some() {
             return Err(FileUploadError::Exists)
@@ -55,8 +42,7 @@ impl FileRegister {
 
         diesel::insert_into(file_uploads::table)
             .values(&file_upload)
-            .execute(&mut connection)
-            .map_err(|err| FileUploadError::Other { message: err.to_string() })?;
+            .execute(&mut connection)?;
 
         Ok(())
     }

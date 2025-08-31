@@ -1176,6 +1176,7 @@ dependencies = [
  "futures",
  "log",
  "pq-sys",
+ "r2d2",
  "serde",
  "serde_json",
  "serde_yaml",
