@@ -10,12 +10,12 @@ use diesel::{QueryDsl, RunQueryDsl};
 use log::debug;
 
 #[derive(Debug, Clone)]
-pub struct FileUploadRegister {
+pub struct FileRegister {
     pool: DbPool,
     settings: Settings
 }
 
-impl FileUploadRegister {
+impl FileRegister {
     pub fn new(pool: DbPool, settings: Settings) -> Self {
         Self { pool, settings }
     }

@@ -3,7 +3,7 @@ use uuid::Uuid;
 use log::debug;
 use serde::Deserialize;
 use crate::errors::FileUploadError;
-use crate::services::FileUploadRegister;
+use crate::services::FileRegister;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct FileCreate {
@@ -17,7 +17,7 @@ pub struct FileCreate {
 #[post("/api/file")]
 pub async fn post_file(
     request: web::Json<FileCreate>,
-    file_upload_register: web::Data<FileUploadRegister>
+    file_upload_register: web::Data<FileRegister>
 ) -> Result<HttpResponse> {
     let request = request.into_inner();
 

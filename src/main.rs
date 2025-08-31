@@ -1,7 +1,6 @@
 use actix_web::{web, App, HttpServer};
 
 mod routes;
-mod service;
 mod config;
 mod database;
 mod model;
@@ -26,7 +25,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(settings_clone.clone()))
             .app_data(web::Data::new(pool.clone()))
-            .app_data(web::Data::new(services::FileUploadRegister::new(pool.clone(), settings_clone.clone())))
+            .app_data(web::Data::new(services::FileRegister::new(pool.clone(), settings_clone.clone())))
             .service(routes::post_file)
             .service(routes::delete_file)
             .service(routes::post_upload_file)
