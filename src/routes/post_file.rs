@@ -1,9 +1,9 @@
-use crate::errors::FileUploadError;
-use crate::services::FileUploadRegister;
-use actix_web::{delete, get, post, web, HttpResponse, Responder, Result};
+use actix_web::{post, web, HttpResponse, Result};
+use uuid::Uuid;
 use log::debug;
 use serde::Deserialize;
-use uuid::Uuid;
+use crate::errors::FileUploadError;
+use crate::services::FileUploadRegister;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct FileCreate {
@@ -41,19 +41,4 @@ fn handle_register_file_failure(request: FileCreate, err: FileUploadError) -> Ht
 
     debug!("returning error status code {} for file register with id {}", response.status(), request.id);
     response
-}
-
-#[post("/api/file/{uuid}/upload")]
-pub async fn post_upload_file(uuid: web::Path<String>) -> impl Responder {
-    "Hello world".to_string()
-}
-
-#[delete("/api/file/{uuid}")]
-pub async fn delete_file(uuid: web::Path<String>) -> impl Responder {
-    "Hello world".to_string()
-}
-
-#[get("/u/{uuid}")]
-pub async fn get_download() -> impl Responder {
-    "Hello world".to_string()
 }
