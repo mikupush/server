@@ -42,6 +42,55 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /api/file/{id}/upload:
+    post:
+      summary: Upload file content for registered file upload
+      description: Upload file content for registered file upload
+      operationId: uploadFile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: acdb1260-d4de-4aab-a3a9-02665ae25771
+      requestBody:
+        description: The file contents
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        200:
+          description: Successful operation
+        400:
+          description: Invalid request parameters or upload is not completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        413:
+          description: File contents exceeds the size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        404:
+          description: File is not registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   schemas:
     Error:

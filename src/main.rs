@@ -27,7 +27,7 @@ async fn main() -> std::io::Result<()> {
     // services
     let limiter = services::FileSizeLimiter::new(settings.clone());
     let registerer = services::FileRegister::new(pool.clone(), limiter.clone());
-    let uploader = services::FileUploader::new(pool.clone(), limiter.clone());
+    let uploader = services::FileUploader::new(pool.clone(), settings.clone(), limiter.clone());
 
     HttpServer::new(move || {
         App::new()

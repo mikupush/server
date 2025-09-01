@@ -12,3 +12,6 @@ database:
 upload:
   # Optional, if not set, the default is unlimited
   max_size: 5000000000 # 5GB
+  # The directory where uploaded files where stored,
+  # can be a relative or absolute path, default is the data directory
+  directory: data

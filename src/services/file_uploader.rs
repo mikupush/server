@@ -1,5 +1,6 @@
 use std::fs::{File, OpenOptions};
 use std::io::Write;
+use std::path::Path;
 use crate::database::DbPool;
 use crate::errors::FileUploadError;
 use crate::schema::file_uploads;
@@ -9,17 +10,19 @@ use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
 use futures::StreamExt;
 use log::debug;
 use uuid::Uuid;
+use crate::config::Settings;
 use crate::model::FileUpload;
 
 #[derive(Debug, Clone)]
 pub struct FileUploader {
     pool: DbPool,
+    settings: Settings,
     limiter: FileSizeLimiter
 }
 
 impl FileUploader {
-    pub fn new(pool: DbPool, limiter: FileSizeLimiter) -> Self {
-        Self { pool, limiter }
+    pub fn new(pool: DbPool, settings: Settings, limiter: FileSizeLimiter) -> Self {
+        Self { pool, settings, limiter }
     }
 
     pub async fn upload_file(&self, id: Uuid, mut payload: Payload) -> Result<(), FileUploadError> {
@@ -35,7 +38,15 @@ impl FileUploader {
             return Err(FileUploadError::NotExists { id })
         };
 
-        let destination_path = file_upload.name.clone();
+        let destination_directory = self.settings.upload.directory();
+        if let Err(err) = std::fs::create_dir_all(destination_directory.clone()) {
+            return Err(FileUploadError::IO {
+                message: format!("Failed to create directory {}: {}", destination_directory.clone(), err)
+            })
+        }
+
+        let destination_path = Path::new(destination_directory.as_str())
+            .join(file_upload.name.clone());
 
         {
             if let Ok(_) = File::open(destination_path.clone()) {
@@ -70,5 +81,37 @@ impl FileUploader {
         }
 
         Ok(())
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::config::{Settings, Upload};
+    use crate::database::DbPool;
+    use crate::services::{FileSizeLimiter, FileUploader};
+
+    impl FileUploader {
+        pub fn limited(pool: DbPool, max_size: u64) -> Self {
+            let mut settings = Settings::default();
+            settings.upload = Upload::with_size(max_size);
+
+            Self {
+                pool,
+                settings,
+                limiter: FileSizeLimiter::limited(max_size)
+            }
+        }
+
+        pub fn unlimited(pool: DbPool) -> Self {
+            let mut settings = Settings::default();
+            settings.upload = Upload::test_default();
+
+            Self {
+                pool,
+                settings,
+                limiter: FileSizeLimiter::unlimited()
+            }
+        }
     }
 }
