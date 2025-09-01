@@ -1,4 +1,4 @@
-openapi: 3.0.4
+openapi: 3.1.0
 info:
   title: MikuPush Server API
   license:
@@ -22,21 +22,21 @@ paths:
               $ref: '#/components/schemas/FileCreate'
         required: true
       responses:
-        '200':
+        200:
           description: Successful operation
-        '409':
+        409:
           description: File registration exists
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '413':
+        413:
           description: File exceeds the size limit
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        default:
+        500:
           description: Unexpected error
           content:
             application/json:
