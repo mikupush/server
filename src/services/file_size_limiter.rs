@@ -28,3 +28,21 @@ impl FileSizeLimiter {
         Ok(())
     }
 }
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use crate::config::Upload;
+
+    impl FileSizeLimiter {
+        pub fn limited(max_size: u64) -> Self {
+            let mut settings = Settings::default();
+            settings.upload = Upload::with_size(max_size);
+            Self::new(settings)
+        }
+
+        pub fn unlimited() -> Self {
+            Self::new(Settings::default())
+        }
+    }
+}

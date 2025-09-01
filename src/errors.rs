@@ -13,6 +13,20 @@ pub enum FileUploadError {
     DB { message: String }
 }
 
+impl FileUploadError {
+    pub fn code(&self) -> String {
+        match self {
+            FileUploadError::Exists => "Exists".to_string(),
+            FileUploadError::NotExists { .. } => "NotExists".to_string(),
+            FileUploadError::MaxFileSizeExceeded => "MaxFileSizeExceeded".to_string(),
+            FileUploadError::StreamRead { .. } => "StreamRead".to_string(),
+            FileUploadError::DB { .. } => "DB".to_string(),
+            FileUploadError::IO { .. } => "IO".to_string(),
+            FileUploadError::NotCompleted => "NotCompleted".to_string(),
+        }
+    }
+}
+
 impl From<actix_web::error::PayloadError> for FileUploadError {
     fn from(value: actix_web::error::PayloadError) -> Self {
         FileUploadError::StreamRead { message: value.to_string() }

@@ -37,3 +37,14 @@ impl Default for Upload {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::config::upload::Upload;
+
+    impl Upload {
+        pub fn with_size(max_size: u64) -> Upload {
+            Upload { max_size: Some(max_size) }
+        }
+    }
+}

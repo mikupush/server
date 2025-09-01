@@ -12,3 +12,17 @@ pub fn create_database_connection(settings: Settings) -> DbPool {
         panic!("Error creating pool: {}", err)
     })
 }
+
+#[cfg(test)]
+pub mod tests {
+    use diesel::PgConnection;
+    use diesel::r2d2::ConnectionManager;
+    use r2d2::Pool;
+    use crate::database::DbPool;
+
+    pub fn create_test_database_connection() -> DbPool {
+        let connection_string = "postgres://miku_push:miku_push@localhost:5432/miku_push";
+        let manager = ConnectionManager::<PgConnection>::new(connection_string);
+        Pool::builder().build(manager).unwrap()
+    }
+}

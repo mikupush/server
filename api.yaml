@@ -1,0 +1,78 @@
+openapi: 3.0.4
+info:
+  title: MikuPush Server API
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+  version: 0.0.1
+servers:
+  - url: https://mikupush.io
+  - url: http://localhost:8080
+paths:
+  /api/file:
+    post:
+      summary: Register new file upload
+      description: Register new file upload
+      operationId: registerFile
+      requestBody:
+        description: Register new file upload
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileCreate'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+        '409':
+          description: File registration exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: File exceeds the size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        default:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    Error:
+      required:
+        - code
+        - message
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+    FileCreate:
+      required:
+        - id
+        - name
+        - mime_type
+        - size
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: acdb1260-d4de-4aab-a3a9-02665ae25771
+        name:
+          type: string
+          example: dogs.jpeg
+        mime_type:
+          type: string
+          example: image/jpeg
+        size:
+          type: integer
+          format: int64
+          example: 3145728
