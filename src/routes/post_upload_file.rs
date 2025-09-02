@@ -1,10 +1,11 @@
-use crate::errors::FileUploadError;
-use crate::routes::response::ErrorResponse;
+use crate::errors::{Error, FileUploadError, RouteError};
+use crate::routes::error_response::ErrorResponse;
 use crate::services::FileUploader;
 use actix_web::web::Payload;
 use actix_web::{post, web, HttpResponse, Result};
 use log::debug;
 use uuid::Uuid;
+use crate::errors::route_error_helpers;
 
 #[post("/api/file/{id}/upload")]
 pub async fn post_upload_file(
@@ -14,7 +15,7 @@ pub async fn post_upload_file(
 ) -> Result<HttpResponse> {
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
-        return Ok(invalid_parameter_response("id", "is not a valid UUID"))
+        return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
     };
 
     match file_uploader.upload_file(id, payload).await {
@@ -34,15 +35,6 @@ fn handle_post_upload_file_error(err: FileUploadError) -> HttpResponse {
     response_builder.json(ErrorResponse::from(err))
 }
 
-fn invalid_parameter_response(parameter: &str, message: &str) -> HttpResponse {
-    let response_body = ErrorResponse {
-        code: "InvalidParameter".to_string(),
-        message: format!("The value of parameter {} is invalid: {}", parameter, message),
-    };
-
-    HttpResponse::BadRequest().json(ErrorResponse::from(response_body))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -54,6 +46,7 @@ mod tests {
     use actix_web::{http::header::ContentType, test, App};
     use chrono::Utc;
     use diesel::RunQueryDsl;
+    use crate::errors::{file_upload_codes, route_error_codes};
 
     #[actix_web::test]
     async fn test_post_file_200_ok() {
@@ -99,7 +92,7 @@ mod tests {
         let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
 
         assert_eq!(status_code, StatusCode::BAD_REQUEST);
-        assert_eq!(response.code, "InvalidParameter".to_string());
+        assert_eq!(response.code, route_error_codes::INVALID_PATH_PARAMETER_CODE);
     }
 
     #[actix_web::test]
@@ -125,7 +118,7 @@ mod tests {
         let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
 
         assert_eq!(status_code, StatusCode::BAD_REQUEST);
-        assert_eq!(response.code, FileUploadError::NotCompleted.code());
+        assert_eq!(response.code, file_upload_codes::NOT_COMPLETED_CODE);
     }
 
     #[actix_web::test]
@@ -151,7 +144,7 @@ mod tests {
         let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
 
         assert_eq!(status_code, StatusCode::PAYLOAD_TOO_LARGE);
-        assert_eq!(response.code, FileUploadError::MaxFileSizeExceeded.code());
+        assert_eq!(response.code, file_upload_codes::MAX_FILE_SIZE_EXCEEDED_CODE);
     }
 
     #[actix_web::test]
@@ -177,7 +170,7 @@ mod tests {
         let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
 
         assert_eq!(status_code, StatusCode::NOT_FOUND);
-        assert_eq!(response.code, FileUploadError::NotExists { id }.code());
+        assert_eq!(response.code, file_upload_codes::NOT_EXISTS_CODE);
     }
 
     fn register_test_file(pool: DbPool) -> Uuid {

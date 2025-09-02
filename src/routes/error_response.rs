@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use crate::errors::FileUploadError;
+use crate::errors::Error;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ErrorResponse {
@@ -7,8 +7,8 @@ pub struct ErrorResponse {
     pub message: String,
 }
 
-impl From<FileUploadError> for ErrorResponse {
-    fn from(value: FileUploadError) -> Self {
+impl ErrorResponse {
+    pub fn from(value: impl Error) -> Self {
         Self {
             code: value.code(),
             message: value.to_string(),

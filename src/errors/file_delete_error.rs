@@ -1,7 +1,42 @@
+use std::fmt::Display;
+use crate::errors::Error;
+use uuid::Uuid;
+
+#[derive(Debug)]
 pub enum FileDeleteError {
-    NotFound,
+    NotExists { id: Uuid },
     IO { message: String },
-    DB { message: String },
+    DB { message: String }
+}
+
+impl Error for FileDeleteError {
+    fn code(&self) -> String {
+        match self {
+            Self::NotExists { .. } => file_delete_codes::NOT_EXISTS_CODE.to_string(),
+            Self::DB { .. } => file_delete_codes::DB_CODE.to_string(),
+            Self::IO { .. } => file_delete_codes::IO_CODE.to_string(),
+        }
+    }
+
+    fn message(&self) -> String {
+        match self {
+            Self::NotExists { id: uuid } => format!("File with uuid {} is not registered", uuid),
+            Self::DB { message } => message.clone(),
+            Self::IO { message } => message.clone(),
+        }
+    }
+}
+
+impl Display for FileDeleteError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} error: {}", self.code(), self.message())
+    }
+}
+
+impl From<std::io::Error> for FileDeleteError {
+    fn from(value: std::io::Error) -> Self {
+        FileDeleteError::IO { message: value.to_string() }
+    }
 }
 
 impl From<diesel::result::Error> for FileDeleteError {
@@ -16,8 +51,8 @@ impl From<r2d2::Error> for FileDeleteError {
     }
 }
 
-impl From<std::io::Error> for FileDeleteError {
-    fn from(value: std::io::Error) -> Self {
-        Self::IO { message: value.to_string() }
-    }
+pub mod file_delete_codes {
+    pub const NOT_EXISTS_CODE: &str = "NotExists";
+    pub const DB_CODE: &str = "DB";
+    pub const IO_CODE: &str = "IO";
 }

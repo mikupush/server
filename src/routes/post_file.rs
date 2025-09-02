@@ -2,8 +2,8 @@ use actix_web::{post, web, HttpResponse, Result};
 use uuid::Uuid;
 use log::debug;
 use serde::{Deserialize, Serialize};
-use crate::errors::FileUploadError;
-use crate::routes::response::ErrorResponse;
+use crate::errors::{Error, FileUploadError};
+use crate::routes::error_response::ErrorResponse;
 use crate::services::FileRegister;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +50,7 @@ mod tests {
     use actix_web::{http::header::ContentType, test, App};
     use actix_web::http::{Method, StatusCode};
     use crate::database::tests::create_test_database_connection;
+    use crate::errors::file_upload_codes;
     use crate::services::FileSizeLimiter;
     use super::*;
 
@@ -118,7 +119,7 @@ mod tests {
         let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
 
         assert_eq!(status_code, StatusCode::CONFLICT);
-        assert_eq!(response_body.code, FileUploadError::Exists.code());
+        assert_eq!(response_body.code, file_upload_codes::EXISTS_CODE);
     }
 
     #[actix_web::test]
@@ -151,6 +152,6 @@ mod tests {
         let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
 
         assert_eq!(status_code, StatusCode::PAYLOAD_TOO_LARGE);
-        assert_eq!(response_body.code, FileUploadError::MaxFileSizeExceeded.code());
+        assert_eq!(response_body.code, file_upload_codes::MAX_FILE_SIZE_EXCEEDED_CODE);
     }
 }

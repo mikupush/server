@@ -1,5 +1,5 @@
-use std::error::Error;
-use std::fmt::{Display, Formatter};
+use crate::errors::Error;
+use std::fmt::Display;
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -13,56 +13,68 @@ pub enum FileUploadError {
     DB { message: String }
 }
 
-impl FileUploadError {
-    pub fn code(&self) -> String {
+impl Display for FileUploadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} error: {}", self.code(), self.message())
+    }
+}
+
+impl Error for FileUploadError {
+    fn code(&self) -> String {
         match self {
-            FileUploadError::Exists => "Exists".to_string(),
-            FileUploadError::NotExists { .. } => "NotExists".to_string(),
-            FileUploadError::MaxFileSizeExceeded => "MaxFileSizeExceeded".to_string(),
-            FileUploadError::StreamRead { .. } => "StreamRead".to_string(),
-            FileUploadError::DB { .. } => "DB".to_string(),
-            FileUploadError::IO { .. } => "IO".to_string(),
-            FileUploadError::NotCompleted => "NotCompleted".to_string(),
+            Self::Exists => file_upload_codes::EXISTS_CODE.to_string(),
+            Self::NotExists { .. } => file_upload_codes::NOT_EXISTS_CODE.to_string(),
+            Self::MaxFileSizeExceeded => file_upload_codes::MAX_FILE_SIZE_EXCEEDED_CODE.to_string(),
+            Self::StreamRead { .. } => file_upload_codes::STREAM_READ_CODE.to_string(),
+            Self::DB { .. } => file_upload_codes::DB_CODE.to_string(),
+            Self::IO { .. } => file_upload_codes::IO_CODE.to_string(),
+            Self::NotCompleted => file_upload_codes::NOT_COMPLETED_CODE.to_string(),
+        }
+    }
+
+    fn message(&self) -> String {
+        match self {
+            Self::Exists => "File is already registered".to_string(),
+            Self::NotExists { id: uuid } => format!("File with uuid {} is not registered", uuid),
+            Self::MaxFileSizeExceeded => "Max file size exceeded".to_string(),
+            Self::StreamRead { message } => format!("Error reading uploaded file stream: {}", message),
+            Self::DB { message } => message.clone(),
+            Self::IO { message } => message.clone(),
+            Self::NotCompleted => "File upload is not completed".to_string(),
         }
     }
 }
 
 impl From<actix_web::error::PayloadError> for FileUploadError {
     fn from(value: actix_web::error::PayloadError) -> Self {
-        FileUploadError::StreamRead { message: value.to_string() }
+        Self::StreamRead { message: value.to_string() }
     }
 }
 
 impl From<std::io::Error> for FileUploadError {
     fn from(value: std::io::Error) -> Self {
-        FileUploadError::IO { message: value.to_string() }
+        Self::IO { message: value.to_string() }
     }
 }
 
 impl From<diesel::result::Error> for FileUploadError {
     fn from(value: diesel::result::Error) -> Self {
-        FileUploadError::DB { message: value.to_string() }
+        Self::DB { message: value.to_string() }
     }
 }
 
 impl From<r2d2::Error> for FileUploadError {
     fn from(value: r2d2::Error) -> Self {
-        FileUploadError::DB { message: value.to_string() }
+        Self::DB { message: value.to_string() }
     }
 }
 
-impl Error for FileUploadError {}
-
-impl Display for FileUploadError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            FileUploadError::Exists => write!(f, "File is already registered"),
-            FileUploadError::NotExists { id: uuid } => write!(f, "File with uuid {} is not registered", uuid),
-            FileUploadError::MaxFileSizeExceeded => write!(f, "Max file size exceeded"),
-            FileUploadError::StreamRead { message } => write!(f, "Error reading uploaded file stream: {}", message),
-            FileUploadError::DB { message } => write!(f, "Database error: {}", message),
-            FileUploadError::IO { message } => write!(f, "IO Error: {}", message),
-            FileUploadError::NotCompleted => write!(f, "File upload is not completed"),
-        }
-    }
+pub mod file_upload_codes {
+    pub const EXISTS_CODE: &str = "Exists";
+    pub const NOT_EXISTS_CODE: &str = "NotExists";
+    pub const MAX_FILE_SIZE_EXCEEDED_CODE: &str = "MaxFileSizeExceeded";
+    pub const NOT_COMPLETED_CODE: &str = "NotCompleted";
+    pub const STREAM_READ_CODE: &str = "StreamRead";
+    pub const DB_CODE: &str = "DB";
+    pub const IO_CODE: &str = "IO";
 }

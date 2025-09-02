@@ -26,7 +26,7 @@ impl FileDeleter {
             .optional()?;
 
         let Some(file_upload) = file_upload else {
-            return Err(FileDeleteError::NotFound);
+            return Err(FileDeleteError::NotExists { id });
         };
 
         let directory = self.settings.upload.directory().clone();
