@@ -42,3 +42,18 @@ impl FileDeleter {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::config::{Settings, Upload};
+    use crate::database::DbPool;
+    use crate::services::FileDeleter;
+
+    impl FileDeleter {
+        pub fn test(pool: DbPool) -> Self {
+            let mut settings = Settings::default();
+            settings.upload = Upload::test_default();
+            Self::new(pool, settings)
+        }
+    }
+}
