@@ -53,7 +53,7 @@ mod tests {
         let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileUploader::unlimited(pool.clone())))
+                .app_data(web::Data::new(FileUploader::test(pool.clone())))
                 .service(post_upload_file)
         ).await;
 
@@ -74,7 +74,7 @@ mod tests {
         let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileUploader::unlimited(pool.clone())))
+                .app_data(web::Data::new(FileUploader::test(pool.clone())))
                 .service(post_upload_file)
         ).await;
 
@@ -100,7 +100,7 @@ mod tests {
         let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileUploader::unlimited(pool.clone())))
+                .app_data(web::Data::new(FileUploader::test(pool.clone())))
                 .service(post_upload_file)
         ).await;
 
@@ -126,7 +126,7 @@ mod tests {
         let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileUploader::limited(pool.clone(), 200)))
+                .app_data(web::Data::new(FileUploader::test_limited(pool.clone(), 200)))
                 .service(post_upload_file)
         ).await;
 
@@ -152,7 +152,7 @@ mod tests {
         let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileUploader::limited(pool.clone(), 200)))
+                .app_data(web::Data::new(FileUploader::test_limited(pool.clone(), 200)))
                 .service(post_upload_file)
         ).await;
 

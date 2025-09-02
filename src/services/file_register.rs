@@ -47,3 +47,25 @@ impl FileRegister {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::database::tests::create_test_database_connection;
+    use crate::services::{FileRegister, FileSizeLimiter};
+
+    impl FileRegister {
+        pub fn test() -> Self {
+            Self::new(
+                create_test_database_connection(),
+                FileSizeLimiter::test_unlimited()
+            )
+        }
+
+        pub fn test_limited(max_size: u64) -> Self {
+            Self::new(
+                create_test_database_connection(),
+                FileSizeLimiter::test_limited(max_size)
+            )
+        }
+    }
+}

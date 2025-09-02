@@ -92,25 +92,25 @@ mod tests {
     use crate::services::{FileSizeLimiter, FileUploader};
 
     impl FileUploader {
-        pub fn limited(pool: DbPool, max_size: u64) -> Self {
-            let mut settings = Settings::default();
-            settings.upload = Upload::with_size(max_size);
-
-            Self {
-                pool,
-                settings,
-                limiter: FileSizeLimiter::limited(max_size)
-            }
-        }
-
-        pub fn unlimited(pool: DbPool) -> Self {
+        pub fn test(pool: DbPool) -> Self {
             let mut settings = Settings::default();
             settings.upload = Upload::test_default();
 
             Self {
                 pool,
                 settings,
-                limiter: FileSizeLimiter::unlimited()
+                limiter: FileSizeLimiter::test_unlimited()
+            }
+        }
+
+        pub fn test_limited(pool: DbPool, max_size: u64) -> Self {
+            let mut settings = Settings::default();
+            settings.upload = Upload::with_size(max_size);
+
+            Self {
+                pool,
+                settings,
+                limiter: FileSizeLimiter::test_limited(max_size)
             }
         }
     }

@@ -1,10 +1,10 @@
-use actix_web::{post, web, HttpResponse, Result};
-use uuid::Uuid;
-use log::debug;
-use serde::{Deserialize, Serialize};
 use crate::errors::{Error, FileUploadError};
 use crate::routes::error_response::ErrorResponse;
 use crate::services::FileRegister;
+use actix_web::{post, web, HttpResponse, Result};
+use log::debug;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileCreate {
@@ -47,22 +47,16 @@ fn handle_register_file_failure(request: FileCreate, err: FileUploadError) -> Ht
 
 #[cfg(test)]
 mod tests {
-    use actix_web::{http::header::ContentType, test, App};
-    use actix_web::http::{Method, StatusCode};
-    use crate::database::tests::create_test_database_connection;
-    use crate::errors::file_upload_codes;
-    use crate::services::FileSizeLimiter;
     use super::*;
+    use crate::errors::file_upload_codes;
+    use actix_web::http::{Method, StatusCode};
+    use actix_web::{http::header::ContentType, test, App};
 
     #[actix_web::test]
     async fn test_post_file_200_ok() {
-        let service = FileRegister::new(
-            create_test_database_connection(),
-            FileSizeLimiter::unlimited()
-        );
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(service))
+                .app_data(web::Data::new(FileRegister::test()))
                 .service(post_file)
         ).await;
         let body = FileCreate {
@@ -83,13 +77,9 @@ mod tests {
 
     #[actix_web::test]
     async fn test_post_file_409_conflict() {
-        let service = FileRegister::new(
-            create_test_database_connection(),
-            FileSizeLimiter::unlimited()
-        );
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(service))
+                .app_data(web::Data::new(FileRegister::test()))
                 .service(post_file)
         ).await;
         let body = FileCreate {
@@ -124,13 +114,9 @@ mod tests {
 
     #[actix_web::test]
     async fn test_post_file_413_payload_too_large() {
-        let service = FileRegister::new(
-            create_test_database_connection(),
-            FileSizeLimiter::limited(200)
-        );
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(service))
+                .app_data(web::Data::new(FileRegister::test_limited(200)))
                 .service(post_file)
         ).await;
 
