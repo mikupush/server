@@ -1,6 +1,10 @@
 use actix_web::{delete, web, Responder};
+use crate::services::FileDeleter;
 
-#[delete("/api/file/{uuid}")]
-pub async fn delete_file(uuid: web::Path<String>) -> impl Responder {
+#[delete("/api/file/{id}")]
+pub async fn delete_file(
+    deleter: web::Data<FileDeleter>,
+    id: web::Path<String>
+) -> impl Responder {
     "Hello world".to_string()
 }

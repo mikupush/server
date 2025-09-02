@@ -28,6 +28,7 @@ async fn main() -> std::io::Result<()> {
     let limiter = services::FileSizeLimiter::new(settings.clone());
     let registerer = services::FileRegister::new(pool.clone(), limiter.clone());
     let uploader = services::FileUploader::new(pool.clone(), settings.clone(), limiter.clone());
+    let deleter = services::FileDeleter::new(pool.clone(), settings.clone());
 
     HttpServer::new(move || {
         App::new()
@@ -35,6 +36,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(registerer.clone()))
             .app_data(web::Data::new(uploader.clone()))
+            .app_data(web::Data::new(deleter.clone()))
             .service(routes::post_file)
             .service(routes::delete_file)
             .service(routes::post_upload_file)
