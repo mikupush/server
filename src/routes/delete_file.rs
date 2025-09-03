@@ -33,20 +33,18 @@ fn handle_delete_file_failure(err: FileDeleteError) -> HttpResponse {
 
 #[cfg(test)]
 mod tests {
-    use std::path::{Path, PathBuf};
-    use actix_web::{test, web, App};
-    use actix_web::http::{Method, StatusCode};
-    use chrono::Utc;
-    use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
-    use uuid::Uuid;
-    use crate::config::Upload;
-    use crate::database::DbPool;
     use crate::database::tests::create_test_database_connection;
+    use crate::database::DbPool;
     use crate::errors::file_delete_codes;
     use crate::model::FileUpload;
+    use crate::routes::utils::tests::create_test_file_upload;
     use crate::routes::{delete_file, ErrorResponse};
     use crate::schema::file_uploads;
     use crate::services::FileDeleter;
+    use actix_web::http::{Method, StatusCode};
+    use actix_web::{test, web, App};
+    use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
+    use uuid::Uuid;
 
     #[actix_web::test]
     async fn test_delete_file_200_ok() {
@@ -57,16 +55,16 @@ mod tests {
                 .service(delete_file)
         ).await;
 
-        let (path, id) = create_test_file_upload(pool.clone());
+        let (path, file_upload) = create_test_file_upload(pool.clone());
         let request = test::TestRequest::default()
-            .uri(format!("/api/file/{id}").as_str())
+            .uri(format!("/api/file/{}", file_upload.id.clone()).as_str())
             .method(Method::DELETE)
             .to_request();
         let response = test::call_service(&app, request).await;
 
         assert_eq!(response.status(), StatusCode::OK);
         assert!(!path.exists(), "file should be deleted");
-        assert_file_upload_deleted_in_database(id, pool.clone());
+        assert_file_upload_deleted_in_database(file_upload.id, pool.clone());
     }
 
     #[actix_web::test]
@@ -101,28 +99,5 @@ mod tests {
             .unwrap();
 
         assert!(file_upload.is_none(), "file upload should be deleted from database");
-    }
-
-    fn create_test_file_upload(pool: DbPool) -> (PathBuf, Uuid) {
-        let file_upload = FileUpload {
-            id: Uuid::new_v4(),
-            name: format!("hatsune_miku_{}.jpg", Utc::now().timestamp()),
-            mime_type: "image/jpeg".to_string(),
-            size: 200792,
-            uploaded_at: Utc::now().naive_utc()
-        };
-
-        let settings = Upload::test_default();
-        let path = Path::new(&settings.directory())
-            .join(file_upload.name.clone());
-        std::fs::write(path.clone(), vec![1; file_upload.size as usize]).unwrap();
-
-        let mut connection = pool.get().unwrap();
-        diesel::insert_into(file_uploads::table)
-            .values(&file_upload)
-            .execute(&mut connection)
-            .unwrap();
-
-        (path, file_upload.id)
     }
 }
