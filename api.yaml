@@ -41,7 +41,35 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
+  /api/file/{id}:
+    delete:
+      summary: Delete a file upload
+      description: Delete a file upload
+      operationId: deleteFile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: acdb1260-d4de-4aab-a3a9-02665ae25771
+      responses:
+        200:
+          description: Successful operation
+        404:
+          description: File upload not exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /api/file/{id}/upload:
     post:
       summary: Upload file content for registered file upload
@@ -89,7 +117,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Error"
+                $ref: '#/components/schemas/Error'
 
 components:
   schemas:
