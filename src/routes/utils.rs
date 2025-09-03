@@ -1,6 +1,7 @@
 #[cfg(test)]
 pub mod tests {
     use std::path::{Path, PathBuf};
+    use std::sync::Mutex;
     use chrono::Utc;
     use diesel::RunQueryDsl;
     use uuid::Uuid;
@@ -9,10 +10,14 @@ pub mod tests {
     use crate::model::FileUpload;
     use crate::schema::file_uploads;
 
+    // used to give unique prefix to the test file
+    static TEST_FILE_COUNT: Mutex<i32> = Mutex::new(0);
+
     pub fn create_test_file_upload(pool: DbPool) -> (PathBuf, FileUpload) {
+        let mut count = TEST_FILE_COUNT.lock().unwrap();
         let file_upload = FileUpload {
             id: Uuid::new_v4(),
-            name: format!("hatsune_miku_{}.jpg", Utc::now().timestamp()),
+            name: format!("hatsune_miku_{}.jpg", count),
             mime_type: "image/jpeg".to_string(),
             size: 200792,
             uploaded_at: Utc::now().naive_utc()
@@ -29,6 +34,7 @@ pub mod tests {
             .execute(&mut connection)
             .unwrap();
 
+        *count += 1;
         (path, file_upload)
     }
 }
