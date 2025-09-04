@@ -67,7 +67,7 @@ impl FileReadStream {
 impl Stream for FileReadStream {
     type Item = Result<actix_web::web::Bytes, std::io::Error>;
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let id = self.id.clone();
         let path = self.path.clone();
         let file = &mut self.get_mut().file;
@@ -94,16 +94,13 @@ impl Stream for FileReadStream {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::config::{Settings, Upload};
+    use crate::config::Settings;
     use crate::database::DbPool;
     use crate::services::FileReader;
 
     impl FileReader {
         pub fn test(pool: DbPool) -> Self {
-            let mut settings = Settings::default();
-            settings.upload = Upload::test_default();
-
-            Self { pool, settings }
+            Self { pool, settings: Settings::default() }
         }
     }
 }

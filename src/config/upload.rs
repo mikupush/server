@@ -1,5 +1,8 @@
 use log::debug;
 use serde::{Deserialize, Serialize};
+use crate::config::env;
+
+pub const UPLOAD_MAX_SIZE_UNLIMITED: &str = "unlimited";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Upload {
@@ -11,13 +14,16 @@ impl Upload {
     /// Returns true if the upload is limited.
     /// If true, you can unwrap securely the max_size optional
     pub fn is_limited(&self) -> bool {
-        self.max_size.is_some()
+        self.max_size().is_some()
     }
 
     pub fn max_size(&self) -> Option<u64> {
-        let value = std::env::var("MIKU_PUSH_UPLOAD_MAX_SIZE").ok();
-        if let Some(value) = value {
+        if let Some(value) = env("MIKU_PUSH_UPLOAD_MAX_SIZE") {
             debug!("using env variable MIKU_PUSH_UPLOAD_MAX_SIZE: {}", value);
+            if value == UPLOAD_MAX_SIZE_UNLIMITED {
+                return None;
+            }
+
             return Some(value.parse::<u64>().expect("upload max size must be a number"))
         }
 
@@ -31,8 +37,7 @@ impl Upload {
     }
 
     pub fn directory(&self) -> String {
-        let value = std::env::var("MIKU_PUSH_UPLOAD_DIRECTORY").ok();
-        if let Some(value) = value {
+        if let Some(value) = env("MIKU_PUSH_UPLOAD_DIRECTORY") {
             debug!("using env variable MIKU_PUSH_UPLOAD_DIRECTORY: {}", value);
             return value
         }
@@ -52,27 +57,6 @@ impl Default for Upload {
         Self {
             max_size: None,
             directory: None,
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::config::upload::Upload;
-
-    impl Upload {
-        pub fn with_size(max_size: u64) -> Self {
-            Self {
-                max_size: Some(max_size),
-                directory: Some("data/tests".into()),
-            }
-        }
-
-        pub fn test_default() -> Self {
-            Self {
-                max_size: None,
-                directory: Some("data/tests".into()),
-            }
         }
     }
 }

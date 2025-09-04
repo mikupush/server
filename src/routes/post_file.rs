@@ -1,4 +1,4 @@
-use crate::errors::{Error, FileUploadError};
+use crate::errors::FileUploadError;
 use crate::routes::error_response::ErrorResponse;
 use crate::services::FileRegister;
 use actix_web::{post, web, HttpResponse, Result};
@@ -48,12 +48,17 @@ fn handle_register_file_failure(request: FileCreate, err: FileUploadError) -> Ht
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::tests::{set_test_env, setup_test_env};
     use crate::errors::file_upload_codes;
     use actix_web::http::{Method, StatusCode};
     use actix_web::{http::header::ContentType, test, App};
+    use serial_test::serial;
 
     #[actix_web::test]
+    #[serial]
     async fn test_post_file_200_ok() {
+        setup_test_env();
+
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileRegister::test()))
@@ -76,7 +81,10 @@ mod tests {
     }
 
     #[actix_web::test]
+    #[serial]
     async fn test_post_file_409_conflict() {
+        setup_test_env();
+
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileRegister::test()))
@@ -113,10 +121,14 @@ mod tests {
     }
 
     #[actix_web::test]
+    #[serial]
     async fn test_post_file_413_payload_too_large() {
+        setup_test_env();
+        set_test_env("MIKU_PUSH_UPLOAD_MAX_SIZE", "200");
+
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileRegister::test_limited(200)))
+                .app_data(web::Data::new(FileRegister::test()))
                 .service(post_file)
         ).await;
 
@@ -135,9 +147,10 @@ mod tests {
         let response = test::call_service(&app, request).await;
         let status_code = response.status().clone();
         let response_body = test::read_body(response).await;
-        let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
 
         assert_eq!(status_code, StatusCode::PAYLOAD_TOO_LARGE);
+
+        let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
         assert_eq!(response_body.code, file_upload_codes::MAX_FILE_SIZE_EXCEEDED_CODE);
     }
 }

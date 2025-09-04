@@ -1,5 +1,6 @@
 use log::debug;
 use serde::Deserialize;
+use crate::config::env;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Server {
@@ -11,8 +12,7 @@ pub struct Server {
 
 impl Server {
     pub fn host(&self) -> String {
-        let value = std::env::var("MIKU_PUSH_SERVER_HOST").ok();
-        if let Some(value) = value {
+        if let Some(value) = env("MIKU_PUSH_SERVER_HOST") {
             debug!("using env variable MIKU_PUSH_SERVER_HOST: {}", value);
             return value;
         }
@@ -29,8 +29,7 @@ impl Server {
     }
 
     pub fn port(&self) -> u16 {
-        let value = std::env::var("MIKU_PUSH_SERVER_PORT").ok();
-        if let Some(value) = value {
+        if let Some(value) = env("MIKU_PUSH_SERVER_PORT") {
             debug!("using env variable MIKU_PUSH_SERVER_PORT: {}", value);
             return value.parse().expect("Server port must be a number");
         }

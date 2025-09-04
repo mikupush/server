@@ -43,18 +43,22 @@ fn handle_get_download_error(err: FileReadError) -> HttpResponse {
 mod tests {
     use super::*;
     use crate::database::tests::create_test_database_connection;
-    use crate::routes::delete_file;
-    use crate::routes::utils::tests::create_test_file_upload;
+    use crate::routes::utils::tests::{create_test_file_upload, header_value};
     use actix_web::http::{Method, StatusCode};
     use actix_web::{test, App};
+    use serial_test::serial;
+    use crate::config::tests::setup_test_env;
 
     #[actix_web::test]
+    #[serial]
     async fn test_get_download_200_ok() {
+        setup_test_env();
+
         let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileReader::test(pool.clone())))
-                .service(delete_file)
+                .service(get_download)
         ).await;
 
         let (_, file_upload) = create_test_file_upload(pool.clone());
@@ -63,9 +67,9 @@ mod tests {
             .method(Method::GET)
             .to_request();
         let response = test::call_service(&app, request).await;
-        let content_length = response.headers().get("Content-Length").unwrap().to_str().unwrap().to_string();
-        let content_disposition = response.headers().get("Content-Disposition").unwrap().to_str().unwrap().to_string();
-        let content_type = response.headers().get("Content-Type").unwrap().to_str().unwrap().to_string();
+        let content_length = header_value("Content-Length", &response);
+        let content_disposition = header_value("Content-Disposition", &response);
+        let content_type = header_value("Content-Type", &response);
 
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(content_length, file_upload.size.to_string());

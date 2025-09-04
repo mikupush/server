@@ -87,30 +87,16 @@ impl FileUploader {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::{Settings, Upload};
+    use crate::config::Settings;
     use crate::database::DbPool;
     use crate::services::{FileSizeLimiter, FileUploader};
 
     impl FileUploader {
         pub fn test(pool: DbPool) -> Self {
-            let mut settings = Settings::default();
-            settings.upload = Upload::test_default();
-
             Self {
                 pool,
-                settings,
-                limiter: FileSizeLimiter::test_unlimited()
-            }
-        }
-
-        pub fn test_limited(pool: DbPool, max_size: u64) -> Self {
-            let mut settings = Settings::default();
-            settings.upload = Upload::with_size(max_size);
-
-            Self {
-                pool,
-                settings,
-                limiter: FileSizeLimiter::test_limited(max_size)
+                settings: Settings::default(),
+                limiter: FileSizeLimiter::test()
             }
         }
     }

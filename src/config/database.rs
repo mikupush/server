@@ -1,6 +1,6 @@
-use actix_web::cookie::time::format_description::parse;
 use log::debug;
 use serde::Deserialize;
+use crate::config::env;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct DataBase {
@@ -32,8 +32,7 @@ impl DataBase {
     }
 
     pub fn host(&self) -> String {
-        let value = std::env::var("MIKU_PUSH_DATABASE_HOST").ok();
-        if let Some(value) = value {
+        if let Some(value) = env("MIKU_PUSH_DATABASE_HOST") {
             debug!("using env variable MIKU_PUSH_DATABASE_HOST: {}", value);
             return value;
         }
@@ -50,8 +49,7 @@ impl DataBase {
     }
 
     pub fn port(&self) -> u16 {
-        let value = std::env::var("MIKU_PUSH_DATABASE_PORT").ok();
-        if let Some(value) = value {
+        if let Some(value) = env("MIKU_PUSH_DATABASE_PORT") {
             debug!("using env variable MIKU_PUSH_DATABASE_PORT: {}", value);
             return value.parse().expect("Database port must be a number");
         }
@@ -68,8 +66,7 @@ impl DataBase {
     }
 
     pub fn database(&self) -> String {
-        let value = std::env::var("MIKU_PUSH_DATABASE_NAME").ok();
-        if let Some(value) = value {
+        if let Some(value) = env("MIKU_PUSH_DATABASE_NAME") {
             debug!("using env variable MIKU_PUSH_DATABASE_NAME: {}", value);
             return value;
         }
@@ -86,8 +83,7 @@ impl DataBase {
     }
 
     pub fn user(&self) -> String {
-        let value = std::env::var("MIKU_PUSH_DATABASE_USER").ok();
-        if let Some(value) = value {
+        if let Some(value) = env("MIKU_PUSH_DATABASE_USER") {
             debug!("using env variable MIKU_PUSH_DATABASE_USER: {}", value);
             return value;
         }
@@ -104,8 +100,7 @@ impl DataBase {
     }
 
     pub fn password(&self) -> String {
-        let value = std::env::var("MIKU_PUSH_DATABASE_PASSWORD").ok();
-        if let Some(value) = value {
+        if let Some(value) = env("MIKU_PUSH_DATABASE_PASSWORD") {
             debug!("using env variable MIKU_PUSH_DATABASE_PASSWORD: {}", value);
             return value;
         }

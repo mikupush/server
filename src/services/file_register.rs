@@ -57,14 +57,7 @@ mod tests {
         pub fn test() -> Self {
             Self::new(
                 create_test_database_connection(),
-                FileSizeLimiter::test_unlimited()
-            )
-        }
-
-        pub fn test_limited(max_size: u64) -> Self {
-            Self::new(
-                create_test_database_connection(),
-                FileSizeLimiter::test_limited(max_size)
+                FileSizeLimiter::test()
             )
         }
     }

@@ -1,11 +1,11 @@
-use crate::errors::{Error, FileUploadError, RouteError};
+use crate::errors::route_error_helpers;
+use crate::errors::FileUploadError;
 use crate::routes::error_response::ErrorResponse;
 use crate::services::FileUploader;
 use actix_web::web::Payload;
 use actix_web::{post, web, HttpResponse, Result};
 use log::debug;
 use uuid::Uuid;
-use crate::errors::route_error_helpers;
 
 #[post("/api/file/{id}/upload")]
 pub async fn post_upload_file(
@@ -38,18 +38,19 @@ fn handle_post_upload_file_error(err: FileUploadError) -> HttpResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::tests::{set_test_env, setup_test_env};
     use crate::database::tests::create_test_database_connection;
-    use crate::database::DbPool;
-    use crate::model::FileUpload;
-    use crate::schema::file_uploads;
+    use crate::errors::{file_upload_codes, route_error_codes};
+    use crate::routes::utils::tests::register_test_file;
     use actix_web::http::{Method, StatusCode};
     use actix_web::{http::header::ContentType, test, App};
-    use chrono::Utc;
-    use diesel::RunQueryDsl;
-    use crate::errors::{file_upload_codes, route_error_codes};
+    use serial_test::serial;
 
     #[actix_web::test]
+    #[serial]
     async fn test_post_file_200_ok() {
+        setup_test_env();
+
         let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
@@ -70,7 +71,10 @@ mod tests {
     }
 
     #[actix_web::test]
+    #[serial]
     async fn test_post_file_400_bad_request_invalid_id() {
+        setup_test_env();
+
         let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
@@ -96,7 +100,10 @@ mod tests {
     }
 
     #[actix_web::test]
+    #[serial]
     async fn test_post_file_400_bad_request_incomplete_file() {
+        setup_test_env();
+
         let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
@@ -122,11 +129,15 @@ mod tests {
     }
 
     #[actix_web::test]
+    #[serial]
     async fn test_post_file_413_payload_too_large() {
+        setup_test_env();
+        set_test_env("MIKU_PUSH_UPLOAD_MAX_SIZE", "200");
+
         let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileUploader::test_limited(pool.clone(), 200)))
+                .app_data(web::Data::new(FileUploader::test(pool.clone())))
                 .service(post_upload_file)
         ).await;
 
@@ -141,18 +152,22 @@ mod tests {
         let response = test::call_service(&app, request).await;
         let status_code = response.status().clone();
         let response = test::read_body(response).await;
-        let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
 
         assert_eq!(status_code, StatusCode::PAYLOAD_TOO_LARGE);
+
+        let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
         assert_eq!(response.code, file_upload_codes::MAX_FILE_SIZE_EXCEEDED_CODE);
     }
 
     #[actix_web::test]
+    #[serial]
     async fn test_post_file_404_not_found() {
+        setup_test_env();
+
         let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileUploader::test_limited(pool.clone(), 200)))
+                .app_data(web::Data::new(FileUploader::test(pool.clone())))
                 .service(post_upload_file)
         ).await;
 
@@ -172,23 +187,4 @@ mod tests {
         assert_eq!(status_code, StatusCode::NOT_FOUND);
         assert_eq!(response.code, file_upload_codes::NOT_EXISTS_CODE);
     }
-
-    fn register_test_file(pool: DbPool) -> Uuid {
-        let file_upload = FileUpload {
-            id: Uuid::new_v4(),
-            name: format!("hatsune_miku_{}.jpg", Utc::now().timestamp()),
-            mime_type: "image/jpeg".to_string(),
-            size: 200792,
-            uploaded_at: Utc::now().naive_utc()
-        };
-
-        let mut connection = pool.get().unwrap();
-        diesel::insert_into(file_uploads::table)
-            .values(&file_upload)
-            .execute(&mut connection)
-            .unwrap();
-
-        file_upload.id
-    }
-
 }
