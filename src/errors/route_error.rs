@@ -1,10 +1,14 @@
 use crate::errors::Error;
-use std::fmt::{Display, Formatter};
+use std::fmt::{format, Display, Formatter};
 
 pub enum RouteError {
     InvalidPathParameter {
         name: String,
         reason: String,
+    },
+    InvalidRequestBody,
+    UnsupportedContentType {
+        desired_content_type: String,
     },
 }
 
@@ -18,18 +22,24 @@ impl Error for RouteError {
     fn code(&self) -> String {
         match self {
             Self::InvalidPathParameter { .. } => route_error_codes::INVALID_PATH_PARAMETER_CODE.to_string(),
+            Self::InvalidRequestBody => route_error_codes::INVALID_REQUEST_BODY_CODE.to_string(),
+            Self::UnsupportedContentType { .. } => route_error_codes::UNSUPPORTED_CONTENT_TYPE_CODE.to_string(),
         }
     }
 
     fn message(&self) -> String {
         match self {
             Self::InvalidPathParameter { name, reason } => format!("The parameter {} is invalid: {}", name, reason),
+            Self::InvalidRequestBody { .. } => "The request body provided is not valid".to_string(),
+            Self::UnsupportedContentType { desired_content_type } => format!("Content-Type header is not {}", desired_content_type),
         }
     }
 }
 
 pub mod route_error_codes {
     pub const INVALID_PATH_PARAMETER_CODE: &'static str = "InvalidPathParameter";
+    pub const INVALID_REQUEST_BODY_CODE: &'static str = "InvalidRequestBody";
+    pub const UNSUPPORTED_CONTENT_TYPE_CODE: &'static str = "UnsupportedContentType";
 }
 
 pub mod route_error_helpers {

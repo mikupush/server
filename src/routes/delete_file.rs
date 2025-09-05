@@ -33,9 +33,10 @@ fn handle_delete_file_failure(err: FileDeleteError) -> HttpResponse {
 
 #[cfg(test)]
 mod tests {
+    use crate::config::tests::setup_test_env;
     use crate::database::tests::create_test_database_connection;
     use crate::database::DbPool;
-    use crate::errors::file_delete_codes;
+    use crate::errors::{file_delete_codes, route_error_codes};
     use crate::model::FileUpload;
     use crate::routes::utils::tests::create_test_file_upload;
     use crate::routes::{delete_file, ErrorResponse};
@@ -44,6 +45,7 @@ mod tests {
     use actix_web::http::{Method, StatusCode};
     use actix_web::{test, web, App};
     use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
+    use serial_test::serial;
     use uuid::Uuid;
 
     #[actix_web::test]
@@ -88,6 +90,33 @@ mod tests {
 
         assert_eq!(status_code, StatusCode::NOT_FOUND);
         assert_eq!(response.code, file_delete_codes::NOT_EXISTS_CODE);
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_delete_file_400_bad_request_invalid_id() {
+        setup_test_env();
+
+        let pool = create_test_database_connection();
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(FileDeleter::test(pool.clone())))
+                .service(delete_file)
+        ).await;
+
+        let id = "invalid_uuid";
+        let request = test::TestRequest::default()
+            .uri(format!("/api/file/{id}").as_str())
+            .method(Method::DELETE)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let status_code = response.status().clone();
+        let response_body = test::read_body(response).await;
+
+        assert_eq!(status_code, StatusCode::BAD_REQUEST);
+
+        let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
+        assert_eq!(response_body.code, route_error_codes::INVALID_PATH_PARAMETER_CODE);
     }
 
     fn assert_file_upload_deleted_in_database(id: Uuid, pool: DbPool) {

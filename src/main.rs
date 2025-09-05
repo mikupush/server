@@ -11,6 +11,7 @@ mod errors;
 
 use config::Settings;
 use crate::database::create_database_connection;
+use crate::routes::json_error_handler;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -32,6 +33,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            .app_data(web::JsonConfig::default().error_handler(json_error_handler))
             .app_data(web::Data::new(settings_clone.clone()))
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(registerer.clone()))

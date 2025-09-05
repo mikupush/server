@@ -1,5 +1,5 @@
 use crate::errors::FileUploadError;
-use crate::routes::error_response::ErrorResponse;
+use crate::routes::error::ErrorResponse;
 use crate::services::FileRegister;
 use actix_web::{post, web, HttpResponse, Result};
 use log::debug;
@@ -49,10 +49,11 @@ fn handle_register_file_failure(request: FileCreate, err: FileUploadError) -> Ht
 mod tests {
     use super::*;
     use crate::config::tests::{set_test_env, setup_test_env};
-    use crate::errors::file_upload_codes;
+    use crate::errors::{file_upload_codes, route_error_codes};
     use actix_web::http::{Method, StatusCode};
     use actix_web::{http::header::ContentType, test, App};
     use serial_test::serial;
+    use crate::routes::json_error_handler;
 
     #[actix_web::test]
     #[serial]
@@ -152,5 +153,43 @@ mod tests {
 
         let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
         assert_eq!(response_body.code, file_upload_codes::MAX_FILE_SIZE_EXCEEDED_CODE);
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_post_file_400_bad_request() {
+        setup_test_env();
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::JsonConfig::default().error_handler(json_error_handler))
+                .app_data(web::Data::new(FileRegister::test()))
+                .service(post_file)
+        ).await;
+
+        let body = r#"
+        {
+            "id": "invalid_id",
+            "name": "hatsune_miku.jpg",
+            "mime_type": "image/jpeg",
+            "size": 200792
+        }
+        "#;
+        let request = test::TestRequest::default()
+            .uri("/api/file")
+            .method(Method::POST)
+            .insert_header(ContentType::json())
+            .set_payload(body)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let status_code = response.status().clone();
+        let response_body = test::read_body(response).await;
+        println!("status code: {:?}", status_code.clone());
+        println!("response_body: {:?}", response_body);
+
+        assert_eq!(status_code, StatusCode::BAD_REQUEST);
+
+        let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
+        assert_eq!(response_body.code, route_error_codes::INVALID_REQUEST_BODY_CODE);
     }
 }

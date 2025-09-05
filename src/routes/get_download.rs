@@ -48,6 +48,7 @@ mod tests {
     use actix_web::{test, App};
     use serial_test::serial;
     use crate::config::tests::setup_test_env;
+    use crate::errors::{file_read_codes, route_error_codes};
 
     #[actix_web::test]
     #[serial]
@@ -75,5 +76,59 @@ mod tests {
         assert_eq!(content_length, file_upload.size.to_string());
         assert_eq!(content_disposition, format!("inline; filename=\"{}\"", file_upload.name));
         assert_eq!(content_type, file_upload.mime_type);
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_404_not_found() {
+        setup_test_env();
+
+        let pool = create_test_database_connection();
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(FileReader::test(pool.clone())))
+                .service(get_download)
+        ).await;
+
+        let id = Uuid::new_v4();
+        let request = test::TestRequest::default()
+            .uri(format!("/u/{}", id.clone()).as_str())
+            .method(Method::GET)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let status_code = response.status().clone();
+        let response_body = test::read_body(response).await;
+
+        assert_eq!(status_code, StatusCode::NOT_FOUND);
+
+        let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
+        assert_eq!(response_body.code, file_read_codes::NOT_EXISTS_CODE);
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_400_bad_request_invalid_id() {
+        setup_test_env();
+
+        let pool = create_test_database_connection();
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(FileReader::test(pool.clone())))
+                .service(get_download)
+        ).await;
+
+        let id = "invalid_uuid";
+        let request = test::TestRequest::default()
+            .uri(format!("/u/{}", id.clone()).as_str())
+            .method(Method::GET)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let status_code = response.status().clone();
+        let response_body = test::read_body(response).await;
+
+        assert_eq!(status_code, StatusCode::BAD_REQUEST);
+
+        let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
+        assert_eq!(response_body.code, route_error_codes::INVALID_PATH_PARAMETER_CODE);
     }
 }

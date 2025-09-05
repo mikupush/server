@@ -1,15 +1,15 @@
 #[cfg(test)]
 pub mod tests {
-    use std::path::{Path, PathBuf};
-    use std::sync::Mutex;
-    use actix_web::dev::ServiceResponse;
-    use chrono::Utc;
-    use diesel::RunQueryDsl;
-    use uuid::Uuid;
     use crate::config::Upload;
     use crate::database::DbPool;
     use crate::model::FileUpload;
     use crate::schema::file_uploads;
+    use actix_web::dev::ServiceResponse;
+    use chrono::Utc;
+    use diesel::RunQueryDsl;
+    use std::path::{Path, PathBuf};
+    use std::sync::Mutex;
+    use uuid::Uuid;
 
     // used to give unique prefix to the test file
     static TEST_FILE_COUNT: Mutex<i32> = Mutex::new(0);
