@@ -78,6 +78,8 @@ diesel migration run
 
 Before run tests, make sure you have set up the PostgresSQL container and ran the database migrations.
 
+And ensure you have the `.env` file, if you want to have a different file for tests, you can create a `.env.test` file.
+
 ```sh
 cargo test
 ```
