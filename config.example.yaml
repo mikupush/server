@@ -43,6 +43,5 @@ upload:
   max_size: 5000000000 # 5GB
   # Directory where uploaded files are stored.
   # Can be a relative or absolute path.
-  # Alternatively, you can use MIKU_PUSH_UPLOAD_DIRECTOR environment variableY to override this value.
   # Default value: data
   directory: data
