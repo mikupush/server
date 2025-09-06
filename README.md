@@ -1,9 +1,56 @@
 # Mikupush server
 
-## Usage
+## Installation
+
 ### Prerequisites
 
 * PostgresSQL Server 17.6
+
+### Bare metal
+
+TODO
+
+### Docker
+
+The official Docker image is `mikupush/server`. The container listens on port 8080 by default. For configuration details and precedence (YAML vs environment variables), see the [Configuration section](#configuration).
+
+Remember to create the `config.yaml` file if you don't have it. You can use the `config.example.yaml` file as a template.
+
+```sh
+curl -L https://raw.githubusercontent.com/mikupush/server/main/config.example.yaml -o config.yaml
+```
+
+Then you can run the container:
+
+```sh
+docker run -d \
+  --name mikupush-server \
+  -p 8080:8080 \
+  -v "./data:/data" \
+  -v "./config.yaml:/config.yaml:ro" \
+  mikupush/server:latest
+```
+
+You can use environment variables instead of `config.yaml`, or use both using environment variables for overrides.
+Refer to the [Configuration section](#configuration) for how to provide settings via `config.yaml` or environment variables.
+
+#### Docker Compose
+
+You can use Docker Compose to run the server in a container.
+Write a `docker-compose.yml` file like this:
+
+```yaml
+services:
+  server:
+    image: mikupush/server:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+      - ./config.yaml:/config.yaml:ro
+```
+
+## Usage
 
 ## Configuration
 
