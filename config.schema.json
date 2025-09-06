@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/mikupush/config.schema.json",
+  "title": "MikuPush Server Configuration",
+  "description": "Configuration schema for MikuPush server. Values can be overridden by environment variables as documented in config.example.yaml.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "server": {
+      "type": "object",
+      "title": "HTTP API server configuration",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "IP address or hostname where the server will listen for connections. Alternatively, you can use MIKU_PUSH_SERVER_HOST to override this value.",
+          "default": "0.0.0.0",
+          "examples": ["0.0.0.0", "127.0.0.1", "localhost"]
+        },
+        "port": {
+          "type": "integer",
+          "description": "Server TCP port. Alternatively, you can use MIKU_PUSH_SERVER_PORT to override this value.",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 8080,
+          "examples": [8080, 3000, 8000]
+        }
+      }
+    },
+    "database": {
+      "type": "object",
+      "title": "Database configuration (PostgreSQL)",
+      "description": "Effective URL is built as: postgresql://<user>:<password>@<host>:<port>/<database>",
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Hostname or IP of the PostgreSQL server. Alternatively, you can use MIKU_PUSH_DATABASE_HOST to override this value.",
+          "default": "localhost",
+          "examples": ["localhost", "127.0.0.1"]
+        },
+        "port": {
+          "type": "integer",
+          "description": "Port of the PostgreSQL server. Alternatively, you can use MIKU_PUSH_DATABASE_PORT to override this value.",
+          "minimum": 1,
+          "maximum": 65535,
+          "default": 5432,
+          "examples": [5432]
+        },
+        "database": {
+          "type": "string",
+          "description": "Name of the database to connect to. Alternatively, you can use MIKU_PUSH_DATABASE_NAME to override this value.",
+          "default": "postgres",
+          "examples": ["postgres", "mikupush"]
+        },
+        "user": {
+          "type": "string",
+          "description": "Database user. Alternatively, you can use MIKU_PUSH_DATABASE_USER to override this value.",
+          "default": "postgres",
+          "examples": ["postgres", "app"]
+        },
+        "password": {
+          "type": "string",
+          "description": "Database user password. Alternatively, you can use MIKU_PUSH_DATABASE_PASSWORD to override this value.",
+          "default": "postgres"
+        }
+      }
+    },
+    "upload": {
+      "type": "object",
+      "title": "File upload configuration",
+      "additionalProperties": false,
+      "properties": {
+        "max_size": {
+          "description": "Maximum allowed upload size in bytes. If not set, or is set unlimited, there is no limit. Alternatively, you can use MIKU_PUSH_UPLOAD_MAX_SIZE to override this value (number in bytes or 'unlimited').",
+          "oneOf": [
+            { "type": "integer", "minimum": 0 },
+            { "type": "null" }
+          ],
+          "examples": [5000000000]
+        },
+        "directory": {
+          "type": "string",
+          "description": "Directory where uploaded files are stored. Can be a relative or absolute path. Alternatively, you can use MIKU_PUSH_UPLOAD_DIRECTORY to override this value.",
+          "default": "data",
+          "examples": ["data", "./data", "/var/lib/mikupush"]
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "server": { "host": "0.0.0.0", "port": 8080 },
+      "database": { "host": "localhost", "port": 5432, "database": "postgres", "user": "postgres", "password": "postgres" },
+      "upload": { "max_size": 5000000000, "directory": "data" }
+    }
+  ]
+}

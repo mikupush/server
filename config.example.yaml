@@ -1,17 +1,48 @@
+# HTTP API server configuration.
 server:
+  # IP address or hostname where the server will listen for connections.
+  # Alternatively, you can use MIKU_PUSH_SERVER_HOST environment variable to override this value.
+  # Default value if not specified: 0.0.0.0
   host: 0.0.0.0
+  # Server TCP port.
+  # Alternatively, you can use MIKU_PUSH_SERVER_PORT environment variable to override this value.
+  # Default value if not specified: 8080
   port: 8080
 
+# Database configuration (PostgresSQL)
+# Note: the effective URL is built as
+#   postgresql://<user>:<password>@<host>:<port>/<database>
 database:
+  # Hostname or IP of the PostgreSQL server.
+  # Alternatively, you can use MIKU_PUSH_DATABASE_HOST environment variable to override this value.
+  # Default value: localhost
   host: localhost
+  # Port of the PostgreSQL server.
+  # Alternatively, you can use MIKU_PUSH_DATABASE_PORT environment variable to override this value.
+  # Default value: 5432
   port: 5432
+  # Name of the database to connect to.
+  # Alternatively, you can use MIKU_PUSH_DATABASE_NAME environment variable to override this value.
+  # Default value: postgres
   database: postgres
+  # Database user.
+  # Alternatively, you can use MIKU_PUSH_DATABASE_USER environment variable to override this value.
+  # Default value: postgres
   user: postgres
+  # Database user password.
+  # Alternatively, you can use MIKU_PUSH_DATABASE_PASSWORD environment variable to override this value.
+  # Default value: postgres
   password: postgres
 
+# File upload configuration
 upload:
-  # Optional, if not set, the default is unlimited
+  # Maximum allowed upload size in bytes.
+  # If not set, or is set unlimited, there is no limit.
+  # Alternatively, you can use MIKU_PUSH_UPLOAD_MAX_SIZE environment variable to override this value (number in bytes or "unlimited").
+  # Example: 5000000000 for 5GB
   max_size: 5000000000 # 5GB
-  # The directory where uploaded files where stored,
-  # can be a relative or absolute path, default is the data directory
+  # Directory where uploaded files are stored.
+  # Can be a relative or absolute path.
+  # Alternatively, you can use MIKU_PUSH_UPLOAD_DIRECTOR environment variableY to override this value.
+  # Default value: data
   directory: data
