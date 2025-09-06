@@ -3,6 +3,16 @@ services:
     build: .
     ports:
       - "8080:8080"
+    volumes:
+      - ./data:/data
+      - ./config.yaml:/config.yaml:ro
+    environment:
+      RUST_LOG: debug
+      MIKU_PUSH_DATABASE_HOST: postgres
+      MIKU_PUSH_DATABASE_PORT: 5432
+      MIKU_PUSH_DATABASE_NAME: miku_push
+      MIKU_PUSH_DATABASE_USER: miku_push
+      MIKU_PUSH_DATABASE_PASSWORD: miku_push
 
   postgres:
     image: postgres:17.6

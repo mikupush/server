@@ -22,6 +22,8 @@ ENV RUST_BACKTRACE=0
 ENV RUST_LOG=info
 
 COPY --from=build /builder/target/release/mikupush-server .
+COPY --from=build /builder/static static
+COPY --from=build /builder/templates templates
 RUN chmod +x /app/mikupush-server
 
 ENTRYPOINT ["/app/mikupush-server"]
