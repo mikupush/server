@@ -4,9 +4,11 @@ mod delete_file;
 mod get_download;
 mod error;
 mod utils;
+mod health;
 
 pub use post_file::*;
 pub use post_upload_file::*;
 pub use delete_file::*;
 pub use get_download::*;
 pub use error::*;
+pub use health::*;

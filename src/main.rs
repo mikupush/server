@@ -1,4 +1,5 @@
 use actix_web::{web, App, HttpServer};
+use actix_files as fs;
 
 mod routes;
 mod config;
@@ -39,10 +40,12 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(registerer.clone()))
             .app_data(web::Data::new(uploader.clone()))
             .app_data(web::Data::new(deleter.clone()))
+            .service(fs::Files::new("/static", "static"))
             .service(routes::post_file)
             .service(routes::delete_file)
             .service(routes::post_upload_file)
             .service(routes::get_download)
+            .service(routes::health)
     })
     .bind((settings.server.host(), settings.server.port()))?
     .run()

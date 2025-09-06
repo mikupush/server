@@ -130,6 +130,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /health:
+    get:
+      summary: Health check
+      description: |
+        Health check endpoint that returns status in different formats
+        based on the Accept header:
+        - `application/json`: Returns JSON with health status
+        - `text/html`: Returns HTML page with health status
+
+        For now it only check the database connection executing the 'SELECT 1' query.
+      parameters:
+        - name: Accept
+          in: header
+          description: Preferred content type for the response
+          required: false
+          schema:
+            type: string
+            enum:
+              - "application/json"
+              - "text/html"
+            default: "text/html"
+      responses:
+        '200':
+          description: Service health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+            example:
+              status: up
+            text/html:
+              schema:
+                type: string
+                format: html
+              description: Healthy service HTML page
+        '500':
+          description: Service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              example:
+                status: down
+            text/html:
+              schema:
+                type: string
+                format: html
+              description: Unhealthy status HTML page
 
 components:
   schemas:
@@ -165,3 +213,13 @@ components:
           type: integer
           format: int64
           example: 3145728
+    HealthStatus:
+      required:
+        - status
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - "up"
+            - "down"
