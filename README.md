@@ -17,7 +17,7 @@ The official Docker image is `mikupush/server`. The container listens on port 80
 Remember to create the `config.yaml` file if you don't have it. You can use the `config.example.yaml` file as a template.
 
 ```sh
-curl -L https://raw.githubusercontent.com/mikupush/server/main/config.example.yaml -o config.yaml
+curl -L https://raw.githubusercontent.com/mikupush/server/refs/heads/main/config.example.yaml -o config.yaml
 ```
 
 Then you can run the container:
