@@ -8,3 +8,4 @@ config.*.yaml
 !config.example.yaml
 data
 docker-compose.*.yml
+.junie
