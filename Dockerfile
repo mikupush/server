@@ -8,7 +8,7 @@ RUN cargo build --release
 
 FROM debian:bookworm-slim
 
-WORKDIR /app
+WORKDIR /srv
 
 RUN apt update && apt install -y \
     libssl3 \
@@ -24,6 +24,6 @@ ENV RUST_LOG=info
 COPY --from=build /builder/target/release/mikupush-server .
 COPY --from=build /builder/static static
 COPY --from=build /builder/templates templates
-RUN chmod +x /app/mikupush-server
+RUN chmod +x /srv/mikupush-server
 
-ENTRYPOINT ["/app/mikupush-server"]
+ENTRYPOINT ["/srv/mikupush-server"]

@@ -16,7 +16,6 @@ use crate::routes::json_error_handler;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    #[cfg(debug_assertions)]
     env_logger::init();
 
     // app settings

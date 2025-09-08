@@ -5,7 +5,7 @@ services:
       - "8080:8080"
     volumes:
       - ./data:/data
-      - ./config.yaml:/config.yaml:ro
+      - ./config.yaml:/srv/config.yaml:ro
     environment:
       RUST_LOG: debug
       MIKU_PUSH_DATABASE_HOST: postgres
