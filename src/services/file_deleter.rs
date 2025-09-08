@@ -1,5 +1,6 @@
 use std::path::Path;
 use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
+use log::debug;
 use uuid::Uuid;
 use crate::config::Settings;
 use crate::database::DbPool;
@@ -19,6 +20,7 @@ impl FileDeleter {
     }
 
     pub fn delete(&self, id: Uuid) -> Result<(), FileDeleteError> {
+        debug!("deleting file with id: {}", id.to_string());
         let mut connection = self.pool.get()?;
         let file_upload: Option<FileUpload> = file_uploads::table
             .find(id)
@@ -26,6 +28,7 @@ impl FileDeleter {
             .optional()?;
 
         let Some(file_upload) = file_upload else {
+            debug!("file with id {} does not exist on the database", id.to_string());
             return Err(FileDeleteError::NotExists { id });
         };
 
@@ -33,9 +36,11 @@ impl FileDeleter {
         let path = Path::new(&directory).join(file_upload.name);
 
         if path.exists() {
+            debug!("deleting file from the filesystem: {} ({})", path.display(), id.to_string());
             std::fs::remove_file(path)?;
         }
 
+        debug!("deleting file from the database: {}", id.to_string());
         diesel::delete(file_uploads::table.find(id))
             .execute(&mut connection)?;
 
