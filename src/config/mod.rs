@@ -10,7 +10,7 @@ pub use upload::*;
 
 use log::debug;
 use std::collections::{HashMap, VecDeque};
-use std::sync::{LazyLock, Mutex};
+use std::sync::{LazyLock, Mutex, Once};
 
 fn load_dotenv() -> HashMap<String, String> {
     let mut env_files: VecDeque<&str> = VecDeque::new();
@@ -42,6 +42,9 @@ fn load_dotenv() -> HashMap<String, String> {
     HashMap::new()
 }
 
+static DOTENV_LOADED: Once = Once::new();
+static DOTENV_VARS: LazyLock<Mutex<HashMap<String, String>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+
 #[cfg(test)]
 static TEST_ENV: LazyLock<Mutex<HashMap<String, String>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
@@ -55,7 +58,12 @@ fn env(name: &str) -> Option<String> {
         }
     }
 
-    let dotenv_vars = load_dotenv();
+    DOTENV_LOADED.call_once(|| {
+        let dotenv_vars = load_dotenv();
+        *DOTENV_VARS.lock().unwrap() = dotenv_vars;
+    });
+
+    let dotenv_vars = DOTENV_VARS.lock().unwrap();
     if let Some(value) = dotenv_vars.get(name) {
         return Some(value.to_string());
     }
