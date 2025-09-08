@@ -13,6 +13,7 @@ use std::io::Read;
 use log::{debug, warn};
 use uuid::Uuid;
 
+#[derive(Debug, Clone)]
 pub struct FileReader {
     pool: DbPool,
     settings: Settings,
