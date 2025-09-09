@@ -49,6 +49,43 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
   /api/file/{id}:
+    get:
+      summary: Get registered file info
+      description: Get registered file info
+      operationId: getFile
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: acdb1260-d4de-4aab-a3a9-02665ae25771
+      responses:
+        200:
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileInfo'
+        400:
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        404:
+          description: File upload not exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     delete:
       summary: Delete a file upload
       description: Delete a file upload
@@ -213,6 +250,38 @@ components:
           type: integer
           format: int64
           example: 3145728
+    FileInfo:
+      required:
+        - id
+        - name
+        - mime_type
+        - size
+        - status
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: acdb1260-d4de-4aab-a3a9-02665ae25771
+        name:
+          type: string
+          example: dogs.jpeg
+        mime_type:
+          type: string
+          example: image/jpeg
+        size:
+          type: integer
+          format: int64
+          example: 3145728
+        uploaded_at:
+          type: string
+          format: date-time
+          example: "2021-09-29T12:00:00Z"
+        status:
+          type: string
+          enum:
+            - WaitingForUpload
+            - Uploaded
     HealthStatus:
       required:
         - status

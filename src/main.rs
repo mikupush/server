@@ -31,6 +31,7 @@ async fn main() -> std::io::Result<()> {
     let uploader = services::FileUploader::new(pool.clone(), settings.clone(), limiter.clone());
     let deleter = services::FileDeleter::new(pool.clone(), settings.clone());
     let reader = services::FileReader::new(pool.clone(), settings.clone());
+    let finder = services::FileInfoFinder::new(pool.clone(), settings.clone());
 
     HttpServer::new(move || {
         App::new()
@@ -41,6 +42,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(uploader.clone()))
             .app_data(web::Data::new(deleter.clone()))
             .app_data(web::Data::new(reader.clone()))
+            .app_data(web::Data::new(finder.clone()))
             .service(fs::Files::new("/static", "static"))
             .service(routes::post_file)
             .service(routes::delete_file)

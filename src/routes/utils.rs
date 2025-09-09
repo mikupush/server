@@ -39,7 +39,7 @@ pub mod tests {
         (path, file_upload)
     }
 
-    pub fn register_test_file(pool: DbPool) -> Uuid {
+    pub fn register_test_file(pool: DbPool) -> FileUpload {
         let file_upload = FileUpload {
             id: Uuid::new_v4(),
             name: format!("hatsune_miku_{}.jpg", Utc::now().timestamp()),
@@ -54,7 +54,7 @@ pub mod tests {
             .execute(&mut connection)
             .unwrap();
 
-        file_upload.id
+        file_upload
     }
 
     pub fn header_value(header: &str, response: &ServiceResponse) -> String {

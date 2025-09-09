@@ -58,10 +58,10 @@ mod tests {
                 .service(post_upload_file)
         ).await;
 
-        let id = register_test_file(pool.clone());
+        let file_upload = register_test_file(pool.clone());
         let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
         let request = test::TestRequest::default()
-            .uri(format!("/api/file/{id}/upload").as_str())
+            .uri(format!("/api/file/{}/upload", file_upload.id).as_str())
             .method(Method::POST)
             .insert_header(ContentType::octet_stream())
             .set_payload(file_content)
@@ -111,10 +111,10 @@ mod tests {
                 .service(post_upload_file)
         ).await;
 
-        let id = register_test_file(pool.clone());
+        let file_upload = register_test_file(pool.clone());
         let bytes = vec![1u8; 100];
         let request = test::TestRequest::default()
-            .uri(format!("/api/file/{id}/upload").as_str())
+            .uri(format!("/api/file/{}/upload", file_upload.id).as_str())
             .method(Method::POST)
             .insert_header(ContentType::octet_stream())
             .set_payload(bytes)
@@ -141,10 +141,10 @@ mod tests {
                 .service(post_upload_file)
         ).await;
 
-        let id = register_test_file(pool.clone());
+        let file_upload = register_test_file(pool.clone());
         let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
         let request = test::TestRequest::default()
-            .uri(format!("/api/file/{id}/upload").as_str())
+            .uri(format!("/api/file/{}/upload", file_upload.id).as_str())
             .method(Method::POST)
             .insert_header(ContentType::octet_stream())
             .set_payload(file_content)
