@@ -49,6 +49,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::post_upload_file)
             .service(routes::get_download)
             .service(routes::health)
+            .service(routes::get_file_info)
     })
     .bind((settings.server.host(), settings.server.port()))?
     .run()
