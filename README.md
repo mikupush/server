@@ -156,10 +156,12 @@ RUST_LOG=debug cargo run
 
 * Docker
 * Docker compose
+* Diesel CLI
 
-### Run Database Migrations
+### Creating database migrations
 
-Create the PostgresSQL container first.
+For create database migrations, you must use Diesel CLI.
+Make sure you have a PostgresSQL container running. You can use Docker Compose to run it.
 
 ```sh
 docker compose up -d postgres
@@ -177,6 +179,13 @@ Create the `.env` file
 
 ```sh
 cp .env.example .env
+```
+
+Create the database migration
+
+```sh
+# for example
+diesel migration generate create_file_uploads
 ```
 
 Run the database migrations
