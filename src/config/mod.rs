@@ -16,13 +16,15 @@ mod database;
 mod server;
 mod settings;
 mod upload;
+mod logging;
 
 pub use database::*;
 pub use server::*;
 pub use settings::*;
 pub use upload::*;
+pub use logging::*;
 
-use log::debug;
+use tracing::debug;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{LazyLock, Mutex, Once};
 

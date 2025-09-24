@@ -17,7 +17,7 @@ use crate::routes::ErrorResponse;
 use crate::services::FileDeleter;
 use actix_web::error::Result;
 use actix_web::{delete, web, HttpResponse};
-use log::debug;
+use tracing::debug;
 use uuid::Uuid;
 
 #[delete("/api/file/{id}")]

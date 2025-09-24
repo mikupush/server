@@ -16,7 +16,7 @@ use crate::errors::{route_error_helpers, FileReadError};
 use crate::routes::ErrorResponse;
 use crate::services::{FileReadStream, FileReader};
 use actix_web::{get, web, HttpResponse, Result};
-use log::debug;
+use tracing::debug;
 use uuid::Uuid;
 
 #[get("/u/{id}")]

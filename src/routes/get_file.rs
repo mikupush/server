@@ -17,7 +17,7 @@ use crate::routes::ErrorResponse;
 use crate::services::FileInfoFinder;
 use actix_web::error::Result;
 use actix_web::{get, web, HttpResponse};
-use log::debug;
+use tracing::debug;
 use uuid::Uuid;
 
 #[get("/api/file/{id}")]

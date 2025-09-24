@@ -14,7 +14,7 @@
 
 use std::path::Path;
 use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
-use log::debug;
+use tracing::debug;
 use uuid::Uuid;
 use crate::config::Settings;
 use crate::database::DbPool;

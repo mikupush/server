@@ -16,7 +16,7 @@ use crate::errors::FileUploadError;
 use crate::routes::error::ErrorResponse;
 use crate::services::FileRegister;
 use actix_web::{post, web, HttpResponse, Result};
-use log::debug;
+use tracing::debug;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

@@ -14,6 +14,7 @@
 
 use actix_web::{web, App, HttpServer};
 use actix_files as fs;
+use tracing_log::LogTracer;
 
 mod routes;
 mod config;
@@ -23,18 +24,21 @@ mod schema;
 mod serialization;
 mod services;
 mod errors;
+mod logging;
 
 use config::Settings;
 use crate::database::create_database_connection;
+use crate::logging::configure_logging;
 use crate::routes::json_error_handler;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    env_logger::init();
-
     // app settings
     let settings = Settings::load();
     let settings_clone = settings.clone();
+
+    // logging config
+    configure_logging(settings.clone());
 
     // database connection pool
     let pool = create_database_connection(settings.clone());

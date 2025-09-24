@@ -18,7 +18,7 @@ use crate::routes::error::ErrorResponse;
 use crate::services::FileUploader;
 use actix_web::web::Payload;
 use actix_web::{post, web, HttpResponse, Result};
-use log::debug;
+use tracing::debug;
 use uuid::Uuid;
 
 #[post("/api/file/{id}/upload")]

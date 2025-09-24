@@ -16,7 +16,7 @@ use crate::database::DbPool;
 use actix_web::{get, web, HttpRequest, HttpResponse};
 use actix_web::http::header::HeaderValue;
 use diesel::{sql_query, RunQueryDsl};
-use log::{debug, warn};
+use tracing::{debug, warn};
 use serde_json::json;
 
 const ANY_CONTENT_TYPE: &'static str = "*/*";

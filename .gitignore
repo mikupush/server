@@ -9,3 +9,5 @@ config.*.yaml
 data
 docker-compose.*.yml
 .junie
+*.log
+*.log.*

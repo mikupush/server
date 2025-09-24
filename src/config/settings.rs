@@ -15,14 +15,16 @@
 use std::fs::File;
 use std::path::PathBuf;
 use serde::Deserialize;
-use log::{debug, warn};
-use crate::config::{DataBase, Server};
+use tracing::{debug, warn};
+use crate::config::{DataBase, LoggingConfig, Server};
 use crate::config::upload::Upload;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Settings {
     #[serde(default)]
     pub server: Server,
+    #[serde(default)]
+    pub log: LoggingConfig,
     #[serde(default)]
     pub database: DataBase,
     #[serde(default)]
@@ -65,19 +67,27 @@ impl Settings {
     }
 
     fn resolve_path() -> Option<PathBuf> {
-        let mut paths: Vec<PathBuf> = vec![];
-
-        paths.push(
-            dirs::home_dir().unwrap()
-                .join(".config")
-                .join("mikupush-server")
-                .join("config.yaml")
-        );
-
         #[cfg(target_os = "linux")]
-        paths.push(PathBuf::from("/etc/mikupush-server/config.yaml"));
+        let paths: Vec<PathBuf> = vec![
+            PathBuf::from("config.yaml"),
+            PathBuf::from(format!("{}/.io.mikupush.server/config.yaml", env!("HOME"))),
+            PathBuf::from(format!("{}/.config/io.mikupush.server/config.yaml", env!("HOME"))),
+            PathBuf::from("/etc/io.mikupush.server/config.yaml"),
+        ];
 
-        paths.push(PathBuf::from("config.yaml"));
+        #[cfg(target_os = "windows")]
+        let paths: Vec<PathBuf> = vec![
+            PathBuf::from("config.yaml"),
+            PathBuf::from(format!("{}\\AppData\\Local\\io.mikupush.server", env!("LOCALAPPDATA"))),
+        ];
+
+        #[cfg(target_os = "macos")]
+        let paths: Vec<PathBuf> = vec![
+            PathBuf::from("config.yaml"),
+            PathBuf::from(format!("{}/.io.mikupush.server/config.yaml", env!("HOME"))),
+            PathBuf::from(format!("{}/.config/io.mikupush.server/config.yaml", env!("HOME"))),
+            PathBuf::from(format!("{}/Library/Application Support/io.mikupush.server/config.yaml", env!("HOME"))),
+        ];
 
         let mut existing_path = None;
         for path in paths {
@@ -101,8 +111,9 @@ impl Default for Settings {
 
         Settings {
             server: Server::default(),
+            log: LoggingConfig::default(),
             database: DataBase::default(),
-            upload: Upload::default()
+            upload: Upload::default(),
         }
     }
 }

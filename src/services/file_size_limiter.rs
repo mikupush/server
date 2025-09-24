@@ -12,7 +12,7 @@
 /// See the License for the specific language governing permissions and
 /// limitations under the License.
 
-use log::debug;
+use tracing::debug;
 use crate::config::Settings;
 use crate::errors::FileUploadError;
 

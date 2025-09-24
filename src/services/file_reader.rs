@@ -24,7 +24,7 @@ use std::task::{Context, Poll};
 use futures::Stream;
 use std::fs::File;
 use std::io::Read;
-use log::{debug, warn};
+use tracing::{debug, warn};
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]

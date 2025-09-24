@@ -15,7 +15,7 @@
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
-use log::error;
+use tracing::error;
 use crate::config::Settings;
 
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;

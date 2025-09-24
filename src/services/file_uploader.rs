@@ -22,7 +22,7 @@ use crate::services::FileSizeLimiter;
 use actix_web::web::Payload;
 use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
 use futures::StreamExt;
-use log::debug;
+use tracing::debug;
 use uuid::Uuid;
 use crate::config::Settings;
 use crate::model::FileUpload;

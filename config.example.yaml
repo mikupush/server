@@ -9,6 +9,38 @@ server:
   # Default value if not specified: 8080
   port: 8080
 
+# Logging configuration.
+log:
+  # Log level.
+  # Possible values: trace, debug, info, warn, error.
+  # Alternatively, you can use MIKU_PUSH_LOG_LEVEL environment variable to override this value.
+  # Default value if not specified: info
+  level: info
+  # Log output.
+  # Possible values:
+  # - console: outputs to stdout
+  # - file: outputs to a file
+  # Alternatively, you can use MIKU_PUSH_LOG_OUTPUT environment variable to override this value.
+  # Default value if not specified: console
+  output: console
+  # Log file name.
+  # It configures the log file name if the output is set to file.
+  # Alternatively, you can use MIKU_PUSH_LOG_FILE environment variable to override this value.
+  file: server.log
+  # Log directory.
+  # It configures the log directory if the output is set to file.
+  # Alternatively, you can use MIKU_PUSH_LOG_DIRECTORY environment variable to override this value.
+  # The default log directory is specific by platform if not specified:
+  # - Linux: /var/log/io.mikupush.server
+  # - macOS: /usr/local/var/log/io.mikupush.server
+  # - Windows: %LOCALAPPDATA%\io.mikupush.server\logs
+  directory: /var/log/io.mikupush.server
+  # JSON log format.
+  # If set to true, the log format is JSON.
+  # Alternatively, you can use MIKU_PUSH_LOG_JSON environment variable to override this value.
+  # Default value if not specified: false
+  json: false
+
 # Database configuration (PostgresSQL)
 # Note: the effective URL is built as
 #   postgresql://<user>:<password>@<host>:<port>/<database>
