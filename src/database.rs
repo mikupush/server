@@ -14,30 +14,36 @@
 
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use log::error;
 use crate::config::Settings;
 
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 
+const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
+
 pub fn create_database_connection(settings: Settings) -> DbPool {
     let manager = ConnectionManager::<PgConnection>::new(settings.database.url());
-    Pool::builder().build(manager).unwrap_or_else(|err| {
+    let pool = Pool::builder().build(manager).unwrap_or_else(|err| {
         error!("Error creating database connection pool: {}", err);
         panic!("Error creating pool: {}", err)
-    })
+    });
+
+    let mut connection = pool.get().expect("Error connecting to database");
+
+    connection.run_pending_migrations(MIGRATIONS)
+        .expect("Error running migrations");
+
+    pool
 }
 
 #[cfg(test)]
 pub mod tests {
-    use diesel::PgConnection;
-    use diesel::r2d2::ConnectionManager;
-    use r2d2::Pool;
     use crate::config::Settings;
-    use crate::database::DbPool;
+    use crate::database::{create_database_connection, DbPool};
 
     pub fn create_test_database_connection() -> DbPool {
         let settings = Settings::load();
-        let manager = ConnectionManager::<PgConnection>::new(settings.database.url());
-        Pool::builder().build(manager).unwrap()
+        create_database_connection(settings)
     }
 }
