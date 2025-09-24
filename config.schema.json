@@ -27,6 +27,39 @@
         }
       }
     },
+    "log": {
+      "type": "object",
+      "title": "Logging configuration",
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string",
+          "description": "Log level. Alternatively, you can use MIKU_PUSH_LOG_LEVEL to override this value.",
+          "enum": ["trace", "debug", "info", "warn", "error"],
+          "default": "info"
+        },
+        "output": {
+          "type": "string",
+          "description": "Log output. Alternatively, you can use MIKU_PUSH_LOG_OUTPUT to override this value.",
+          "enum": ["console", "file"],
+          "default": "console"
+        },
+        "file": {
+          "type": "string",
+          "description": "Log file name. It configures the log file name if the output is set to file. Alternatively, you can use MIKU_PUSH_LOG_FILE to override this value.",
+          "default": "server.log"
+        },
+        "directory": {
+          "type": "string",
+          "description": "Log directory used when output is 'file'. Alternatively, you can use MIKU_PUSH_LOG_DIRECTORY to override this value. Platform-specific default if not specified: Linux: /var/log/io.mikupush.server, macOS: /usr/local/var/log/io.mikupush.server, Windows: %LOCALAPPDATA%\\io.mikupush.server\\logs"
+        },
+        "json": {
+          "type": "boolean",
+          "description": "If true, the log format is JSON. Alternatively, you can use MIKU_PUSH_LOG_JSON to override this value.",
+          "default": false
+        }
+      }
+    },
     "database": {
       "type": "object",
       "title": "Database configuration (PostgreSQL)",
@@ -91,6 +124,7 @@
   "examples": [
     {
       "server": { "host": "0.0.0.0", "port": 8080 },
+      "log": { "level": "info", "output": "console", "file": "server.log", "directory": "/var/log/io.mikupush.server", "json": false },
       "database": { "host": "localhost", "port": 5432, "database": "postgres", "user": "postgres", "password": "postgres" },
       "upload": { "max_size": 5000000000, "directory": "data" }
     }
