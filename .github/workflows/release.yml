@@ -50,7 +50,10 @@ jobs:
 
       - name: Resolve version
         id: version
-        run: echo "current=$(cat VERSION)" >> $GITHUB_ENV
+        run: |
+          export VERSION=$(cat VERSION)
+          echo "current version is $VERSION"
+          echo "current=$(cat VERSION)" >> $GITHUB_OUTPUT
 
       - name: Create tag
         run: |
@@ -84,7 +87,10 @@ jobs:
 
       - name: Resolve version
         id: version
-        run: echo "current=$(cat VERSION)" >> $GITHUB_ENV
+        run:
+          export VERSION=$(cat VERSION)
+          echo "current version is $VERSION"
+          echo "current=$(cat VERSION)" >> $GITHUB_OUTPUT
 
       - name: Build and push
         uses: docker/build-push-action@v6
