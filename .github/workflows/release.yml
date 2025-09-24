@@ -87,7 +87,7 @@ jobs:
 
       - name: Resolve version
         id: version
-        run:
+        run: |
           export VERSION=$(cat VERSION)
           echo "current version is $VERSION"
           echo "current=$(cat VERSION)" >> $GITHUB_OUTPUT
