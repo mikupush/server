@@ -87,6 +87,41 @@ MIKU_PUSH_SERVER_HOST=0.0.0.0
 MIKU_PUSH_SERVER_PORT=8080
 ```
 
+### Logging
+
+#### YAML
+```yaml
+log:
+  # Log level. Possible values: trace, debug, info, warn, error
+  # Default: info
+  level: info
+  # Log output. Possible values: console, file
+  # Default: console
+  output: console
+  # Log file name, used when output is file
+  file: server.log
+  # Log directory, used when output is file
+  # Platform-specific default if not specified:
+  # - Linux: /var/log/io.mikupush.server
+  # - macOS: /usr/local/var/log/io.mikupush.server
+  # - Windows: %LOCALAPPDATA%\io.mikupush.server\logs
+  directory: /var/log/io.mikupush.server
+  # JSON log format
+  # Default: false
+  json: false
+```
+
+#### Environment variables
+```text
+MIKU_PUSH_LOG_LEVEL=info
+MIKU_PUSH_LOG_OUTPUT=console
+# File name when output is file
+MIKU_PUSH_LOG_FILE=server.log
+# Directory when output is file
+MIKU_PUSH_LOG_DIRECTORY=/var/log/io.mikupush.server
+MIKU_PUSH_LOG_JSON=false
+```
+
 ### Database (PostgreSQL)
 
 Note: the effective URL is built as:
