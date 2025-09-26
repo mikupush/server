@@ -1,0 +1,13 @@
+[Unit]
+Description=The Miku Push! server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/mikupush-server
+Restart=on-failure
+User=mikupush
+Group=mikupush
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,79 @@
+# HTTP API server configuration.
+server:
+  # IP address or hostname where the server will listen for connections.
+  # Alternatively, you can use MIKU_PUSH_SERVER_HOST environment variable to override this value.
+  # Default value if not specified: 0.0.0.0
+  host: 0.0.0.0
+  # Server TCP port.
+  # Alternatively, you can use MIKU_PUSH_SERVER_PORT environment variable to override this value.
+  # Default value if not specified: 8080
+  port: 8080
+
+# Logging configuration.
+log:
+  # Log level.
+  # Possible values: trace, debug, info, warn, error.
+  # Alternatively, you can use MIKU_PUSH_LOG_LEVEL environment variable to override this value.
+  # Default value if not specified: info
+  level: info
+  # Log output.
+  # Possible values:
+  # - console: outputs to stdout
+  # - file: outputs to a file
+  # Alternatively, you can use MIKU_PUSH_LOG_OUTPUT environment variable to override this value.
+  # Default value if not specified: console
+  output: file
+  # Log file name.
+  # It configures the log file name if the output is set to file.
+  # Alternatively, you can use MIKU_PUSH_LOG_FILE environment variable to override this value.
+  file: server.log
+  # Log directory.
+  # It configures the log directory if the output is set to file.
+  # Alternatively, you can use MIKU_PUSH_LOG_DIRECTORY environment variable to override this value.
+  # The default log directory is specific by platform if not specified:
+  # - Linux: /var/log/io.mikupush.server
+  # - macOS: /usr/local/var/log/io.mikupush.server
+  # - Windows: %LOCALAPPDATA%\io.mikupush.server\logs
+  directory: /var/log/io.mikupush.server
+  # JSON log format.
+  # If set to true, the log format is JSON.
+  # Alternatively, you can use MIKU_PUSH_LOG_JSON environment variable to override this value.
+  # Default value if not specified: false
+  json: false
+
+# Database configuration (PostgresSQL)
+# Note: the effective URL is built as
+#   postgresql://<user>:<password>@<host>:<port>/<database>
+database:
+  # Hostname or IP of the PostgreSQL server.
+  # Alternatively, you can use MIKU_PUSH_DATABASE_HOST environment variable to override this value.
+  # Default value: localhost
+  host: localhost
+  # Port of the PostgreSQL server.
+  # Alternatively, you can use MIKU_PUSH_DATABASE_PORT environment variable to override this value.
+  # Default value: 5432
+  port: 5432
+  # Name of the database to connect to.
+  # Alternatively, you can use MIKU_PUSH_DATABASE_NAME environment variable to override this value.
+  # Default value: postgres
+  database: postgres
+  # Database user.
+  # Alternatively, you can use MIKU_PUSH_DATABASE_USER environment variable to override this value.
+  # Default value: postgres
+  user: postgres
+  # Database user password.
+  # Alternatively, you can use MIKU_PUSH_DATABASE_PASSWORD environment variable to override this value.
+  # Default value: postgres
+  password: postgres
+
+# File upload configuration
+upload:
+  # Maximum allowed upload size in bytes.
+  # If not set, or is set unlimited, there is no limit.
+  # Alternatively, you can use MIKU_PUSH_UPLOAD_MAX_SIZE environment variable to override this value (number in bytes or "unlimited").
+  # Example: 5000000000 for 5GB
+  max_size: 5000000000 # 5GB
+  # Directory where uploaded files are stored.
+  # Can be a relative or absolute path.
+  # Default value: data
+  directory: /var/lib/io.mikupush.server/data

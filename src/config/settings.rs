@@ -18,6 +18,7 @@ use serde::Deserialize;
 use tracing::{debug, warn};
 use crate::config::{DataBase, LoggingConfig, Server};
 use crate::config::upload::Upload;
+use crate::logging::local_trace;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Settings {
@@ -33,9 +34,11 @@ pub struct Settings {
 
 impl Settings {
     pub fn load() -> Self {
-        Settings::load_from_file()
-            .or_else(|| Some(Settings::default()))
-            .unwrap()
+        local_trace(|| {
+            Settings::load_from_file()
+                .or_else(|| Some(Settings::default()))
+                .unwrap()
+        })
     }
 
     fn load_from_file() -> Option<Self> {
@@ -107,7 +110,7 @@ impl Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        debug!("using default configuration");
+        local_trace(|| debug!("using default configuration"));
 
         Settings {
             server: Server::default(),
