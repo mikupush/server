@@ -14,7 +14,7 @@
 
 use actix_web::{web, App, HttpServer};
 use actix_files as fs;
-use tracing_log::LogTracer;
+use tracing_actix_web::TracingLogger;
 
 mod routes;
 mod config;
@@ -53,6 +53,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         App::new()
+            .wrap(TracingLogger::default())
             .app_data(web::JsonConfig::default().error_handler(json_error_handler))
             .app_data(web::Data::new(settings_clone.clone()))
             .app_data(web::Data::new(pool.clone()))
