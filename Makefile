@@ -1,11 +1,11 @@
-.PHONY: build build-release
+.PHONY: build-linux build-linux-release
 
-build:
+build-linux:
 	cargo build \
 	&& scripts/deb-package.sh debug \
 	&& scripts/tar-package.sh debug
 
-build-release:
+build-linux-release:
 	cargo build --release \
 	&& scripts/deb-package.sh release \
     && scripts/tar-package.sh release
