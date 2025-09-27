@@ -1,14 +1,14 @@
 server:
   host: 0.0.0.0
   port: 8080
-  static_directory: /usr/share/io.mikupush.server/static
-  templates_directory: /usr/share/io.mikupush.server/templates
+  static_directory: static
+  templates_directory: templates
 
 log:
   level: info
   output: file
   file: server.log
-  directory: /var/log/io.mikupush.server
+  directory: logs
   json: false
 
 database:
@@ -20,4 +20,4 @@ database:
 
 upload:
   max_size: 5000000000 # 5GB
-  directory: /var/lib/io.mikupush.server/data
+  directory: data

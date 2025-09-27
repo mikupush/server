@@ -8,8 +8,9 @@ target_directory="target/$build_type"
 bundle_directory="$target_directory/bundle"
 deb_package_directory="$bundle_directory/deb"
 
-if [[ -d "$bundle_directory" ]]; then
-  rm -r "$bundle_directory"
+if [[ -d "$deb_package_directory" ]]; then
+  rm -r "$deb_package_directory"
+  rm -f "$bundle_directory/*.deb"
 fi
 
 mkdir -p "$deb_package_directory/DEBIAN"
@@ -45,4 +46,4 @@ chmod +x "$deb_package_directory/DEBIAN/postinst"
 chmod +x "$deb_package_directory/DEBIAN/prerm"
 chmod +x "$deb_package_directory/DEBIAN/postrm"
 
-dpkg-deb --build "$deb_package_directory" "$target_directory/bundle/mikupush-server-$arch.deb"
+dpkg-deb --build "$deb_package_directory" "$target_directory/bundle/mikupush-server-$version-$arch.deb"

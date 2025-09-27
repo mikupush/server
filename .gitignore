@@ -6,6 +6,7 @@
 config.yaml
 config.*.yaml
 !config.linux.yaml
+!config.default.yaml
 !config.example.yaml
 data
 docker-compose.*.yml
