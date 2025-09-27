@@ -81,7 +81,7 @@ impl Settings {
         #[cfg(target_os = "windows")]
         let paths: Vec<PathBuf> = vec![
             PathBuf::from("config.yaml"),
-            PathBuf::from(format!("{}\\AppData\\Local\\io.mikupush.server", env!("LOCALAPPDATA"))),
+            PathBuf::from(format!("{}\\io.mikupush.server\\config.yaml", env!("LOCALAPPDATA"))),
         ];
 
         #[cfg(target_os = "macos")]

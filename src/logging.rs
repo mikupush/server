@@ -74,7 +74,7 @@ fn configure_logging_subscriber(config: &LoggingConfig, writer: NonBlocking) {
 
 pub fn system_log_directory() -> String {
     #[cfg(target_os = "windows")]
-    let directory = format!("{}\\AppData\\Local\\io.mikupush.server", env!("LOCALAPPDATA"));
+    let directory = format!("{}\\io.mikupush.server\\logs", env!("LOCALAPPDATA"));
 
     #[cfg(target_os = "macos")]
     let directory = format!("{}/Library/Logs/io.mikupush.server", env!("HOME"));
