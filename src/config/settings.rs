@@ -41,20 +41,14 @@ impl Settings {
         })
     }
 
-    fn load_from_file() -> Option<Self> {
-        let path = Self::resolve_path();
-
-        if path.is_none() {
-            return None;
-        }
-
-        let path = path.unwrap();
+    pub fn load_from_path(path: PathBuf) -> Option<Self> {
+        debug!("attempting to load configuration file: {}", path.display());
         let file = match File::open(path.clone()) {
             Err(e) => {
                 warn!("failed to open configuration file: {}: {}", path.display(), e);
                 return None;
             },
-            Ok(file) => file
+            Ok(file) => file,
         };
 
         match serde_yaml::from_reader(file) {
@@ -67,6 +61,17 @@ impl Settings {
                 Some(settings)
             }
         }
+    }
+
+    fn load_from_file() -> Option<Self> {
+        let path = Self::resolve_path();
+
+        if path.is_none() {
+            return None;
+        }
+
+        let path = path.unwrap();
+        Self::load_from_path(path)
     }
 
     fn resolve_path() -> Option<PathBuf> {

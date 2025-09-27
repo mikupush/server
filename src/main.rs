@@ -30,11 +30,32 @@ use config::Settings;
 use crate::database::create_database_connection;
 use crate::logging::configure_logging;
 use crate::routes::json_error_handler;
+use clap::Parser;
+use std::path::PathBuf;
+
+#[derive(Debug, Parser)]
+#[command(
+    name = "mikupush-server",
+    about = "The Miku Push! Server",
+    author = "Miku Push! Team"
+)]
+struct Cli {
+    /// Path to the YAML configuration file
+    #[arg(short = 'c', long = "config", value_name = "PATH")]
+    config: Option<PathBuf>,
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    // app settings
-    let settings = Settings::load();
+    let cli = Cli::parse();
+    let config_path = cli.config;
+
+    let settings = if let Some(path) = config_path {
+        try_load_config_from_path(path)
+    } else {
+        Settings::load()
+    };
+
     let settings_clone = settings.clone();
 
     // logging config
@@ -73,4 +94,16 @@ async fn main() -> std::io::Result<()> {
     .bind((settings.server.host(), settings.server.port()))?
     .run()
     .await
+}
+
+fn try_load_config_from_path(path: PathBuf) -> Settings {
+    if !path.exists() {
+        panic!(
+            "error: configuration file not found: {}\nUse -c <path> or --config <path> with an existing file.",
+            path.display()
+        );
+    }
+
+    Settings::load_from_path(path)
+        .expect("error: failed to load configuration file")
 }

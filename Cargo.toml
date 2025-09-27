@@ -25,3 +25,4 @@ tracing-actix-web = "0.7"
 tracing-log = "0.2.0"
 tracing-appender = "0.2.3"
 tracing-subscriber = { version = "0.3.20", features = ["json"] }
+clap = { version = "4.5", features = ["derive"] }
