@@ -10,14 +10,14 @@
 
 Download the `.deb` package for your architecture and install it with `dpkg`:
 
-#### amd64 (x86_64):
+#### amd64 (x86_64)
 
 ```sh
 curl -OL https://github.com/mikupush/server/releases/download/0.0.3/mikupush-server-0.0.3-amd64.deb
 sudo dpkg -i mikupush-server-0.0.3-amd64.deb
 ```
 
-#### arm64 (aarch64):
+#### arm64 (aarch64)
 
 ```sh
 curl -OL https://github.com/mikupush/server/releases/download/0.0.3/mikupush-server-0.0.3-arm64.deb
