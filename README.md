@@ -79,12 +79,28 @@ server:
   # Server TCP port.
   # Default: 8080
   port: 8080
+  # Directory with static assets served at /static.
+  # Can be a relative or absolute path.
+  # Default: static (relative to the executable)
+  static_directory: static
+  # Directory with HTML templates used by the app (e.g., health pages).
+  # Can be a relative or absolute path.
+  # Default: templates (relative to the executable)
+  templates_directory: templates
 ```
+
+Notes:
+- The server exposes the static directory at the URL path prefix /static.
+- When installing from `.deb` package, it may place these under paths such as /usr/share/io.mikupush.server/{static,templates}.
 
 #### Environment variables
 ```text
 MIKU_PUSH_SERVER_HOST=0.0.0.0
 MIKU_PUSH_SERVER_PORT=8080
+# Static files directory (relative or absolute). Default: static
+MIKU_PUSH_SERVER_STATIC_DIR=static
+# Templates directory (relative or absolute). Default: templates
+MIKU_PUSH_SERVER_TEMPLATES_DIR=templates
 ```
 
 ### Logging
