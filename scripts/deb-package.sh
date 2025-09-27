@@ -38,7 +38,7 @@ cp "$target_directory/mikupush-server" "$deb_package_directory/usr/bin/mikupush-
 cp package/mikupush-server.service "$deb_package_directory/etc/systemd/system/mikupush-server.service"
 cp -r static "$deb_package_directory/usr/share/io.mikupush.server/"
 cp -r templates "$deb_package_directory/usr/share/io.mikupush.server/"
-cp -r config.default.yaml "$deb_package_directory/etc/io.mikupush.server/config.yaml"
+cp -r config.linux.yaml "$deb_package_directory/etc/io.mikupush.server/config.yaml"
 
 chmod +x "$deb_package_directory/usr/bin/mikupush-server"
 chmod +x "$deb_package_directory/DEBIAN/postinst"
