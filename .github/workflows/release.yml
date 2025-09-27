@@ -48,7 +48,6 @@ jobs:
           path: artifacts
 
       - name: Flatten artifacts
-        id: version
         run: |
           cp -r artifacts/*/* artifacts/
           ls -la artifacts
