@@ -24,6 +24,18 @@
           "maximum": 65535,
           "default": 8080,
           "examples": [8080, 3000, 8000]
+        },
+        "static_directory": {
+          "type": "string",
+          "description": "Server static files directory. Alternatively, you can use MIKU_PUSH_SERVER_STATIC_DIR to override this value.",
+          "default": "static",
+          "examples": ["static", "/usr/share/io.mikupush.server/static"]
+        },
+        "templates_directory": {
+          "type": "string",
+          "description": "Server templates directory. Alternatively, you can use MIKU_PUSH_SERVER_TEMPLATES_DIR to override this value.",
+          "default": "templates",
+          "examples": ["templates", "/usr/share/io.mikupush.server/templates"]
         }
       }
     },

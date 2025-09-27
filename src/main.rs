@@ -83,7 +83,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(deleter.clone()))
             .app_data(web::Data::new(reader.clone()))
             .app_data(web::Data::new(finder.clone()))
-            .service(fs::Files::new("/static", "static"))
+            .service(fs::Files::new("/static", settings_clone.server.static_directory()))
             .service(routes::post_file)
             .service(routes::delete_file)
             .service(routes::post_upload_file)

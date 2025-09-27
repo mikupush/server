@@ -13,17 +13,20 @@
 /// limitations under the License.
 
 use crate::database::DbPool;
+use crate::config::Settings;
 use actix_web::{get, web, HttpRequest, HttpResponse};
 use actix_web::http::header::HeaderValue;
 use diesel::{sql_query, RunQueryDsl};
 use tracing::{debug, warn};
 use serde_json::json;
+use crate::routes::utils::read_template;
 
 const ANY_CONTENT_TYPE: &'static str = "*/*";
 
 #[get("/health")]
 pub async fn health(
     pool: web::Data<DbPool>,
+    settings: web::Data<Settings>,
     request: HttpRequest
 ) -> HttpResponse {
     let default_accept_header = HeaderValue::from_static(ANY_CONTENT_TYPE);
@@ -34,10 +37,10 @@ pub async fn health(
     let json = accept_header == "application/json";
 
     if let Err(_) = check_db_connection(&pool) {
-        return respond_error(json);
+        return respond_error(json, &settings);
     }
 
-    respond_ok(json)
+    respond_ok(json, &settings)
 }
 
 fn check_db_connection(pool: &DbPool) -> Result<(), Box<dyn std::error::Error>> {
@@ -58,24 +61,24 @@ fn check_db_connection(pool: &DbPool) -> Result<(), Box<dyn std::error::Error>> 
     Ok(())
 }
 
-fn respond_ok(json: bool) -> HttpResponse {
+fn respond_ok(json: bool, settings: &Settings) -> HttpResponse {
     if json {
         return HttpResponse::Ok().json(json!({ "status": "up" }))
     }
 
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body(std::fs::read_to_string("templates/health_ok.html").unwrap())
+        .body(read_template(settings, "health_ok.html"))
 }
 
-fn respond_error(json: bool) -> HttpResponse {
+fn respond_error(json: bool, settings: &Settings) -> HttpResponse {
     if json {
         return HttpResponse::InternalServerError().json(json!({ "status": "down" }))
     }
 
     HttpResponse::InternalServerError()
         .content_type("text/html; charset=utf-8")
-        .body(std::fs::read_to_string("templates/health_error.html").unwrap())
+        .body(read_template(settings, "health_error.html"))
 }
 
 #[cfg(test)]
@@ -92,6 +95,7 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(pool))
+                .app_data(web::Data::new(Settings::default()))
                 .service(health)
         ).await;
 
@@ -112,6 +116,7 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(pool))
+                .app_data(web::Data::new(Settings::default()))
                 .service(health)
         ).await;
 

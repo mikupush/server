@@ -8,6 +8,14 @@ server:
   # Alternatively, you can use MIKU_PUSH_SERVER_PORT environment variable to override this value.
   # Default value if not specified: 8080
   port: 8080
+  # Server static files directory.
+  # Alternatively, you can use MIKU_PUSH_SERVER_STATIC_DIR environment variable to override this value.
+  # Default value if not specified: static (which is relative to the executable)
+  static_directory: /usr/share/io.mikupush.server/static
+  # Server templates files directory.
+  # Alternatively, you can use MIKU_PUSH_SERVER_TEMPLATES_DIR environment variable to override this value.
+  # Default value if not specified: templates (which is relative to the executable)
+  templates_directory: /usr/share/io.mikupush.server/templates
 
 # Logging configuration.
 log:

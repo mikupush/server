@@ -1,3 +1,7 @@
+use std::path::PathBuf;
+use tracing::warn;
+use crate::config::Settings;
+
 /// Copyright 2025 Miku Push! Team
 ///
 /// Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,6 +15,24 @@
 /// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 /// See the License for the specific language governing permissions and
 /// limitations under the License.
+
+pub fn read_template(settings: &Settings, template: &str) -> String {
+    let template_dir = settings.server.templates_directory();
+    let path = std::path::Path::new(&template_dir).join(template);
+
+    if !path.exists() {
+        warn!("template file {} does not exist", path.display());
+        return "".to_string();
+    }
+
+    match std::fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(err) => {
+            warn!("failed to read template file {}: {}", path.display(), err);
+            "".to_string()
+        }
+    }
+}
 
 #[cfg(test)]
 pub mod tests {

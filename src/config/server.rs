@@ -22,6 +22,10 @@ pub struct Server {
     host: Option<String>,
     #[serde(default)]
     port: Option<u16>,
+    #[serde(default)]
+    static_directory: Option<String>,
+    #[serde(default)]
+    templates_directory: Option<String>,
 }
 
 impl Server {
@@ -58,6 +62,38 @@ impl Server {
         debug!("using server.port default value: {}", value);
         value
     }
+
+    pub fn static_directory(&self) -> String {
+        if let Some(value) = env("MIKU_PUSH_SERVER_STATIC_DIR") {
+            debug!("using env variable MIKU_PUSH_SERVER_STATIC_DIR: {}", value);
+            return value;
+        }
+
+        if let Some(value) = self.static_directory.clone() {
+            debug!("using server.static_directory configuration: {}", value);
+            return value;
+        }
+
+        let value = "static".to_string();
+        debug!("using server.static_directory default value: {}", value);
+        value
+    }
+
+    pub fn templates_directory(&self) -> String {
+        if let Some(value) = env("MIKU_PUSH_SERVER_TEMPLATES_DIR") {
+            debug!("using env variable MIKU_PUSH_SERVER_TEMPLATES_DIR: {}", value);
+            return value;
+        }
+
+        if let Some(value) = self.templates_directory.clone() {
+            debug!("using server.templates_directory configuration: {}", value);
+            return value;
+        }
+
+        let value = "templates".to_string();
+        debug!("using server.templates_directory default value: {}", value);
+        value
+    }
 }
 
 impl Default for Server {
@@ -65,6 +101,8 @@ impl Default for Server {
         Server {
             host: None,
             port: None,
+            static_directory: None,
+            templates_directory: None,
         }
     }
 }
