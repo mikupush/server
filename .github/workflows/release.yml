@@ -14,9 +14,9 @@ jobs:
           - os: ubuntu-24.04
             platform: linux
             arch: amd64
-          - os: ubuntu-24.04-arm
-            platform: linux
-            arch: arm64
+#          - os: ubuntu-24.04-arm
+#            platform: linux
+#            arch: arm64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +25,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build binary
-        run: cargo build --release
+        run: make build-linux-release
 
       - name: Rename binary executable
         run: mv target/release/mikupush-server target/release/mikupush-server-${{ matrix.platform }}-${{ matrix.arch }}
@@ -34,7 +34,10 @@ jobs:
         name: Upload Artifacts
         with:
           name: ${{ matrix.arch }}-executable
-          path: target/release/mikupush-server-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            target/release/mikupush-server-${{ matrix.platform }}-${{ matrix.arch }}
+            target/release/bundle/*.deb
+            target/release/bundle/*.tar.gz
 
   release:
     needs:
