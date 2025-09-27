@@ -6,9 +6,33 @@
 
 * PostgresSQL Server 17.6
 
-### Bare metal
+### Debian/Ubuntu
 
-TODO
+Download the `.deb` package for your architecture and install it with `dpkg`:
+
+#### amd64 (x86_64):
+
+```sh
+curl -OL https://github.com/mikupush/server/releases/download/0.0.3/mikupush-server-0.0.3-amd64.deb
+sudo dpkg -i mikupush-server-0.0.3-amd64.deb
+```
+
+#### arm64 (aarch64):
+
+```sh
+curl -OL https://github.com/mikupush/server/releases/download/0.0.3/mikupush-server-0.0.3-arm64.deb
+sudo dpkg -i mikupush-server-0.0.3-arm64.deb
+```
+
+#### Systemd
+
+The package installs and enables a systemd service named `mikupush-server.service` that runs as the `mikupush` user.
+
+You can start the service before:
+
+```sh
+sudo systemctl start mikupush-server.service
+```
 
 ### Docker
 
@@ -26,8 +50,8 @@ Then you can run the container:
 docker run -d \
   --name mikupush-server \
   -p 8080:8080 \
-  -v "./data:/data" \
-  -v "./config.yaml:/config.yaml:ro" \
+  -v "./data:/srv/data" \
+  -v "./config.yaml:/srv/config.yaml:ro" \
   mikupush/server:latest
 ```
 
@@ -46,8 +70,8 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./data:/data
-      - ./config.yaml:/config.yaml:ro
+      - ./data:/srv/data
+      - ./config.yaml:/srv/config.yaml:ro
 ```
 
 ## Usage
@@ -194,63 +218,3 @@ MIKU_PUSH_UPLOAD_DIRECTORY=data
 ```
 
 For a complete, commented template, see `config.example.yaml`. If a key is missing in `config.yaml` and there is no environment variable set, the application falls back to the documented default values.
-
-### Run in debug mode
-
-```sh
-RUST_LOG=debug cargo run
-```
-
-## Development
-
-### Prerequisites
-
-* Docker
-* Docker compose
-* Diesel CLI
-
-### Creating database migrations
-
-For create database migrations, you must use Diesel CLI.
-Make sure you have a PostgresSQL container running. You can use Docker Compose to run it.
-
-```sh
-docker compose up -d postgres
-```
-
-Install `cargo-binstall` and then diesel_cli if it is not installed.
-
-👉 [Install cargo-binstall](https://github.com/cargo-bins/cargo-binstall?tab=readme-ov-file#installation)
-
-```sh
-cargo binstall diesel_cli
-```
-
-Create the `.env` file
-
-```sh
-cp .env.example .env
-```
-
-Create the database migration
-
-```sh
-# for example
-diesel migration generate create_file_uploads
-```
-
-Run the database migrations
-
-```sh
-diesel migration run
-```
-
-## Tests
-
-Before run tests, make sure you have set up the PostgresSQL container and ran the database migrations.
-
-And ensure you have the `.env` file, if you want to have a different file for tests, you can create a `.env.test` file.
-
-```sh
-cargo test
-```
