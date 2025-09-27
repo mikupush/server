@@ -27,15 +27,11 @@ jobs:
       - name: Build binary
         run: make build-linux-release
 
-      - name: Rename binary executable
-        run: mv target/release/mikupush-server target/release/mikupush-server-${{ matrix.platform }}-${{ matrix.arch }}
-
       - uses: actions/upload-artifact@v4
         name: Upload Artifacts
         with:
-          name: ${{ matrix.arch }}-executable
+          name: ${{ matrix.arch }}
           path: |
-            target/release/mikupush-server-${{ matrix.platform }}-${{ matrix.arch }}
             target/release/bundle/*.deb
             target/release/bundle/*.tar.gz
 
@@ -69,7 +65,7 @@ jobs:
           draft: true
           name: ${{ steps.version.outputs.current }}
           tag: ${{ steps.version.outputs.current }}
-          artifacts: 'release-artifacts/*'
+          artifacts: 'release-artifacts/**/*'
 
   docker-image:
     runs-on: ubuntu-22.04
