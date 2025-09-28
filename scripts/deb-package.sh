@@ -31,10 +31,15 @@ Homepage: https://mikupush.io
 EOF
 )
 
+conffiles=$(cat <<EOF
+/etc/io.mikupush.server/config.yaml
+EOF
+)
+
 echo "$control" > "$deb_package_directory/DEBIAN/control"
+echo "$conffiles" > "$deb_package_directory/DEBIAN/conffiles"
 cp package/postinst.sh "$deb_package_directory/DEBIAN/postinst"
 cp package/prerm.sh "$deb_package_directory/DEBIAN/prerm"
-cp package/postrm.sh "$deb_package_directory/DEBIAN/postrm"
 cp "$target_directory/mikupush-server" "$deb_package_directory/usr/bin/mikupush-server"
 cp package/mikupush-server.service "$deb_package_directory/etc/systemd/system/mikupush-server.service"
 cp -r static "$deb_package_directory/usr/share/io.mikupush.server/"
