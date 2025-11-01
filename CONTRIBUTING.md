@@ -3,6 +3,8 @@
 
 ## Prerequisites
 
+* Rust 1.89 or later
+* Node.js 22 or later
 * Docker
 * Docker compose
 * Diesel CLI
@@ -52,3 +54,23 @@ And ensure you have the `.env` file, if you want to have a different file for te
 ```sh
 cargo test
 ```
+
+## Scripts
+
+To run scripts, you have to install all node dependencies.
+
+```sh
+npm install
+```
+
+> ℹ️ **NOTE**
+> If you want to install a dependency, you must install it as dev dependency.
+> 
+> For example if you want to install `glob` you must run:
+>
+> ```sh
+> npm install --save-dev glob
+> ```
+
+Then you can run scripts that are listed in `package.json`. If it is not in `package.json` you can run it 
+from the `scripts` directory. Not all scripts are written in TypeScript.

@@ -1,0 +1,27 @@
+{
+  "name": "mikupush-server",
+  "version": "1.0.0",
+  "description": "* PostgresSQL Server 17.6",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "license-header": "ts-node scripts/license.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mikupush/server.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mikupush/server/issues"
+  },
+  "homepage": "https://github.com/mikupush/server#readme",
+  "devDependencies": {
+    "glob": "^11.0.3",
+    "ignore": "^7.0.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
