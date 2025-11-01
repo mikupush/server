@@ -14,3 +14,4 @@ docker-compose.*.yml
 *.log
 *.log.*
 node_modules
+.cache
