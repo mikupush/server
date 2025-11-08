@@ -16,8 +16,10 @@
 
 use crate::errors::{route_error_helpers, FileReadError};
 use crate::routes::ErrorResponse;
-use crate::services::{FileReadStream, FileReader};
+use crate::services::{FileRead, FileReader};
 use actix_web::{get, web, HttpResponse, Result};
+use actix_web::body::SizedStream;
+use tokio_util::io::ReaderStream;
 use tracing::debug;
 use uuid::Uuid;
 
@@ -31,19 +33,19 @@ pub async fn get_download(
         return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
     };
 
-    match file_reader.read(id) {
+    match file_reader.read(id).await {
         Ok(details) => Ok(handle_get_download_ok(details)),
         Err(err) => Ok(handle_get_download_error(err))
     }
 }
 
-fn handle_get_download_ok(stream: FileReadStream) -> HttpResponse {
+fn handle_get_download_ok(file_read: FileRead) -> HttpResponse {
     HttpResponse::Ok()
-        .content_type(stream.mime_type.clone())
-        .insert_header(("Content-Length", stream.size.to_string()))
-        .insert_header(("Content-Disposition", format!("inline; filename=\"{}\"", stream.name)))
-        .insert_header(("Content-Type", stream.mime_type.to_string()))
-        .streaming(stream)
+        .content_type(file_read.mime_type.clone())
+        .insert_header(("Content-Length", file_read.size.to_string()))
+        .insert_header(("Content-Disposition", format!("inline; filename=\"{}\"", file_read.name)))
+        .insert_header(("Content-Type", file_read.mime_type.to_string()))
+        .streaming(file_read.stream)
 }
 
 fn handle_get_download_error(err: FileReadError) -> HttpResponse {
