@@ -14,11 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use chrono::NaiveDateTime;
 use diesel::{Insertable, Queryable};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use crate::config::Settings;
+use crate::errors::FileUploadError;
 
 #[derive(Debug, Clone, Queryable, Insertable)]
 #[diesel(table_name = crate::schema::file_uploads)]
@@ -29,6 +31,21 @@ pub struct FileUpload {
     pub mime_type: String,
     pub size: i64,
     pub uploaded_at: NaiveDateTime
+}
+
+impl FileUpload {
+    /// Create and retrieve the directory for the file upload
+    pub fn directory(&self, settings: &Settings) -> Result<PathBuf, std::io::Error> {
+        let destination_directory = settings.upload.directory();
+        let destination_directory = Path::new(destination_directory.as_str())
+            .join(self.id.to_string());
+
+        if let Err(err) = std::fs::create_dir_all(&destination_directory) {
+            return Err(err)
+        }
+
+        Ok(destination_directory)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

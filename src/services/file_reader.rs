@@ -53,7 +53,7 @@ impl FileReader {
             return Err(FileReadError::NotExists { id })
         };
 
-        let directory = self.settings.upload.directory();
+        let directory = file_upload.directory(&self.settings)?;
         let path = Path::new(&directory).join(file_upload.name.clone()).to_string_lossy().to_string();
         let file = File::open(path.clone()).await?;
 

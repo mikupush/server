@@ -48,7 +48,7 @@ impl FileInfoFinder {
             return Err(FileInfoError::NotExists { id });
         };
 
-        let directory = self.settings.upload.directory().clone();
+        let directory = file_upload.directory(&self.settings)?;
         let path = Path::new(&directory).join(file_upload.clone().name);
 
         Ok(FileInfo::from_file_upload(&file_upload, path))

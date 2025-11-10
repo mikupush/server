@@ -64,7 +64,9 @@ pub mod tests {
 
         let settings = Upload::default();
         let path = Path::new(&settings.directory())
+            .join(file_upload.id.to_string())
             .join(file_upload.name.clone());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path.clone(), vec![1; file_upload.size as usize]).unwrap();
 
         let mut connection = pool.get().unwrap();

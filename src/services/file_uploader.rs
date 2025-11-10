@@ -16,7 +16,7 @@
 
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use crate::database::DbPool;
 use crate::errors::FileUploadError;
 use crate::schema::file_uploads;
@@ -54,15 +54,8 @@ impl FileUploader {
             return Err(FileUploadError::NotExists { id })
         };
 
-        let destination_directory = self.settings.upload.directory();
-        if let Err(err) = std::fs::create_dir_all(destination_directory.clone()) {
-            return Err(FileUploadError::IO {
-                message: format!("Failed to create directory {}: {}", destination_directory.clone(), err)
-            })
-        }
-
-        let destination_path = Path::new(destination_directory.as_str())
-            .join(file_upload.name.clone());
+        let destination_path = file_upload.directory(&self.settings)?;
+        let destination_path = destination_path.join(file_upload.name.clone());
 
         {
             if let Ok(_) = File::open(destination_path.clone()) {

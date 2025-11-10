@@ -48,7 +48,7 @@ impl FileDeleter {
             return Err(FileDeleteError::NotExists { id });
         };
 
-        let directory = self.settings.upload.directory().clone();
+        let directory = file_upload.directory(&self.settings)?;
         let path = Path::new(&directory).join(file_upload.name);
 
         if path.exists() {
