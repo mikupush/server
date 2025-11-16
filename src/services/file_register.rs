@@ -43,7 +43,8 @@ impl FileRegister {
             name: file_create.name,
             mime_type: file_create.mime_type,
             size: file_create.size,
-            uploaded_at: Utc::now().naive_utc()
+            uploaded_at: Utc::now().naive_utc(),
+            chunked: false
         };
 
         let mut connection = self.pool.get()?;

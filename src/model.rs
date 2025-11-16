@@ -30,7 +30,8 @@ pub struct FileUpload {
     pub name: String,
     pub mime_type: String,
     pub size: i64,
-    pub uploaded_at: NaiveDateTime
+    pub uploaded_at: NaiveDateTime,
+    pub chunked: bool
 }
 
 impl FileUpload {

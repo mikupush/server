@@ -9,5 +9,6 @@ diesel::table! {
         mime_type -> Varchar,
         size -> Int8,
         uploaded_at -> Timestamp,
+        chunked -> Bool,
     }
 }

@@ -59,7 +59,8 @@ pub mod tests {
             name: format!("hatsune_miku_{}.jpg", count),
             mime_type: "image/jpeg".to_string(),
             size: 200792,
-            uploaded_at: Utc::now().naive_utc()
+            uploaded_at: Utc::now().naive_utc(),
+            chunked: false
         };
 
         let settings = Upload::default();
@@ -85,7 +86,8 @@ pub mod tests {
             name: format!("hatsune_miku_{}.jpg", Utc::now().timestamp()),
             mime_type: "image/jpeg".to_string(),
             size: 200792,
-            uploaded_at: Utc::now().naive_utc()
+            uploaded_at: Utc::now().naive_utc(),
+            chunked: false
         };
 
         let mut connection = pool.get().unwrap();

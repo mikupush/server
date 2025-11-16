@@ -1,0 +1,2 @@
+ALTER TABLE file_uploads
+    ADD COLUMN chunked BOOLEAN NOT NULL DEFAULT FALSE;
