@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::errors::FileUploadError;
+use crate::repository::PostgresFileUploadRepository;
 use crate::routes::error::ErrorResponse;
 use crate::services::FileRegister;
 use actix_web::{post, web, HttpResponse, Result};
@@ -34,7 +35,7 @@ pub struct FileCreate {
 #[post("/api/file")]
 pub async fn post_file(
     request: web::Json<FileCreate>,
-    file_upload_register: web::Data<FileRegister>
+    file_upload_register: web::Data<FileRegister<PostgresFileUploadRepository>>
 ) -> Result<HttpResponse> {
     let request = request.into_inner();
 

@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::path::PathBuf;
 use tracing::warn;
 use crate::config::Settings;
 
@@ -40,7 +39,8 @@ pub fn read_template(settings: &Settings, template: &str) -> String {
 pub mod tests {
     use crate::config::Upload;
     use crate::database::DbPool;
-    use crate::model::FileUpload;
+    use crate::domain::FileUpload;
+    use crate::model::FileUpload as FileUploadModel;
     use crate::schema::file_uploads;
     use actix_web::dev::ServiceResponse;
     use chrono::Utc;
@@ -71,8 +71,9 @@ pub mod tests {
         std::fs::write(path.clone(), vec![1; file_upload.size as usize]).unwrap();
 
         let mut connection = pool.get().unwrap();
+        let record: FileUploadModel = file_upload.clone().into();
         diesel::insert_into(file_uploads::table)
-            .values(&file_upload)
+            .values(&record)
             .execute(&mut connection)
             .unwrap();
 
@@ -91,8 +92,9 @@ pub mod tests {
         };
 
         let mut connection = pool.get().unwrap();
+        let record: FileUploadModel = file_upload.clone().into();
         diesel::insert_into(file_uploads::table)
-            .values(&file_upload)
+            .values(&record)
             .execute(&mut connection)
             .unwrap();
 

@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::errors::Error;
-use std::fmt::{format, Display, Formatter};
+use std::fmt::{Display, Formatter};
 
 pub enum RouteError {
     InvalidPathParameter {

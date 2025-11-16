@@ -15,37 +15,37 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::path::Path;
-use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
 use tracing::debug;
 use uuid::Uuid;
 use crate::config::Settings;
-use crate::database::DbPool;
 use crate::errors::FileDeleteError;
-use crate::model::FileUpload;
-use crate::schema::file_uploads;
+use crate::repository::FileUploadRepository;
 
 #[derive(Debug, Clone)]
-pub struct FileDeleter {
-    pool: DbPool,
+pub struct FileDeleter<FR>
+where
+    FR: FileUploadRepository + Clone,
+{
+    repository: FR,
     settings: Settings,
 }
 
-impl FileDeleter {
-    pub fn new(pool: DbPool, settings: Settings) -> Self {
-        Self { pool, settings }
+impl<FR> FileDeleter<FR>
+where
+    FR: FileUploadRepository + Clone,
+{
+    pub fn new(repository: FR, settings: Settings) -> Self {
+        Self { repository, settings }
     }
 
     pub fn delete(&self, id: Uuid) -> Result<(), FileDeleteError> {
         debug!("deleting file with id: {}", id.to_string());
-        let mut connection = self.pool.get()?;
-        let file_upload: Option<FileUpload> = file_uploads::table
-            .find(id)
-            .first(&mut connection)
-            .optional()?;
-
-        let Some(file_upload) = file_upload else {
-            debug!("file with id {} does not exist on the database", id.to_string());
-            return Err(FileDeleteError::NotExists { id });
+        let file_upload = match self.repository.find_by_id(id)? {
+            Some(file_upload) => file_upload,
+            None => {
+                debug!("file with id {} does not exist on the database", id.to_string());
+                return Err(FileDeleteError::NotExists { id });
+            }
         };
 
         let directory = file_upload.directory(&self.settings)?;
@@ -57,8 +57,7 @@ impl FileDeleter {
         }
 
         debug!("deleting file from the database: {}", id.to_string());
-        diesel::delete(file_uploads::table.find(id))
-            .execute(&mut connection)?;
+        self.repository.delete(id)?;
 
         Ok(())
     }
@@ -68,11 +67,12 @@ impl FileDeleter {
 mod tests {
     use crate::config::Settings;
     use crate::database::DbPool;
+    use crate::repository::PostgresFileUploadRepository;
     use crate::services::FileDeleter;
 
-    impl FileDeleter {
+    impl FileDeleter<PostgresFileUploadRepository> {
         pub fn test(pool: DbPool) -> Self {
-            Self::new(pool, Settings::default())
+            Self::new(PostgresFileUploadRepository::new(pool), Settings::default())
         }
     }
 }

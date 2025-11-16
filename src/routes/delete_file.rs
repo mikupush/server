@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::errors::{route_error_helpers, FileDeleteError};
+use crate::repository::PostgresFileUploadRepository;
 use crate::routes::ErrorResponse;
 use crate::services::FileDeleter;
 use actix_web::error::Result;
@@ -24,7 +25,7 @@ use uuid::Uuid;
 
 #[delete("/api/file/{id}")]
 pub async fn delete_file(
-    deleter: web::Data<FileDeleter>,
+    deleter: web::Data<FileDeleter<PostgresFileUploadRepository>>,
     id: web::Path<String>
 ) -> Result<HttpResponse> {
     let Ok(id) = Uuid::try_from(id.to_string()) else {

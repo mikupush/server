@@ -21,12 +21,14 @@ use tracing_actix_web::TracingLogger;
 mod routes;
 mod config;
 mod database;
-mod model;
 mod schema;
 mod serialization;
 mod services;
 mod errors;
 mod logging;
+mod domain;
+mod repository;
+mod model;
 
 use config::Settings;
 use crate::database::create_database_connection;
@@ -68,11 +70,12 @@ async fn main() -> std::io::Result<()> {
 
     // services
     let limiter = services::FileSizeLimiter::new(settings.clone());
-    let registerer = services::FileRegister::new(pool.clone(), limiter.clone());
-    let uploader = services::FileUploader::new(pool.clone(), settings.clone(), limiter.clone());
-    let deleter = services::FileDeleter::new(pool.clone(), settings.clone());
-    let reader = services::FileReader::new(pool.clone(), settings.clone());
-    let finder = services::FileInfoFinder::new(pool.clone(), settings.clone());
+    let file_upload_repository = repository::PostgresFileUploadRepository::new(pool.clone());
+    let registerer = services::FileRegister::new(file_upload_repository.clone(), limiter.clone());
+    let uploader = services::FileUploader::new(file_upload_repository.clone(), settings.clone(), limiter.clone());
+    let deleter = services::FileDeleter::new(file_upload_repository.clone(), settings.clone());
+    let reader = services::FileReader::new(file_upload_repository.clone(), settings.clone());
+    let finder = services::FileInfoFinder::new(file_upload_repository.clone(), settings.clone());
 
     HttpServer::new(move || {
         App::new()

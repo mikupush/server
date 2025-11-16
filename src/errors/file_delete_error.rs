@@ -16,6 +16,7 @@
 
 use std::fmt::Display;
 use crate::errors::Error;
+use crate::repository::FileUploadRepositoryError;
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -64,6 +65,15 @@ impl From<diesel::result::Error> for FileDeleteError {
 impl From<r2d2::Error> for FileDeleteError {
     fn from(value: r2d2::Error) -> Self {
         Self::DB { message: value.to_string() }
+    }
+}
+
+impl From<FileUploadRepositoryError> for FileDeleteError {
+    fn from(value: FileUploadRepositoryError) -> Self {
+        match value {
+            FileUploadRepositoryError::Db(err) => err.into(),
+            FileUploadRepositoryError::Pool(err) => err.into(),
+        }
     }
 }
 

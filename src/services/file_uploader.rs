@@ -16,42 +16,41 @@
 
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use std::path::{Path, PathBuf};
-use crate::database::DbPool;
 use crate::errors::FileUploadError;
-use crate::schema::file_uploads;
+use crate::repository::FileUploadRepository;
 use crate::services::FileSizeLimiter;
 use actix_web::web::Payload;
-use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
 use futures::StreamExt;
 use tracing::debug;
 use uuid::Uuid;
 use crate::config::Settings;
-use crate::model::FileUpload;
 
 #[derive(Debug, Clone)]
-pub struct FileUploader {
-    pool: DbPool,
+pub struct FileUploader<FR>
+where
+    FR: FileUploadRepository + Clone,
+{
+    repository: FR,
     settings: Settings,
     limiter: FileSizeLimiter
 }
 
-impl FileUploader {
-    pub fn new(pool: DbPool, settings: Settings, limiter: FileSizeLimiter) -> Self {
-        Self { pool, settings, limiter }
+impl<FR> FileUploader<FR>
+where
+    FR: FileUploadRepository + Clone,
+{
+    pub fn new(repository: FR, settings: Settings, limiter: FileSizeLimiter) -> Self {
+        Self { repository, settings, limiter }
     }
 
     pub async fn upload_file(&self, id: Uuid, mut payload: Payload) -> Result<(), FileUploadError> {
         let mut total_bytes: u64 = 0;
-        let mut connection = self.pool.get()?;
-        let file_upload: Option<FileUpload> = file_uploads::table
-            .find(id)
-            .first(&mut connection)
-            .optional()?;
-
-        let Some(file_upload) = file_upload else {
-            debug!("file upload {} does not exist", id);
-            return Err(FileUploadError::NotExists { id })
+        let file_upload = match self.repository.find_by_id(id)? {
+            Some(file_upload) => file_upload,
+            None => {
+                debug!("file upload {} does not exist", id);
+                return Err(FileUploadError::NotExists { id })
+            }
         };
 
         let destination_path = file_upload.directory(&self.settings)?;
@@ -98,12 +97,13 @@ impl FileUploader {
 mod tests {
     use crate::config::Settings;
     use crate::database::DbPool;
+    use crate::repository::PostgresFileUploadRepository;
     use crate::services::{FileSizeLimiter, FileUploader};
 
-    impl FileUploader {
+    impl FileUploader<PostgresFileUploadRepository> {
         pub fn test(pool: DbPool) -> Self {
             Self {
-                pool,
+                repository: PostgresFileUploadRepository::new(pool),
                 settings: Settings::default(),
                 limiter: FileSizeLimiter::test()
             }

@@ -14,25 +14,28 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::database::DbPool;
+use crate::domain::FileUpload;
 use crate::errors::FileUploadError;
-use crate::model::FileUpload;
+use crate::repository::FileUploadRepository;
 use crate::routes::FileCreate;
-use crate::schema::file_uploads;
 use crate::services::FileSizeLimiter;
 use chrono::Utc;
-use diesel::OptionalExtension;
-use diesel::{QueryDsl, RunQueryDsl};
 
 #[derive(Debug, Clone)]
-pub struct FileRegister {
-    pool: DbPool,
+pub struct FileRegister<FR>
+where
+    FR: FileUploadRepository + Clone,
+{
+    repository: FR,
     limiter: FileSizeLimiter
 }
 
-impl FileRegister {
-    pub fn new(pool: DbPool, limiter: FileSizeLimiter) -> Self {
-        Self { pool, limiter }
+impl<FR> FileRegister<FR>
+where
+    FR: FileUploadRepository + Clone,
+{
+    pub fn new(repository: FR, limiter: FileSizeLimiter) -> Self {
+        Self { repository, limiter }
     }
 
     pub fn register_file(&self, file_create: FileCreate) -> Result<(), FileUploadError> {
@@ -47,19 +50,13 @@ impl FileRegister {
             chunked: false
         };
 
-        let mut connection = self.pool.get()?;
-        let existing: Option<FileUpload> = file_uploads::table
-            .find(file_create.id)
-            .first(&mut connection)
-            .optional()?;
+        let existing = self.repository.find_by_id(file_create.id)?;
 
         if existing.is_some() {
             return Err(FileUploadError::Exists)
         }
 
-        diesel::insert_into(file_uploads::table)
-            .values(&file_upload)
-            .execute(&mut connection)?;
+        self.repository.save(file_upload)?;
 
         Ok(())
     }
@@ -68,12 +65,14 @@ impl FileRegister {
 #[cfg(test)]
 mod tests {
     use crate::database::tests::create_test_database_connection;
+    use crate::repository::PostgresFileUploadRepository;
     use crate::services::{FileRegister, FileSizeLimiter};
 
-    impl FileRegister {
+    impl FileRegister<PostgresFileUploadRepository> {
         pub fn test() -> Self {
+            let pool = create_test_database_connection();
             Self::new(
-                create_test_database_connection(),
+                PostgresFileUploadRepository::new(pool),
                 FileSizeLimiter::test()
             )
         }

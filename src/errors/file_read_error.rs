@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::errors::Error;
+use crate::repository::FileUploadRepositoryError;
 use std::fmt::Display;
 use uuid::Uuid;
 
@@ -64,6 +65,15 @@ impl From<diesel::result::Error> for FileReadError {
 impl From<r2d2::Error> for FileReadError {
     fn from(value: r2d2::Error) -> Self {
         Self::DB { message: value.to_string() }
+    }
+}
+
+impl From<FileUploadRepositoryError> for FileReadError {
+    fn from(value: FileUploadRepositoryError) -> Self {
+        match value {
+            FileUploadRepositoryError::Db(err) => err.into(),
+            FileUploadRepositoryError::Pool(err) => err.into(),
+        }
     }
 }
 

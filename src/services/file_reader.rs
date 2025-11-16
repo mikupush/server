@@ -15,42 +15,35 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::database::DbPool;
+use crate::domain::FileUpload;
 use crate::errors::FileReadError;
-use crate::model::FileUpload;
-use crate::schema::file_uploads;
-use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
+use crate::repository::FileUploadRepository;
 use std::path::Path;
-use std::pin::Pin;
-use std::task::{Context, Poll};
-use futures::Stream;
 use tokio::fs::File;
-use std::io::Read;
-use actix_web::body::SizedStream;
 use tokio_util::io::ReaderStream;
-use tracing::{debug, warn};
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
-pub struct FileReader {
-    pool: DbPool,
+pub struct FileReader<FR>
+where
+    FR: FileUploadRepository + Clone,
+{
+    repository: FR,
     settings: Settings,
 }
 
-impl FileReader {
-    pub fn new(pool: DbPool, settings: Settings) -> Self {
-        Self { pool, settings }
+impl<FR> FileReader<FR>
+where
+    FR: FileUploadRepository + Clone,
+{
+    pub fn new(repository: FR, settings: Settings) -> Self {
+        Self { repository, settings }
     }
 
     pub async fn read(&self, id: Uuid) -> Result<FileRead, FileReadError> {
-        let mut connection = self.pool.get()?;
-        let file_upload: Option<FileUpload> = file_uploads::table
-            .find(id)
-            .first(&mut connection)
-            .optional()?;
-
-        let Some(file_upload) = file_upload else {
-            return Err(FileReadError::NotExists { id })
+        let file_upload = match self.repository.find_by_id(id)? {
+            Some(file_upload) => file_upload,
+            None => return Err(FileReadError::NotExists { id })
         };
 
         let directory = file_upload.directory(&self.settings)?;
@@ -83,11 +76,15 @@ impl FileRead {
 pub mod tests {
     use crate::config::Settings;
     use crate::database::DbPool;
+    use crate::repository::PostgresFileUploadRepository;
     use crate::services::FileReader;
 
-    impl FileReader {
+    impl FileReader<PostgresFileUploadRepository> {
         pub fn test(pool: DbPool) -> Self {
-            Self { pool, settings: Settings::default() }
+            Self {
+                repository: PostgresFileUploadRepository::new(pool),
+                settings: Settings::default()
+            }
         }
     }
 }

@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::errors::{route_error_helpers, FileInfoError};
+use crate::repository::PostgresFileUploadRepository;
 use crate::routes::ErrorResponse;
 use crate::services::FileInfoFinder;
 use actix_web::error::Result;
@@ -24,7 +25,7 @@ use uuid::Uuid;
 
 #[get("/api/file/{id}")]
 pub async fn get_file_info(
-    finder: web::Data<FileInfoFinder>,
+    finder: web::Data<FileInfoFinder<PostgresFileUploadRepository>>,
     id: web::Path<String>
 ) -> Result<HttpResponse> {
     let Ok(id) = Uuid::try_from(id.to_string()) else {

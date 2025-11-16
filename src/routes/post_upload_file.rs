@@ -16,6 +16,7 @@
 
 use crate::errors::route_error_helpers;
 use crate::errors::FileUploadError;
+use crate::repository::PostgresFileUploadRepository;
 use crate::routes::error::ErrorResponse;
 use crate::services::FileUploader;
 use actix_web::web::Payload;
@@ -25,7 +26,7 @@ use uuid::Uuid;
 
 #[post("/api/file/{id}/upload")]
 pub async fn post_upload_file(
-    file_uploader: web::Data<FileUploader>,
+    file_uploader: web::Data<FileUploader<PostgresFileUploadRepository>>,
     id: web::Path<String>,
     payload: Payload
 ) -> Result<HttpResponse> {
