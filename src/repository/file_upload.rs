@@ -87,3 +87,96 @@ impl FileUploadRepository for PostgresFileUploadRepository {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::database::tests::create_test_database_connection;
+    use chrono::Utc;
+    use serial_test::serial;
+
+    #[test]
+    #[serial]
+    fn test_find_by_id() {
+        let pool = create_test_database_connection();
+        let repository = PostgresFileUploadRepository::new(pool.clone());
+        let file_upload = insert_file_upload(&pool);
+
+        let stored = repository.find_by_id(file_upload.id).unwrap();
+
+        let stored = stored.expect("file upload should exist after save");
+        assert_eq!(stored.id, file_upload.id);
+        assert_eq!(stored.name, file_upload.name);
+        assert_eq!(stored.mime_type, file_upload.mime_type);
+        assert_eq!(stored.size, file_upload.size);
+    }
+
+    #[test]
+    #[serial]
+    fn test_find_by_id_not_found() {
+        let pool = create_test_database_connection();
+        let repository = PostgresFileUploadRepository::new(pool.clone());
+
+        let result = repository.find_by_id(Uuid::new_v4()).unwrap();
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    #[serial]
+    fn test_delete_file_upload() {
+        let pool = create_test_database_connection();
+        let repository = PostgresFileUploadRepository::new(pool.clone());
+        let file_upload = insert_file_upload(&pool);
+
+        repository.delete(file_upload.id).unwrap();
+
+        let stored = find_file_upload(&pool, file_upload.id);
+        assert!(stored.is_none(), "file upload should be removed from database");
+    }
+
+    #[test]
+    #[serial]
+    fn test_save_file_upload() {
+        let pool = create_test_database_connection();
+        let repository = PostgresFileUploadRepository::new(pool.clone());
+        let file_upload: FileUpload = create_file_upload().into();
+
+        repository.save(file_upload.clone()).unwrap();
+
+        let stored = find_file_upload(&pool, file_upload.id);
+        assert!(stored.is_some(), "file upload should be saved to database");
+    }
+
+    fn create_file_upload() -> FileUploadModel {
+        FileUploadModel {
+            id: Uuid::new_v4(),
+            name: "hatsune_miku.jpg".to_string(),
+            mime_type: "image/jpeg".to_string(),
+            size: 1024,
+            uploaded_at: Utc::now().naive_utc(),
+            chunked: false
+        }
+    }
+
+    fn insert_file_upload(pool: &DbPool) -> FileUpload {
+        let model = create_file_upload();
+        let mut connection = pool.get().unwrap();
+
+        diesel::insert_into(file_uploads::table)
+            .values(&model)
+            .execute(&mut connection)
+            .unwrap();
+
+        model.into()
+    }
+
+    fn find_file_upload(pool: &DbPool, id: Uuid) -> Option<FileUploadModel> {
+        let mut connection = pool.get().unwrap();
+
+        file_uploads::table.find(id)
+            .first(&mut connection)
+            .optional()
+            .unwrap()
+    }
+}
