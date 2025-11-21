@@ -20,6 +20,7 @@ mod file_size_limiter;
 mod file_deleter;
 mod file_reader;
 mod file_info;
+mod file_writer;
 
 pub use file_register::*;
 pub use file_uploader::*;
