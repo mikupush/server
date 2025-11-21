@@ -24,9 +24,15 @@ pub const UPLOAD_MAX_SIZE_UNLIMITED: &str = "unlimited";
 pub struct Upload {
     max_size: Option<u64>,
     directory: Option<String>,
+    #[serde(default = "Upload::default_override_with_env")]
+    override_with_env: bool
 }
 
 impl Upload {
+    pub fn new(max_size: Option<u64>, directory: Option<String>) -> Self {
+        Self { max_size, directory, override_with_env: false }
+    }
+
     /// Returns true if the upload is limited.
     /// If true, you can unwrap securely the max_size optional
     pub fn is_limited(&self) -> bool {
@@ -34,7 +40,7 @@ impl Upload {
     }
 
     pub fn max_size(&self) -> Option<u64> {
-        if let Some(value) = env("MIKU_PUSH_UPLOAD_MAX_SIZE") {
+        if let Some(value) = env("MIKU_PUSH_UPLOAD_MAX_SIZE") && self.override_with_env {
             debug!("using env variable MIKU_PUSH_UPLOAD_MAX_SIZE: {}", value);
             if value == UPLOAD_MAX_SIZE_UNLIMITED {
                 return None;
@@ -53,7 +59,7 @@ impl Upload {
     }
 
     pub fn directory(&self) -> String {
-        if let Some(value) = env("MIKU_PUSH_UPLOAD_DIRECTORY") {
+        if let Some(value) = env("MIKU_PUSH_UPLOAD_DIRECTORY") && self.override_with_env {
             debug!("using env variable MIKU_PUSH_UPLOAD_DIRECTORY: {}", value);
             return value
         }
@@ -66,6 +72,10 @@ impl Upload {
 
         "data".to_string()
     }
+
+    fn default_override_with_env() -> bool {
+        true
+    }
 }
 
 impl Default for Upload {
@@ -73,6 +83,28 @@ impl Default for Upload {
         Self {
             max_size: None,
             directory: None,
+            override_with_env: Self::default_override_with_env()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+    use super::*;
+
+    impl Upload {
+        pub fn create_for_test() -> Self {
+            Self {
+                max_size: None,
+                directory: Some(
+                    PathBuf::from("data")
+                        .join("test")
+                        .to_string_lossy()
+                        .to_string()
+                ),
+                override_with_env: false
+            }
         }
     }
 }
