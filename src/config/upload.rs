@@ -94,17 +94,16 @@ mod tests {
     use super::*;
 
     impl Upload {
-        pub fn create_for_test() -> Self {
-            Self {
-                max_size: None,
-                directory: Some(
+        pub fn create() -> Self {
+            Self::new(
+                None,
+                Some(
                     PathBuf::from("data")
                         .join("test")
                         .to_string_lossy()
                         .to_string()
-                ),
-                override_with_env: false
-            }
+                )
+            )
         }
     }
 }

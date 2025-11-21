@@ -96,7 +96,7 @@ mod tests {
     impl FileSystemFileWriter {
         pub fn create() -> Self {
             Self::new(
-                UploadSettings::create_for_test(),
+                UploadSettings::create(),
                 FileSizeLimiter::create_unlimited()
             )
         }
@@ -150,7 +150,7 @@ mod tests {
     }
 
     fn test_directory() -> PathBuf {
-        let directory = PathBuf::from(UploadSettings::create_for_test().directory());
+        let directory = PathBuf::from(UploadSettings::create().directory());
 
         if !std::fs::exists(&directory).unwrap() {
             std::fs::create_dir_all(&directory).unwrap();
