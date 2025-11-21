@@ -1,89 +1,70 @@
 use crate::config::{Settings, Upload as UploadSettings};
 use crate::services::FileSizeLimiter;
 use actix_web::error::PayloadError;
-use actix_web::web::Payload;
 use futures::{StreamExt, TryFutureExt};
 use std::io::Write;
 use std::path::PathBuf;
-use tokio::fs::{File, OpenOptions};
+use tokio::fs::OpenOptions;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncReadExt;
-use tracing::debug;
 
 pub trait FileWriter {
-    async fn write(&self, reader: impl AsyncRead + Unpin, destination: String) -> Result<(), FileWriteError>;
-    async fn write_chunk(&self, reader: impl AsyncRead + Unpin, destination: String) -> Result<(), FileWriteError>;
+    /// Write an entire file with an optional size limit.
+    /// Returns the total bytes written.
+    /// * `limit` - size limit in bytes (optional)
+    async fn write(
+        &self,
+        reader: impl AsyncRead + Unpin,
+        destination: String,
+        limit: Option<u64>
+    ) -> Result<u64, FileWriteError>;
 }
 
 #[derive(Clone)]
 pub struct NoopFileWriter;
 
 impl FileWriter for NoopFileWriter {
-    async fn write(&self, _reader: impl AsyncRead + Unpin, _destination: String) -> Result<(), FileWriteError> {
-        Ok(())
-    }
-
-    async fn write_chunk(&self, _reader: impl AsyncRead + Unpin, _destination: String) -> Result<(), FileWriteError> {
-        Ok(())
+    async fn write(
+        &self, _reader:
+        impl AsyncRead + Unpin,
+        _destination: String,
+        _limit: Option<u64>
+    ) -> Result<u64, FileWriteError> {
+        Ok(0)
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct FileSystemFileWriter {
-    settings: UploadSettings,
-    limiter: FileSizeLimiter
-}
+pub struct FileSystemFileWriter;
 
 impl FileSystemFileWriter {
-    pub fn new(settings: UploadSettings, limiter: FileSizeLimiter) -> Self {
-        Self { settings, limiter }
-    }
-
-    pub fn get_with_settings(settings: Settings) -> Self {
-        Self::new(
-            settings.clone().upload,
-            FileSizeLimiter::new(settings)
-        )
+    pub fn new() -> Self {
+        Self
     }
 }
 
 impl FileWriter for FileSystemFileWriter {
     /// Write an entire file with a size limit.
-    async fn write(&self, mut reader: impl AsyncRead + Unpin, destination: String) -> Result<(), FileWriteError> {
+    async fn write(
+        &self,
+        mut reader: impl AsyncRead + Unpin,
+        destination: String,
+        limit: Option<u64>
+    ) -> Result<u64, FileWriteError> {
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
             .open(&destination)
             .await?;
-        let mut bytes_written = 0;
 
-        if self.settings.is_limited() {
-            let mut limited_reader = reader.take(self.settings.max_size().unwrap() + 1);
-            bytes_written = tokio::io::copy(&mut limited_reader, &mut file).await?;
+        let bytes_written = if let Some(limit) = limit {
+            let mut limited_reader = reader.take(limit + 1);
+            tokio::io::copy(&mut limited_reader, &mut file).await?
         } else {
-            bytes_written = tokio::io::copy(&mut reader, &mut file).await?;
-        }
+            tokio::io::copy(&mut reader, &mut file).await?
+        };
 
-        if self.limiter.check_file_size(bytes_written) == false {
-            debug!("file size limit exceeded");
-            return Err(FileWriteError::FileSizeLimitExceeded);
-        }
-
-        Ok(())
-    }
-
-    /// Write a chunk of 10MB of data.
-    async fn write_chunk(&self, reader: impl AsyncRead + Unpin, destination: String) -> Result<(), FileWriteError> {
-        let mut file = OpenOptions::new()
-            .create(true)
-            .write(true)
-            .open(&destination)
-            .await?;
-
-        let mut limited_reader = reader.take(10485760); // 10 MB
-        tokio::io::copy(&mut limited_reader, &mut file).await?;
-
-        Ok(())
+        Ok(bytes_written)
     }
 }
 
@@ -110,15 +91,12 @@ mod tests {
     use super::*;
     use actix_web::test;
     use bytes::Bytes;
-    use tokio_util::io::StreamReader;
     use std::time::{SystemTime, UNIX_EPOCH};
+    use tokio_util::io::StreamReader;
 
     impl FileSystemFileWriter {
         pub fn create() -> Self {
-            Self::new(
-                UploadSettings::create(),
-                FileSizeLimiter::create_unlimited()
-            )
+            Self::new()
         }
     }
 
@@ -140,14 +118,14 @@ mod tests {
             .to_string_lossy()
             .to_string();
 
-        writer.write(reader, destination.clone()).await.unwrap();
+        writer.write(reader, destination.clone(), None).await.unwrap();
 
         assert_eq!(true, std::fs::exists(&destination).unwrap());
         assert_eq!("HelloWorld", std::fs::read_to_string(&destination).unwrap());
     }
 
     #[test]
-    async fn test_write_file_chunk() {
+    async fn test_write_file_limited() {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -155,18 +133,19 @@ mod tests {
         let writer = FileSystemFileWriter::create();
         let stream = tokio_stream::iter(vec![
             tokio::io::Result::Ok(Bytes::from("Hello")),
+            tokio::io::Result::Ok(Bytes::from("World")),
         ]);
 
         let reader = StreamReader::new(stream);
         let destination = test_directory()
-            .join(format!("test_{}.part", now))
+            .join(format!("test_{}.txt", now))
             .to_string_lossy()
             .to_string();
 
-        writer.write_chunk(reader, destination.clone()).await.unwrap();
+        writer.write(reader, destination.clone(), Some(1)).await.unwrap();
 
         assert_eq!(true, std::fs::exists(&destination).unwrap());
-        assert_eq!("Hello", std::fs::read_to_string(&destination).unwrap());
+        assert_eq!("He", std::fs::read_to_string(&destination).unwrap());
     }
 
     fn test_directory() -> PathBuf {

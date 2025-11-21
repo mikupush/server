@@ -47,3 +47,21 @@ impl FileUpload {
         Ok(destination_directory)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    impl FileUpload {
+        pub fn create(id: &str) -> Self {
+            Self {
+                id: Uuid::parse_str(id).unwrap(),
+                name: "test.txt".to_string(),
+                mime_type: "text/plain".to_string(),
+                size: 10,
+                uploaded_at: chrono::Utc::now().naive_utc(),
+                chunked: false
+            }
+        }
+    }
+}

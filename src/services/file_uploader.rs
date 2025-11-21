@@ -14,19 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::fmt::Display;
-use std::fs::{File, OpenOptions};
-use std::io::Write;
+use crate::config::Settings;
 use crate::errors::Error;
 use crate::repository::{FileUploadRepository, FileUploadRepositoryError, PostgresFileUploadRepository};
+use crate::services::file_writer::{FileSystemFileWriter, FileWriteError, FileWriter};
 use crate::services::FileSizeLimiter;
 use actix_web::web::Payload;
 use futures::StreamExt;
+use std::fmt::Display;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
 use tokio::io::AsyncRead;
 use tracing::debug;
 use uuid::Uuid;
-use crate::config::Settings;
-use crate::services::file_writer::{FileSystemFileWriter, FileWriteError, FileWriter};
 
 #[derive(Debug, Clone)]
 pub struct FileUploader<FR, FW>
@@ -67,7 +67,16 @@ where
         let destination_path = destination_path.join(file_upload.name.clone());
         let destination_path = destination_path.to_string_lossy().to_string();
 
-        self.writer.write(reader, destination_path).await?;
+        let bytes_written = if self.settings.upload.is_limited() {
+            self.writer.write(reader, destination_path, self.settings.upload.max_size()).await?
+        } else {
+            self.writer.write(reader, destination_path, None).await?
+        };
+
+        if self.limiter.check_file_size(bytes_written) == false {
+            debug!("file size limit exceeded");
+            return Err(FileUploadError::MaxFileSizeExceeded);
+        }
 
         Ok(())
     }
@@ -77,7 +86,7 @@ impl FileUploader<PostgresFileUploadRepository, FileSystemFileWriter> {
     pub fn get_with_settings(settings: Settings) -> Self {
         Self::new(
             PostgresFileUploadRepository::get_with_settings(settings.clone()),
-            FileSystemFileWriter::get_with_settings(settings.clone()),
+            FileSystemFileWriter::new(),
             settings.clone(),
             FileSizeLimiter::new(settings.clone())
         )
@@ -85,6 +94,7 @@ impl FileUploader<PostgresFileUploadRepository, FileSystemFileWriter> {
 }
 
 #[derive(Debug)]
+#[derive(PartialEq)]
 pub enum FileUploadError {
     Exists,
     NotExists { id: Uuid },
@@ -182,19 +192,46 @@ pub mod file_upload_codes {
 #[cfg(test)]
 mod tests {
     use crate::config::Settings;
-    use crate::database::DbPool;
-    use crate::repository::PostgresFileUploadRepository;
-    use crate::services::{FileSizeLimiter, FileUploader};
+    use crate::domain::FileUpload;
+    use crate::repository::InMemoryFileUploadRepository;
     use crate::services::file_writer::NoopFileWriter;
+    use crate::services::{FileSizeLimiter, FileUploadError, FileUploader};
+    use std::collections::HashMap;
+    use bytes::Bytes;
+    use tokio_util::io::StreamReader;
+    use uuid::Uuid;
 
-    impl FileUploader<PostgresFileUploadRepository, NoopFileWriter> {
-        pub fn create(pool: DbPool) -> Self {
+    impl FileUploader<InMemoryFileUploadRepository, NoopFileWriter> {
+        pub fn create() -> Self {
+            let items = HashMap::from([
+                (
+                    Uuid::parse_str("5769aa43-2380-49be-aafb-e9dd4bd4564f").unwrap(),
+                    FileUpload::create("5769aa43-2380-49be-aafb-e9dd4bd4564f")
+                ),
+            ]);
+
             Self {
-                repository: PostgresFileUploadRepository::new(pool),
+                repository: InMemoryFileUploadRepository::new(items),
                 writer: NoopFileWriter,
                 settings: Settings::default(),
                 limiter: FileSizeLimiter::create()
             }
         }
+    }
+
+    #[actix_web::test]
+    async fn test_upload_file_not_exists() {
+        let uploader = FileUploader::create();
+        let id = Uuid::parse_str("f5dcca7d-e8ba-4e87-b7b1-e3cde6bc857d").unwrap();
+        let stream = tokio_stream::iter(vec![
+            tokio::io::Result::Ok(Bytes::from("Hello")),
+            tokio::io::Result::Ok(Bytes::from("World")),
+        ]);
+
+        let reader = StreamReader::new(stream);
+        let result = uploader.upload_file(id, reader).await;
+
+        assert_eq!(true, result.is_err());
+        assert_eq!(FileUploadError::NotExists { id }, result.unwrap_err());
     }
 }
