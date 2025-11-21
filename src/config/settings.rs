@@ -35,6 +35,10 @@ pub struct Settings {
 }
 
 impl Settings {
+    pub fn new(server: Server, log: LoggingConfig, database: DataBase, upload: Upload) -> Self {
+        Self { server, log, database, upload }
+    }
+
     pub fn load() -> Self {
         local_trace(|| {
             Settings::load_from_file()
