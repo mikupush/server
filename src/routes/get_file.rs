@@ -51,7 +51,7 @@ fn handle_get_file_info_failure(err: FileInfoError) -> HttpResponse {
 #[cfg(test)]
 mod tests {
     use crate::config::tests::setup_test_env;
-    use crate::database::tests::create_test_database_connection;
+    use crate::database::tests::get_test_database_connection;
     use crate::errors::{file_delete_codes, route_error_codes};
     use crate::model::{FileInfo, FileStatus};
     use crate::routes::utils::tests::{create_test_file_upload, register_test_file};
@@ -64,7 +64,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_get_file_info_200_ok() {
-        let pool = create_test_database_connection();
+        let pool = get_test_database_connection();
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileInfoFinder::test(pool.clone())))
@@ -92,14 +92,14 @@ mod tests {
 
     #[actix_web::test]
     async fn test_get_file_info_200_ok_not_uploaded_file() {
-        let pool = create_test_database_connection();
+        let pool = get_test_database_connection();
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileInfoFinder::test(pool.clone())))
                 .service(get_file_info)
         ).await;
 
-        let file_upload = register_test_file(pool.clone());
+        let file_upload = register_test_file();
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{}", file_upload.id.clone()).as_str())
             .method(Method::GET)
@@ -120,7 +120,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_get_file_info_404_not_found() {
-        let pool = create_test_database_connection();
+        let pool = get_test_database_connection();
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileInfoFinder::test(pool.clone())))
@@ -146,7 +146,7 @@ mod tests {
     async fn test_get_file_info_400_bad_request_invalid_id() {
         setup_test_env();
 
-        let pool = create_test_database_connection();
+        let pool = get_test_database_connection();
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileInfoFinder::test(pool.clone())))

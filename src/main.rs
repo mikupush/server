@@ -31,11 +31,12 @@ mod repository;
 mod model;
 
 use config::Settings;
-use crate::database::create_database_connection;
+use crate::database::{setup_database_connection, get_database_connection};
 use crate::logging::configure_logging;
 use crate::routes::json_error_handler;
 use clap::Parser;
 use std::path::PathBuf;
+use crate::services::FileUploader;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -54,29 +55,24 @@ async fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
     let config_path = cli.config;
 
-    let settings = if let Some(path) = config_path {
-        try_load_config_from_path(path)
-    } else {
-        Settings::load()
-    };
-
-    let settings_clone = settings.clone();
+    Settings::setup_global_from(config_path);
+    let settings = Settings::get();
 
     // logging config
     configure_logging(settings.clone());
 
     // database connection pool
-    let pool = create_database_connection(settings.clone());
+    let pool = setup_database_connection(settings.clone());
 
     // services
     let limiter = services::FileSizeLimiter::new(settings.clone());
     let file_upload_repository = repository::PostgresFileUploadRepository::new(pool.clone());
     let registerer = services::FileRegister::new(file_upload_repository.clone(), limiter.clone());
-    let uploader = services::FileUploader::new(file_upload_repository.clone(), settings.clone(), limiter.clone());
     let deleter = services::FileDeleter::new(file_upload_repository.clone(), settings.clone());
     let reader = services::FileReader::new(file_upload_repository.clone(), settings.clone());
     let finder = services::FileInfoFinder::new(file_upload_repository.clone(), settings.clone());
 
+    let settings_clone = settings.clone();
     HttpServer::new(move || {
         App::new()
             .wrap(TracingLogger::default())
@@ -84,7 +80,6 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(settings_clone.clone()))
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(registerer.clone()))
-            .app_data(web::Data::new(uploader.clone()))
             .app_data(web::Data::new(deleter.clone()))
             .app_data(web::Data::new(reader.clone()))
             .app_data(web::Data::new(finder.clone()))

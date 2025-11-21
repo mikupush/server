@@ -1,4 +1,4 @@
-use crate::config::Upload as UploadSettings;
+use crate::config::{Settings, Upload as UploadSettings};
 use crate::services::FileSizeLimiter;
 use actix_web::error::PayloadError;
 use actix_web::web::Payload;
@@ -15,6 +15,19 @@ pub trait FileWriter {
     async fn write_chunk(&self, reader: impl AsyncRead + Unpin, destination: String) -> Result<(), FileWriteError>;
 }
 
+#[derive(Clone)]
+pub struct NoopFileWriter;
+
+impl FileWriter for NoopFileWriter {
+    async fn write(&self, _reader: impl AsyncRead + Unpin, _destination: String) -> Result<(), FileWriteError> {
+        Ok(())
+    }
+
+    async fn write_chunk(&self, _reader: impl AsyncRead + Unpin, _destination: String) -> Result<(), FileWriteError> {
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct FileSystemFileWriter {
     settings: UploadSettings,
@@ -24,6 +37,13 @@ pub struct FileSystemFileWriter {
 impl FileSystemFileWriter {
     pub fn new(settings: UploadSettings, limiter: FileSizeLimiter) -> Self {
         Self { settings, limiter }
+    }
+
+    pub fn get_with_settings(settings: Settings) -> Self {
+        Self::new(
+            settings.clone().upload,
+            FileSizeLimiter::new(settings)
+        )
     }
 }
 

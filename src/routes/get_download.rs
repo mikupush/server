@@ -59,7 +59,7 @@ fn handle_get_download_error(err: FileReadError) -> HttpResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::tests::create_test_database_connection;
+    use crate::database::tests::get_test_database_connection;
     use crate::routes::utils::tests::{create_test_file_upload, header_value};
     use actix_web::http::{Method, StatusCode};
     use actix_web::{test, App};
@@ -72,7 +72,7 @@ mod tests {
     async fn test_get_download_200_ok() {
         setup_test_env();
 
-        let pool = create_test_database_connection();
+        let pool = get_test_database_connection();
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileReader::test(pool.clone())))
@@ -100,7 +100,7 @@ mod tests {
     async fn test_get_download_404_not_found() {
         setup_test_env();
 
-        let pool = create_test_database_connection();
+        let pool = get_test_database_connection();
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileReader::test(pool.clone())))
@@ -127,7 +127,7 @@ mod tests {
     async fn test_get_download_400_bad_request_invalid_id() {
         setup_test_env();
 
-        let pool = create_test_database_connection();
+        let pool = get_test_database_connection();
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileReader::test(pool.clone())))

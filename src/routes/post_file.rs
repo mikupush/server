@@ -14,10 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::errors::FileUploadError;
 use crate::repository::PostgresFileUploadRepository;
 use crate::routes::error::ErrorResponse;
-use crate::services::FileRegister;
+use crate::services::{FileRegister, FileUploadError};
 use actix_web::{post, web, HttpResponse, Result};
 use tracing::debug;
 use serde::{Deserialize, Serialize};
@@ -66,11 +65,12 @@ fn handle_register_file_failure(request: FileCreate, err: FileUploadError) -> Ht
 mod tests {
     use super::*;
     use crate::config::tests::{set_test_env, setup_test_env};
-    use crate::errors::{file_upload_codes, route_error_codes};
+    use crate::errors::{route_error_codes};
     use actix_web::http::{Method, StatusCode};
     use actix_web::{http::header::ContentType, test, App};
     use serial_test::serial;
     use crate::routes::json_error_handler;
+    use crate::services::file_upload_codes;
 
     #[actix_web::test]
     #[serial]

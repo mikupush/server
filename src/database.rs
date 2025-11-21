@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::sync::OnceLock;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
@@ -23,8 +24,9 @@ use crate::config::Settings;
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 
 const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
+static DB_POOL: OnceLock<DbPool> = OnceLock::new();
 
-pub fn create_database_connection(settings: Settings) -> DbPool {
+pub fn setup_database_connection(settings: Settings) -> DbPool {
     let manager = ConnectionManager::<PgConnection>::new(settings.database.url());
     let pool = Pool::builder().build(manager).unwrap_or_else(|err| {
         error!("Error creating database connection pool: {}", err);
@@ -39,13 +41,33 @@ pub fn create_database_connection(settings: Settings) -> DbPool {
     pool
 }
 
+pub fn get_database_connection(settings: Settings) -> DbPool {
+    if let Some(pool) = DB_POOL.get() {
+        return pool.clone()
+    }
+
+    let pool = setup_database_connection(settings);
+    DB_POOL.set(pool.clone()).expect("database connection pool already set");
+    pool
+}
+
 #[cfg(test)]
 pub mod tests {
+    use std::sync::OnceLock;
     use crate::config::Settings;
-    use crate::database::{create_database_connection, DbPool};
+    use crate::database::{setup_database_connection, get_database_connection, DbPool};
 
-    pub fn create_test_database_connection() -> DbPool {
+    static TEST_DB_POOL: OnceLock<DbPool> = OnceLock::new();
+
+    pub fn get_test_database_connection() -> DbPool {
+        if let Some(pool) = TEST_DB_POOL.get() {
+            return pool.clone();
+        }
+
         let settings = Settings::load();
-        create_database_connection(settings)
+        let pool = setup_database_connection(settings);
+        TEST_DB_POOL.set(pool.clone())
+            .expect("database connection pool already set");
+        pool
     }
 }

@@ -16,7 +16,6 @@
 
 use tracing::debug;
 use crate::config::Settings;
-use crate::errors::FileUploadError;
 
 #[derive(Debug, Clone)]
 pub struct FileSizeLimiter {

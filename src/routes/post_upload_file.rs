@@ -15,27 +15,33 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::errors::route_error_helpers;
-use crate::errors::FileUploadError;
 use crate::repository::PostgresFileUploadRepository;
 use crate::routes::error::ErrorResponse;
-use crate::services::FileUploader;
+use crate::services::{FileUploadError, FileUploader};
 use actix_web::web::Payload;
 use actix_web::{post, web, HttpResponse, Result};
+use futures::TryStreamExt;
+use tokio_util::io::StreamReader;
 use tracing::debug;
 use uuid::Uuid;
+use crate::config::Settings;
 
 #[post("/api/file/{id}/upload")]
 pub async fn post_upload_file(
-    file_uploader: web::Data<FileUploader<PostgresFileUploadRepository>>,
+    settings: web::Data<Settings>,
     id: web::Path<String>,
     payload: Payload
 ) -> Result<HttpResponse> {
+    let settings = settings.get_ref().clone();
+    let file_uploader = FileUploader::get_with_settings(settings);
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
         return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
     };
 
-    match file_uploader.upload_file(id, payload).await {
+    let mapper = payload.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
+    let body_reader = StreamReader::new(mapper);
+    match file_uploader.upload_file(id, body_reader).await {
         Ok(_) => Ok(HttpResponse::Ok().finish()),
         Err(err) => Ok(handle_post_upload_file_error(err))
     }
@@ -55,10 +61,10 @@ fn handle_post_upload_file_error(err: FileUploadError) -> HttpResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::tests::{set_test_env, setup_test_env};
-    use crate::database::tests::create_test_database_connection;
-    use crate::errors::{file_upload_codes, route_error_codes};
+    use crate::config::{Settings, Upload};
+    use crate::errors::route_error_codes;
     use crate::routes::utils::tests::register_test_file;
+    use crate::services::file_upload_codes;
     use actix_web::http::{Method, StatusCode};
     use actix_web::{http::header::ContentType, test, App};
     use serial_test::serial;
@@ -66,16 +72,13 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_post_file_200_ok() {
-        setup_test_env();
-
-        let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileUploader::test(pool.clone())))
+                .app_data(web::Data::new(create_settings()))
                 .service(post_upload_file)
         ).await;
 
-        let file_upload = register_test_file(pool.clone());
+        let file_upload = register_test_file();
         let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{}/upload", file_upload.id).as_str())
@@ -90,12 +93,9 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_post_file_400_bad_request_invalid_id() {
-        setup_test_env();
-
-        let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileUploader::test(pool.clone())))
+                .app_data(web::Data::new(create_settings()))
                 .service(post_upload_file)
         ).await;
 
@@ -109,26 +109,23 @@ mod tests {
             .to_request();
         let response = test::call_service(&app, request).await;
         let status_code = response.status().clone();
+        assert_eq!(status_code, StatusCode::BAD_REQUEST);
+
         let response = test::read_body(response).await;
         let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
-
-        assert_eq!(status_code, StatusCode::BAD_REQUEST);
         assert_eq!(response.code, route_error_codes::INVALID_PATH_PARAMETER_CODE);
     }
 
     #[actix_web::test]
     #[serial]
     async fn test_post_file_400_bad_request_incomplete_file() {
-        setup_test_env();
-
-        let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileUploader::test(pool.clone())))
+                .app_data(web::Data::new(create_settings()))
                 .service(post_upload_file)
         ).await;
 
-        let file_upload = register_test_file(pool.clone());
+        let file_upload = register_test_file();
         let bytes = vec![1u8; 100];
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{}/upload", file_upload.id).as_str())
@@ -138,27 +135,23 @@ mod tests {
             .to_request();
         let response = test::call_service(&app, request).await;
         let status_code = response.status().clone();
+        assert_eq!(status_code, StatusCode::BAD_REQUEST);
+
         let response = test::read_body(response).await;
         let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
-
-        assert_eq!(status_code, StatusCode::BAD_REQUEST);
         assert_eq!(response.code, file_upload_codes::NOT_COMPLETED_CODE);
     }
 
     #[actix_web::test]
     #[serial]
     async fn test_post_file_413_payload_too_large() {
-        setup_test_env();
-        set_test_env("MIKU_PUSH_UPLOAD_MAX_SIZE", "200");
-
-        let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileUploader::test(pool.clone())))
+                .app_data(web::Data::new(create_settings_limited()))
                 .service(post_upload_file)
         ).await;
 
-        let file_upload = register_test_file(pool.clone());
+        let file_upload = register_test_file();
         let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{}/upload", file_upload.id).as_str())
@@ -169,7 +162,6 @@ mod tests {
         let response = test::call_service(&app, request).await;
         let status_code = response.status().clone();
         let response = test::read_body(response).await;
-
         assert_eq!(status_code, StatusCode::PAYLOAD_TOO_LARGE);
 
         let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
@@ -179,12 +171,9 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_post_file_404_not_found() {
-        setup_test_env();
-
-        let pool = create_test_database_connection();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileUploader::test(pool.clone())))
+                .app_data(web::Data::new(create_settings()))
                 .service(post_upload_file)
         ).await;
 
@@ -198,10 +187,22 @@ mod tests {
             .to_request();
         let response = test::call_service(&app, request).await;
         let status_code = response.status().clone();
+        assert_eq!(status_code, StatusCode::NOT_FOUND);
+
         let response = test::read_body(response).await;
         let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
-
-        assert_eq!(status_code, StatusCode::NOT_FOUND);
         assert_eq!(response.code, file_upload_codes::NOT_EXISTS_CODE);
+    }
+
+    fn create_settings() -> Settings {
+        let mut settings = Settings::load();
+        settings.upload = Upload::create();
+        settings
+    }
+
+    fn create_settings_limited() -> Settings {
+        let mut settings = Settings::load();
+        settings.upload = Upload::create_with_limit(200);
+        settings
     }
 }

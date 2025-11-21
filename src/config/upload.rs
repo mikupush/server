@@ -105,5 +105,17 @@ mod tests {
                 )
             )
         }
+
+        pub fn create_with_limit(limit: u64) -> Self {
+            Self::new(
+                Some(limit),
+                Some(
+                    PathBuf::from("data")
+                        .join("test")
+                        .to_string_lossy()
+                        .to_string()
+                )
+            )
+        }
     }
 }

@@ -15,10 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::domain::FileUpload;
-use crate::errors::FileUploadError;
 use crate::repository::FileUploadRepository;
 use crate::routes::FileCreate;
-use crate::services::FileSizeLimiter;
+use crate::services::{FileSizeLimiter, FileUploadError};
 use chrono::Utc;
 
 #[derive(Debug, Clone)]
@@ -66,13 +65,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::database::tests::create_test_database_connection;
+    use crate::database::tests::get_test_database_connection;
     use crate::repository::PostgresFileUploadRepository;
     use crate::services::{FileRegister, FileSizeLimiter};
 
     impl FileRegister<PostgresFileUploadRepository> {
         pub fn test() -> Self {
-            let pool = create_test_database_connection();
+            let pool = get_test_database_connection();
             Self::new(
                 PostgresFileUploadRepository::new(pool),
                 FileSizeLimiter::create()

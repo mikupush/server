@@ -16,11 +16,14 @@
 
 use std::fs::File;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use serde::Deserialize;
 use tracing::{debug, warn};
 use crate::config::{DataBase, LoggingConfig, Server};
 use crate::config::upload::Upload;
 use crate::logging::local_trace;
+
+static SETTINGS_INSTANCE: OnceLock<Settings> = OnceLock::new();
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Settings {
@@ -37,6 +40,38 @@ pub struct Settings {
 impl Settings {
     pub fn new(server: Server, log: LoggingConfig, database: DataBase, upload: Upload) -> Self {
         Self { server, log, database, upload }
+    }
+
+    pub fn setup_global_from(path: Option<PathBuf>) {
+        let settings = if let Some(path) = path {
+            if !path.exists() {
+                panic!(
+                    "error: configuration file not found: {}\n\
+                    Use -c <path> or --config <path> with an existing file.",
+                    path.display()
+                );
+            }
+
+            Settings::load_from_path(path).expect("failed to load configuration file")
+        } else {
+            Settings::load()
+        };
+
+        let result = SETTINGS_INSTANCE.set(settings);
+
+        if let Err(_) = result {
+            let error = "failed to set global configuration, it could be already set";
+            local_trace(|| warn!(error));
+            warn!(error);
+        }
+    }
+
+    pub fn get() -> Settings {
+        if let Some(settings) = SETTINGS_INSTANCE.get() {
+            return settings.clone();
+        }
+
+        panic!("failed to get global settings, it could be setup before");
     }
 
     pub fn load() -> Self {

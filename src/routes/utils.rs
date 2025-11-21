@@ -48,6 +48,7 @@ pub mod tests {
     use std::path::{Path, PathBuf};
     use std::sync::Mutex;
     use uuid::Uuid;
+    use crate::database::tests::get_test_database_connection;
 
     // used to give unique prefix to the test file
     static TEST_FILE_COUNT: Mutex<i32> = Mutex::new(0);
@@ -81,7 +82,8 @@ pub mod tests {
         (path, file_upload)
     }
 
-    pub fn register_test_file(pool: DbPool) -> FileUpload {
+    pub fn register_test_file() -> FileUpload {
+        let pool = get_test_database_connection();
         let file_upload = FileUpload {
             id: Uuid::new_v4(),
             name: format!("hatsune_miku_{}.jpg", Utc::now().timestamp()),

@@ -14,37 +14,47 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::fmt::Display;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
-use crate::errors::FileUploadError;
-use crate::repository::FileUploadRepository;
+use crate::errors::Error;
+use crate::repository::{FileUploadRepository, FileUploadRepositoryError, PostgresFileUploadRepository};
 use crate::services::FileSizeLimiter;
 use actix_web::web::Payload;
 use futures::StreamExt;
+use tokio::io::AsyncRead;
 use tracing::debug;
 use uuid::Uuid;
 use crate::config::Settings;
+use crate::services::file_writer::{FileSystemFileWriter, FileWriteError, FileWriter};
 
 #[derive(Debug, Clone)]
-pub struct FileUploader<FR>
+pub struct FileUploader<FR, FW>
 where
     FR: FileUploadRepository + Clone,
+    FW: FileWriter + Clone,
 {
     repository: FR,
+    writer: FW,
     settings: Settings,
     limiter: FileSizeLimiter
 }
 
-impl<FR> FileUploader<FR>
+impl<FR, FW> FileUploader<FR, FW>
 where
     FR: FileUploadRepository + Clone,
+    FW: FileWriter + Clone,
 {
-    pub fn new(repository: FR, settings: Settings, limiter: FileSizeLimiter) -> Self {
-        Self { repository, settings, limiter }
+    pub fn new(
+        repository: FR,
+        writer: FW,
+        settings: Settings,
+        limiter: FileSizeLimiter
+    ) -> Self {
+        Self { repository, settings, limiter, writer }
     }
 
-    pub async fn upload_file(&self, id: Uuid, mut payload: Payload) -> Result<(), FileUploadError> {
-        let mut total_bytes: u64 = 0;
+    pub async fn upload_file(&self, id: Uuid, reader: impl AsyncRead + Unpin) -> Result<(), FileUploadError> {
         let file_upload = match self.repository.find_by_id(id)? {
             Some(file_upload) => file_upload,
             None => {
@@ -55,43 +65,119 @@ where
 
         let destination_path = file_upload.directory(&self.settings)?;
         let destination_path = destination_path.join(file_upload.name.clone());
+        let destination_path = destination_path.to_string_lossy().to_string();
 
-        {
-            if let Ok(_) = File::open(destination_path.clone()) {
-                debug!("file {} exists, deleting it", file_upload.name.clone());
-                std::fs::remove_file(destination_path.clone())?;
-            }
-        }
-
-        {
-            let mut file = OpenOptions::new()
-                .append(true)
-                .create(true)
-                .open(destination_path.clone())?;
-
-            while let Some(chunk) = payload.next().await {
-                let bytes = match chunk {
-                    Ok(bytes) => bytes,
-                    Err(error) => return Err(error.into())
-                };
-
-                total_bytes += bytes.len() as u64;
-                self.limiter.check_file_size(total_bytes);
-                file.write_all(&bytes)?;
-                debug!("wrote {} bytes to file {}", bytes.len(), file_upload.name);
-            }
-        }
-
-        if total_bytes < file_upload.size as u64 {
-            debug!("file {} upload is not completed: expected {} and given {} bytes wrote", file_upload.name, file_upload.size, total_bytes);
-            std::fs::remove_file(destination_path.clone())?;
-            return Err(FileUploadError::NotCompleted)
-        }
+        self.writer.write(reader, destination_path).await?;
 
         Ok(())
     }
 }
 
+impl FileUploader<PostgresFileUploadRepository, FileSystemFileWriter> {
+    pub fn get_with_settings(settings: Settings) -> Self {
+        Self::new(
+            PostgresFileUploadRepository::get_with_settings(settings.clone()),
+            FileSystemFileWriter::get_with_settings(settings.clone()),
+            settings.clone(),
+            FileSizeLimiter::new(settings.clone())
+        )
+    }
+}
+
+#[derive(Debug)]
+pub enum FileUploadError {
+    Exists,
+    NotExists { id: Uuid },
+    MaxFileSizeExceeded,
+    NotCompleted,
+    StreamRead { message: String },
+    IO { message: String },
+    DB { message: String }
+}
+
+impl Display for FileUploadError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} error: {}", self.code(), self.message())
+    }
+}
+
+impl Error for FileUploadError {
+    fn code(&self) -> String {
+        match self {
+            Self::Exists => file_upload_codes::EXISTS_CODE.to_string(),
+            Self::NotExists { .. } => file_upload_codes::NOT_EXISTS_CODE.to_string(),
+            Self::MaxFileSizeExceeded => file_upload_codes::MAX_FILE_SIZE_EXCEEDED_CODE.to_string(),
+            Self::StreamRead { .. } => file_upload_codes::STREAM_READ_CODE.to_string(),
+            Self::DB { .. } => file_upload_codes::DB_CODE.to_string(),
+            Self::IO { .. } => file_upload_codes::IO_CODE.to_string(),
+            Self::NotCompleted => file_upload_codes::NOT_COMPLETED_CODE.to_string(),
+        }
+    }
+
+    fn message(&self) -> String {
+        match self {
+            Self::Exists => "File is already registered".to_string(),
+            Self::NotExists { id: uuid } => format!("File with uuid {} is not registered", uuid),
+            Self::MaxFileSizeExceeded => "Max file size exceeded".to_string(),
+            Self::StreamRead { message } => format!("Error reading uploaded file stream: {}", message),
+            Self::DB { message } => message.clone(),
+            Self::IO { message } => message.clone(),
+            Self::NotCompleted => "File upload is not completed".to_string(),
+        }
+    }
+}
+
+impl From<actix_web::error::PayloadError> for FileUploadError {
+    fn from(value: actix_web::error::PayloadError) -> Self {
+        Self::StreamRead { message: value.to_string() }
+    }
+}
+
+impl From<std::io::Error> for FileUploadError {
+    fn from(value: std::io::Error) -> Self {
+        Self::IO { message: value.to_string() }
+    }
+}
+
+impl From<diesel::result::Error> for FileUploadError {
+    fn from(value: diesel::result::Error) -> Self {
+        Self::DB { message: value.to_string() }
+    }
+}
+
+impl From<r2d2::Error> for FileUploadError {
+    fn from(value: r2d2::Error) -> Self {
+        Self::DB { message: value.to_string() }
+    }
+}
+
+impl From<FileUploadRepositoryError> for FileUploadError {
+    fn from(value: FileUploadRepositoryError) -> Self {
+        match value {
+            FileUploadRepositoryError::Db(err) => err.into(),
+            FileUploadRepositoryError::Pool(err) => err.into(),
+        }
+    }
+}
+
+impl From<FileWriteError> for FileUploadError {
+    fn from(value: FileWriteError) -> Self {
+        match value {
+            FileWriteError::Io(err) => FileUploadError::IO { message: err.to_string() },
+            FileWriteError::FileSizeLimitExceeded => FileUploadError::MaxFileSizeExceeded,
+        }
+    }
+}
+
+pub mod file_upload_codes {
+    pub const EXISTS_CODE: &str = "Exists";
+    pub const NOT_EXISTS_CODE: &str = "NotExists";
+    pub const MAX_FILE_SIZE_EXCEEDED_CODE: &str = "MaxFileSizeExceeded";
+    pub const NOT_COMPLETED_CODE: &str = "NotCompleted";
+    pub const STREAM_READ_CODE: &str = "StreamRead";
+    pub const DB_CODE: &str = "DB";
+    pub const IO_CODE: &str = "IO";
+}
 
 #[cfg(test)]
 mod tests {
@@ -99,11 +185,13 @@ mod tests {
     use crate::database::DbPool;
     use crate::repository::PostgresFileUploadRepository;
     use crate::services::{FileSizeLimiter, FileUploader};
+    use crate::services::file_writer::NoopFileWriter;
 
-    impl FileUploader<PostgresFileUploadRepository> {
-        pub fn test(pool: DbPool) -> Self {
+    impl FileUploader<PostgresFileUploadRepository, NoopFileWriter> {
+        pub fn create(pool: DbPool) -> Self {
             Self {
                 repository: PostgresFileUploadRepository::new(pool),
+                writer: NoopFileWriter,
                 settings: Settings::default(),
                 limiter: FileSizeLimiter::create()
             }

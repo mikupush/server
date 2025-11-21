@@ -14,14 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
 use uuid::Uuid;
-use crate::database::DbPool;
+use crate::database::{get_database_connection, DbPool};
 use crate::domain::FileUpload;
 use crate::model::FileUpload as FileUploadModel;
 use crate::schema::file_uploads;
 use diesel::result::Error as DieselError;
 use r2d2::Error as PoolError;
+use crate::config::Settings;
 
 #[derive(Debug)]
 pub enum FileUploadRepositoryError {
@@ -48,6 +51,36 @@ pub trait FileUploadRepository {
 }
 
 #[derive(Debug, Clone)]
+pub struct InMemoryFileUploadRepository {
+    file_uploads: Arc<Mutex<HashMap<Uuid, FileUpload>>>
+}
+
+impl InMemoryFileUploadRepository {
+    pub fn new(items: HashMap<Uuid, FileUpload>) -> Self {
+        Self { file_uploads: Arc::new(Mutex::new(items)) }
+    }
+}
+
+impl FileUploadRepository for InMemoryFileUploadRepository {
+    fn find_by_id(&self, file_upload_id: Uuid) -> Result<Option<FileUpload>, FileUploadRepositoryError> {
+        let items = self.file_uploads.lock().unwrap();
+        Ok(items.get(&file_upload_id).cloned())
+    }
+
+    fn delete(&self, file_upload_id: Uuid) -> Result<(), FileUploadRepositoryError> {
+        let mut items = self.file_uploads.lock().unwrap();
+        items.remove(&file_upload_id);
+        Ok(())
+    }
+
+    fn save(&self, file_upload: FileUpload) -> Result<(), FileUploadRepositoryError> {
+        let mut items = self.file_uploads.lock().unwrap();
+        items.insert(file_upload.id, file_upload);
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct PostgresFileUploadRepository {
     db_pool: DbPool
 }
@@ -55,6 +88,10 @@ pub struct PostgresFileUploadRepository {
 impl PostgresFileUploadRepository {
     pub fn new(db_pool: DbPool) -> Self {
         Self { db_pool }
+    }
+
+    pub fn get_with_settings(settings: Settings) -> Self {
+        Self::new(get_database_connection(settings))
     }
 }
 
@@ -91,14 +128,14 @@ impl FileUploadRepository for PostgresFileUploadRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::tests::create_test_database_connection;
+    use crate::database::tests::get_test_database_connection;
     use chrono::Utc;
     use serial_test::serial;
 
     #[test]
     #[serial]
     fn test_find_by_id() {
-        let pool = create_test_database_connection();
+        let pool = get_test_database_connection();
         let repository = PostgresFileUploadRepository::new(pool.clone());
         let file_upload = insert_file_upload(&pool);
 
@@ -114,7 +151,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_find_by_id_not_found() {
-        let pool = create_test_database_connection();
+        let pool = get_test_database_connection();
         let repository = PostgresFileUploadRepository::new(pool.clone());
 
         let result = repository.find_by_id(Uuid::new_v4()).unwrap();
@@ -125,7 +162,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_file_upload() {
-        let pool = create_test_database_connection();
+        let pool = get_test_database_connection();
         let repository = PostgresFileUploadRepository::new(pool.clone());
         let file_upload = insert_file_upload(&pool);
 
@@ -138,7 +175,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_save_file_upload() {
-        let pool = create_test_database_connection();
+        let pool = get_test_database_connection();
         let repository = PostgresFileUploadRepository::new(pool.clone());
         let file_upload: FileUpload = create_file_upload().into();
 
