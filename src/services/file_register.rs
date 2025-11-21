@@ -39,7 +39,9 @@ where
     }
 
     pub fn register_file(&self, file_create: FileCreate) -> Result<(), FileUploadError> {
-        self.limiter.check_file_size(file_create.size as u64)?;
+        if self.limiter.check_file_size(file_create.size as u64) == false {
+            return Err(FileUploadError::MaxFileSizeExceeded)
+        }
 
         let file_upload = FileUpload {
             id: file_create.id,
@@ -73,7 +75,7 @@ mod tests {
             let pool = create_test_database_connection();
             Self::new(
                 PostgresFileUploadRepository::new(pool),
-                FileSizeLimiter::test()
+                FileSizeLimiter::create()
             )
         }
     }

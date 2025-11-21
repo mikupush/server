@@ -76,7 +76,7 @@ where
                 };
 
                 total_bytes += bytes.len() as u64;
-                self.limiter.check_file_size(total_bytes)?;
+                self.limiter.check_file_size(total_bytes);
                 file.write_all(&bytes)?;
                 debug!("wrote {} bytes to file {}", bytes.len(), file_upload.name);
             }
@@ -105,7 +105,7 @@ mod tests {
             Self {
                 repository: PostgresFileUploadRepository::new(pool),
                 settings: Settings::default(),
-                limiter: FileSizeLimiter::test()
+                limiter: FileSizeLimiter::create()
             }
         }
     }

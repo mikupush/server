@@ -28,9 +28,12 @@ impl FileSizeLimiter {
         Self { settings }
     }
 
-    pub fn check_file_size(&self, file_size: u64) -> Result<(), FileUploadError> {
+    /// Check if the file size is limited by the settings
+    /// return true if the file size is not limited or the file size is not exceeded
+    /// false if the file size is exceeded
+    pub fn check_file_size(&self, file_size: u64) -> bool {
         if !self.settings.upload.is_limited() {
-            return Ok(());
+            return true;
         }
 
         let limit = self.settings.upload.max_size().unwrap();
@@ -38,20 +41,59 @@ impl FileSizeLimiter {
 
         if file_size > limit {
             debug!("file size limit exceeded: {} > {} bytes", file_size, limit);
-            return Err(FileUploadError::MaxFileSizeExceeded)
+            return false
         }
 
-        Ok(())
+        true
     }
 }
 
 #[cfg(test)]
 pub mod tests {
+    use crate::config::{DataBase, LoggingConfig, Server, Upload};
     use super::*;
 
     impl FileSizeLimiter {
-        pub fn test() -> Self {
+        pub fn create() -> Self {
             Self::new(Settings::default())
         }
+
+        pub fn create_limited() -> FileSizeLimiter {
+            let settings = Settings::new(
+                Server::default(),
+                LoggingConfig::default(),
+                DataBase::default(),
+                Upload::new(Some(100), None)
+            );
+
+            FileSizeLimiter::new(settings)
+        }
+
+        pub fn create_unlimited() -> FileSizeLimiter {
+            let settings = Settings::new(
+                Server::default(),
+                LoggingConfig::default(),
+                DataBase::default(),
+                Upload::new(None, None)
+            );
+
+            FileSizeLimiter::new(settings)
+        }
+    }
+
+    #[test]
+    fn test_check_file_size() {
+        let limiter = FileSizeLimiter::create_limited();
+
+        assert_eq!(true, limiter.check_file_size(100));
+        assert_eq!(false, limiter.check_file_size(1000));
+    }
+
+    #[test]
+    fn test_check_file_unlimited() {
+        let limiter = FileSizeLimiter::create_unlimited();
+
+        assert_eq!(true, limiter.check_file_size(100));
+        assert_eq!(true, limiter.check_file_size(1000));
     }
 }
