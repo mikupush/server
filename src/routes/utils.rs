@@ -82,8 +82,7 @@ pub mod tests {
         (path, file_upload)
     }
 
-    pub fn register_test_file() -> FileUpload {
-        let pool = get_test_database_connection();
+    pub fn register_test_file(pool: DbPool) -> FileUpload {
         let file_upload = FileUpload {
             id: Uuid::new_v4(),
             name: format!("hatsune_miku_{}.jpg", Utc::now().timestamp()),

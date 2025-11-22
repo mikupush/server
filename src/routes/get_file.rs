@@ -61,6 +61,8 @@ mod tests {
     use actix_web::{test, web, App};
     use serial_test::serial;
     use uuid::Uuid;
+    use crate::config::{Settings, Upload};
+    use crate::database::setup_database_connection;
 
     #[actix_web::test]
     async fn test_get_file_info_200_ok() {
@@ -92,14 +94,16 @@ mod tests {
 
     #[actix_web::test]
     async fn test_get_file_info_200_ok_not_uploaded_file() {
-        let pool = get_test_database_connection();
+        let settings = create_settings();
+        let pool = setup_database_connection(&settings);
+
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileInfoFinder::test(pool.clone())))
                 .service(get_file_info)
         ).await;
 
-        let file_upload = register_test_file();
+        let file_upload = register_test_file(pool);
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{}", file_upload.id.clone()).as_str())
             .method(Method::GET)
@@ -120,7 +124,9 @@ mod tests {
 
     #[actix_web::test]
     async fn test_get_file_info_404_not_found() {
-        let pool = get_test_database_connection();
+        let settings = create_settings();
+        let pool = setup_database_connection(&settings);
+
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileInfoFinder::test(pool.clone())))
@@ -144,9 +150,9 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_get_file_info_400_bad_request_invalid_id() {
-        setup_test_env();
+        let settings = create_settings();
+        let pool = setup_database_connection(&settings);
 
-        let pool = get_test_database_connection();
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileInfoFinder::test(pool.clone())))
@@ -166,5 +172,9 @@ mod tests {
 
         let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
         assert_eq!(response_body.code, route_error_codes::INVALID_PATH_PARAMETER_CODE);
+    }
+
+    fn create_settings() -> Settings {
+        Settings::load()
     }
 }

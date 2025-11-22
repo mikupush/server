@@ -26,7 +26,7 @@ pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 const MIGRATIONS: EmbeddedMigrations = embed_migrations!("./migrations");
 static DB_POOL: OnceLock<DbPool> = OnceLock::new();
 
-pub fn setup_database_connection(settings: Settings) -> DbPool {
+pub fn setup_database_connection(settings: &Settings) -> DbPool {
     let manager = ConnectionManager::<PgConnection>::new(settings.database.url());
     let pool = Pool::builder().build(manager).unwrap_or_else(|err| {
         error!("Error creating database connection pool: {}", err);
@@ -46,7 +46,7 @@ pub fn get_database_connection(settings: Settings) -> DbPool {
         return pool.clone()
     }
 
-    let pool = setup_database_connection(settings);
+    let pool = setup_database_connection(&settings);
     DB_POOL.set(pool.clone()).expect("database connection pool already set");
     pool
 }
@@ -65,7 +65,7 @@ pub mod tests {
         }
 
         let settings = Settings::load();
-        let pool = setup_database_connection(settings);
+        let pool = setup_database_connection(&settings);
         TEST_DB_POOL.set(pool.clone())
             .expect("database connection pool already set");
         pool

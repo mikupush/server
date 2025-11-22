@@ -20,16 +20,16 @@ pub trait FileWriter {
 }
 
 #[derive(Clone)]
-pub struct NoopFileWriter;
+pub struct FakeFileWriter;
 
-impl FileWriter for NoopFileWriter {
+impl FileWriter for FakeFileWriter {
     async fn write(
-        &self, _reader:
-        impl AsyncRead + Unpin,
+        &self,
+        mut reader: impl AsyncRead + Unpin,
         _destination: String,
         _limit: Option<u64>
     ) -> Result<u64, FileWriteError> {
-        Ok(0)
+        Ok(tokio::io::copy(&mut reader, &mut tokio::io::sink()).await?)
     }
 }
 
@@ -91,6 +91,7 @@ mod tests {
     use bytes::Bytes;
     use std::time::{SystemTime, UNIX_EPOCH};
     use tokio_util::io::StreamReader;
+    use uuid::Uuid;
 
     impl FileSystemFileWriter {
         pub fn create() -> Self {
@@ -112,7 +113,7 @@ mod tests {
 
         let reader = StreamReader::new(stream);
         let destination = test_directory()
-            .join(format!("test_{}.txt", now))
+            .join(format!("test_{}.txt", Uuid::new_v4()))
             .to_string_lossy()
             .to_string();
 
@@ -136,7 +137,7 @@ mod tests {
 
         let reader = StreamReader::new(stream);
         let destination = test_directory()
-            .join(format!("test_{}.txt", now))
+            .join(format!("test_{}.txt", Uuid::new_v4()))
             .to_string_lossy()
             .to_string();
 

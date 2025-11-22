@@ -144,7 +144,7 @@ paths:
         200:
           description: Successful operation
         400:
-          description: Invalid request parameters or upload is not completed
+          description: Invalid request parameters
           content:
             application/json:
               schema:

@@ -62,7 +62,7 @@ async fn main() -> std::io::Result<()> {
     configure_logging(settings.clone());
 
     // database connection pool
-    let pool = setup_database_connection(settings.clone());
+    let pool = setup_database_connection(&settings);
 
     // services
     let limiter = services::FileSizeLimiter::new(settings.clone());

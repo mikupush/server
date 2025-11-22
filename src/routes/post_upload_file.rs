@@ -68,17 +68,21 @@ mod tests {
     use actix_web::http::{Method, StatusCode};
     use actix_web::{http::header::ContentType, test, App};
     use serial_test::serial;
+    use crate::database::setup_database_connection;
 
     #[actix_web::test]
     #[serial]
     async fn test_post_file_200_ok() {
+        let settings = create_settings();
+        let pool = setup_database_connection(&settings);
+
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(create_settings()))
+                .app_data(web::Data::new(settings))
                 .service(post_upload_file)
         ).await;
 
-        let file_upload = register_test_file();
+        let file_upload = register_test_file(pool);
         let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{}/upload", file_upload.id).as_str())
@@ -93,9 +97,11 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_post_file_400_bad_request_invalid_id() {
+        let settings = create_settings();
+
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(create_settings()))
+                .app_data(web::Data::new(settings))
                 .service(post_upload_file)
         ).await;
 
@@ -118,40 +124,17 @@ mod tests {
 
     #[actix_web::test]
     #[serial]
-    async fn test_post_file_400_bad_request_incomplete_file() {
-        let app = test::init_service(
-            App::new()
-                .app_data(web::Data::new(create_settings()))
-                .service(post_upload_file)
-        ).await;
-
-        let file_upload = register_test_file();
-        let bytes = vec![1u8; 100];
-        let request = test::TestRequest::default()
-            .uri(format!("/api/file/{}/upload", file_upload.id).as_str())
-            .method(Method::POST)
-            .insert_header(ContentType::octet_stream())
-            .set_payload(bytes)
-            .to_request();
-        let response = test::call_service(&app, request).await;
-        let status_code = response.status().clone();
-        assert_eq!(status_code, StatusCode::BAD_REQUEST);
-
-        let response = test::read_body(response).await;
-        let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
-        assert_eq!(response.code, file_upload_codes::NOT_COMPLETED_CODE);
-    }
-
-    #[actix_web::test]
-    #[serial]
     async fn test_post_file_413_payload_too_large() {
+        let settings = create_settings_limited();
+        let pool = setup_database_connection(&settings);
+
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(create_settings_limited()))
+                .app_data(web::Data::new(settings))
                 .service(post_upload_file)
         ).await;
 
-        let file_upload = register_test_file();
+        let file_upload = register_test_file(pool);
         let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{}/upload", file_upload.id).as_str())

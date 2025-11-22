@@ -193,15 +193,33 @@ mod tests {
     use crate::config::Settings;
     use crate::domain::FileUpload;
     use crate::repository::InMemoryFileUploadRepository;
-    use crate::services::file_writer::NoopFileWriter;
+    use crate::services::file_writer::FakeFileWriter;
     use crate::services::{FileSizeLimiter, FileUploadError, FileUploader};
-    use std::collections::HashMap;
     use bytes::Bytes;
+    use std::collections::HashMap;
     use tokio_util::io::StreamReader;
     use uuid::Uuid;
 
-    impl FileUploader<InMemoryFileUploadRepository, NoopFileWriter> {
+    impl FileUploader<InMemoryFileUploadRepository, FakeFileWriter> {
         pub fn create() -> Self {
+            Self {
+                repository: Self::create_repository(),
+                writer: FakeFileWriter,
+                settings: Settings::default(),
+                limiter: FileSizeLimiter::create()
+            }
+        }
+
+        pub fn create_with_limit() -> Self {
+            Self {
+                repository: Self::create_repository(),
+                writer: FakeFileWriter,
+                settings: Settings::default(),
+                limiter: FileSizeLimiter::create_limited()
+            }
+        }
+
+        fn create_repository() -> InMemoryFileUploadRepository {
             let items = HashMap::from([
                 (
                     Uuid::parse_str("5769aa43-2380-49be-aafb-e9dd4bd4564f").unwrap(),
@@ -209,13 +227,23 @@ mod tests {
                 ),
             ]);
 
-            Self {
-                repository: InMemoryFileUploadRepository::new(items),
-                writer: NoopFileWriter,
-                settings: Settings::default(),
-                limiter: FileSizeLimiter::create()
-            }
+            InMemoryFileUploadRepository::new(items)
         }
+    }
+
+    #[actix_web::test]
+    async fn test_upload_file() {
+        let uploader = FileUploader::create();
+        let id = Uuid::parse_str("5769aa43-2380-49be-aafb-e9dd4bd4564f").unwrap();
+        let stream = tokio_stream::iter(vec![
+            tokio::io::Result::Ok(Bytes::from("Hello")),
+            tokio::io::Result::Ok(Bytes::from("World")),
+        ]);
+
+        let reader = StreamReader::new(stream);
+        let result = uploader.upload_file(id, reader).await;
+
+        assert_eq!(true, result.is_ok());
     }
 
     #[actix_web::test]
@@ -232,5 +260,21 @@ mod tests {
 
         assert_eq!(true, result.is_err());
         assert_eq!(FileUploadError::NotExists { id }, result.unwrap_err());
+    }
+
+    #[actix_web::test]
+    async fn test_upload_file_max_file_size_exceeded() {
+        let uploader = FileUploader::create_with_limit();
+        let id = Uuid::parse_str("5769aa43-2380-49be-aafb-e9dd4bd4564f").unwrap();
+        let content = vec![1u8; 200];
+        let stream = tokio_stream::iter(vec![
+            tokio::io::Result::Ok(Bytes::from(content)),
+        ]);
+
+        let reader = StreamReader::new(stream);
+        let result = uploader.upload_file(id, reader).await;
+
+        assert_eq!(true, result.is_err());
+        assert_eq!(FileUploadError::MaxFileSizeExceeded, result.unwrap_err());
     }
 }
