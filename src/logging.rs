@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use crate::config::{LoggingConfig, LoggingOutput, Settings};
 use std::path::Path;
+use tracing::level_filters::LevelFilter;
 use tracing::{debug, warn};
 use tracing::{Dispatch, Level};
-use tracing::level_filters::LevelFilter;
 use tracing_appender::non_blocking::NonBlocking;
-use crate::config::{LoggingConfig, LoggingOutput, Settings};
 
 pub fn configure_logging(settings: Settings) {
     let config = settings.log;

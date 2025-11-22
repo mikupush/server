@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::path::{Path, PathBuf};
 use crate::config::Settings;
 use crate::domain::FileUpload as DomainFileUpload;
 use chrono::NaiveDateTime;
 use diesel::{Insertable, Queryable};
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Queryable, Insertable)]

@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use tracing::debug;
-use serde::{Deserialize, Serialize};
 use crate::config::env;
+use serde::{Deserialize, Serialize};
+use tracing::debug;
 
 pub const UPLOAD_MAX_SIZE_UNLIMITED: &str = "unlimited";
 
@@ -90,8 +90,8 @@ impl Default for Upload {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
     use super::*;
+    use std::path::PathBuf;
 
     impl Upload {
         pub fn create() -> Self {

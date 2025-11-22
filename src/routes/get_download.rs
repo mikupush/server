@@ -59,20 +59,18 @@ fn handle_get_download_error(err: FileReadError) -> HttpResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::tests::get_test_database_connection;
+    use crate::config::Settings;
+    use crate::database::setup_database_connection;
+    use crate::errors::{file_read_codes, route_error_codes};
     use crate::routes::utils::tests::{create_test_file_upload, header_value};
     use actix_web::http::{Method, StatusCode};
     use actix_web::{test, App};
     use serial_test::serial;
-    use crate::config::tests::setup_test_env;
-    use crate::errors::{file_read_codes, route_error_codes};
 
     #[actix_web::test]
     #[serial]
     async fn test_get_download_200_ok() {
-        setup_test_env();
-
-        let pool = get_test_database_connection();
+        let pool = setup_database_connection(&Settings::load());
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileReader::test(pool.clone())))
@@ -98,9 +96,7 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_get_download_404_not_found() {
-        setup_test_env();
-
-        let pool = get_test_database_connection();
+        let pool = setup_database_connection(&Settings::load());
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileReader::test(pool.clone())))
@@ -125,9 +121,7 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_get_download_400_bad_request_invalid_id() {
-        setup_test_env();
-
-        let pool = get_test_database_connection();
+        let pool = setup_database_connection(&Settings::load());
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileReader::test(pool.clone())))

@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::path::Path;
-use tracing::debug;
-use uuid::Uuid;
 use crate::config::Settings;
 use crate::errors::FileDeleteError;
 use crate::repository::FileUploadRepository;
+use std::path::Path;
+use tracing::debug;
+use uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct FileDeleter<FR>

@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::fmt::Display;
-use tracing::{debug, warn};
-use serde::Deserialize;
-use tracing::Level;
 use crate::config::env;
 use crate::logging::{local_trace, system_log_directory};
+use serde::Deserialize;
+use std::fmt::Display;
+use tracing::Level;
+use tracing::{debug, warn};
 
 #[derive(Debug, Deserialize, PartialEq, Clone, Copy)]
 pub enum LoggingOutput {

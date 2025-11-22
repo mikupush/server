@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use crate::errors::{Error, RouteError};
 use actix_web::error::JsonPayloadError;
 use actix_web::HttpResponse;
 use serde::{Deserialize, Serialize};
-use crate::errors::{Error, RouteError};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ErrorResponse {

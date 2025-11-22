@@ -1,4 +1,4 @@
-use crate::config::{Upload as UploadSettings};
+use crate::config::Upload as UploadSettings;
 use actix_web::error::PayloadError;
 use futures::{StreamExt, TryFutureExt};
 use std::io::Write;

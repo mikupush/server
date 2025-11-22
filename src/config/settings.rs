@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use crate::config::upload::Upload;
+use crate::config::{DataBase, LoggingConfig, Server};
+use crate::logging::local_trace;
+use serde::Deserialize;
 use std::fs::File;
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use serde::Deserialize;
 use tracing::{debug, warn};
-use crate::config::{DataBase, LoggingConfig, Server};
-use crate::config::upload::Upload;
-use crate::logging::local_trace;
 
 static SETTINGS_INSTANCE: OnceLock<Settings> = OnceLock::new();
 

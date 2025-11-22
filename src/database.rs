@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::sync::OnceLock;
+use crate::config::Settings;
 use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::PgConnection;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
+use std::sync::OnceLock;
 use tracing::error;
-use crate::config::Settings;
 
 pub type DbPool = Pool<ConnectionManager<PgConnection>>;
 
@@ -53,9 +53,9 @@ pub fn get_database_connection(settings: Settings) -> DbPool {
 
 #[cfg(test)]
 pub mod tests {
-    use std::sync::OnceLock;
     use crate::config::Settings;
-    use crate::database::{setup_database_connection, get_database_connection, DbPool};
+    use crate::database::{setup_database_connection, DbPool};
+    use std::sync::OnceLock;
 
     static TEST_DB_POOL: OnceLock<DbPool> = OnceLock::new();
 

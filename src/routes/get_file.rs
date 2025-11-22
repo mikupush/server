@@ -50,8 +50,8 @@ fn handle_get_file_info_failure(err: FileInfoError) -> HttpResponse {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::tests::setup_test_env;
-    use crate::database::tests::get_test_database_connection;
+    use crate::config::Settings;
+    use crate::database::setup_database_connection;
     use crate::errors::{file_delete_codes, route_error_codes};
     use crate::model::{FileInfo, FileStatus};
     use crate::routes::utils::tests::{create_test_file_upload, register_test_file};
@@ -61,12 +61,10 @@ mod tests {
     use actix_web::{test, web, App};
     use serial_test::serial;
     use uuid::Uuid;
-    use crate::config::{Settings, Upload};
-    use crate::database::setup_database_connection;
 
     #[actix_web::test]
     async fn test_get_file_info_200_ok() {
-        let pool = get_test_database_connection();
+        let pool = setup_database_connection(&Settings::load());
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileInfoFinder::test(pool.clone())))

@@ -21,14 +21,14 @@ mod upload;
 mod logging;
 
 pub use database::*;
+pub use logging::*;
 pub use server::*;
 pub use settings::*;
 pub use upload::*;
-pub use logging::*;
 
-use tracing::debug;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{LazyLock, Mutex, Once};
+use tracing::debug;
 
 fn load_dotenv() -> HashMap<String, String> {
     let mut env_files: VecDeque<&str> = VecDeque::new();

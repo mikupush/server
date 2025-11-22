@@ -14,17 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
-use uuid::Uuid;
+use crate::config::Settings;
 use crate::database::{get_database_connection, DbPool};
 use crate::domain::FileUpload;
 use crate::model::FileUpload as FileUploadModel;
 use crate::schema::file_uploads;
 use diesel::result::Error as DieselError;
+use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
 use r2d2::Error as PoolError;
-use crate::config::Settings;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use uuid::Uuid;
 
 #[derive(Debug)]
 pub enum FileUploadRepositoryError {
@@ -128,14 +128,14 @@ impl FileUploadRepository for PostgresFileUploadRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::tests::get_test_database_connection;
+    use crate::database::setup_database_connection;
     use chrono::Utc;
     use serial_test::serial;
 
     #[test]
     #[serial]
     fn test_find_by_id() {
-        let pool = get_test_database_connection();
+        let pool = setup_database_connection(&Settings::load());
         let repository = PostgresFileUploadRepository::new(pool.clone());
         let file_upload = insert_file_upload(&pool);
 
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_find_by_id_not_found() {
-        let pool = get_test_database_connection();
+        let pool = setup_database_connection(&Settings::load());
         let repository = PostgresFileUploadRepository::new(pool.clone());
 
         let result = repository.find_by_id(Uuid::new_v4()).unwrap();
@@ -162,7 +162,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_file_upload() {
-        let pool = get_test_database_connection();
+        let pool = setup_database_connection(&Settings::load());
         let repository = PostgresFileUploadRepository::new(pool.clone());
         let file_upload = insert_file_upload(&pool);
 
@@ -175,7 +175,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_save_file_upload() {
-        let pool = get_test_database_connection();
+        let pool = setup_database_connection(&Settings::load());
         let repository = PostgresFileUploadRepository::new(pool.clone());
         let file_upload: FileUpload = create_file_upload().into();
 

@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::database::DbPool;
 use crate::config::Settings;
-use actix_web::{get, web, HttpRequest, HttpResponse};
-use actix_web::http::header::HeaderValue;
-use diesel::{sql_query, RunQueryDsl};
-use tracing::{debug, warn};
-use serde_json::json;
+use crate::database::DbPool;
 use crate::routes::utils::read_template;
+use actix_web::http::header::HeaderValue;
+use actix_web::{get, web, HttpRequest, HttpResponse};
+use diesel::{sql_query, RunQueryDsl};
+use serde_json::json;
+use tracing::{debug, warn};
 
 const ANY_CONTENT_TYPE: &'static str = "*/*";
 
@@ -86,14 +86,14 @@ fn respond_error(json: bool, settings: &Settings) -> HttpResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::database::tests::get_test_database_connection;
+    use crate::database::setup_database_connection;
     use crate::routes::utils::tests::header_value;
     use actix_web::http::{Method, StatusCode};
     use actix_web::{test, App};
 
     #[actix_web::test]
     async fn test_health_200_ok() {
-        let pool = get_test_database_connection();
+        let pool = setup_database_connection(&Settings::load());
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(pool))
@@ -114,7 +114,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_health_200_ok_json() {
-        let pool = get_test_database_connection();
+        let pool = setup_database_connection(&Settings::load());
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(pool))

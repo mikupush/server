@@ -16,12 +16,12 @@
 
 mod file_upload;
 
-use std::path::PathBuf;
-use chrono::NaiveDateTime;
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-pub use file_upload::*;
 use crate::domain::FileUpload as DomainFileUpload;
+use chrono::NaiveDateTime;
+pub use file_upload::*;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum FileStatus {

@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use tracing::debug;
-use serde::Deserialize;
 use crate::config::env;
+use serde::Deserialize;
+use tracing::debug;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Server {

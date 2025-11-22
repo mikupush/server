@@ -51,8 +51,8 @@ fn handle_delete_file_failure(err: FileDeleteError) -> HttpResponse {
 #[cfg(test)]
 mod tests {
     use crate::config::tests::setup_test_env;
-    use crate::database::tests::get_test_database_connection;
-    use crate::database::DbPool;
+    use crate::config::Settings;
+    use crate::database::{setup_database_connection, DbPool};
     use crate::errors::{file_delete_codes, route_error_codes};
     use crate::model::FileUpload;
     use crate::routes::utils::tests::create_test_file_upload;
@@ -67,7 +67,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_delete_file_200_ok() {
-        let pool = get_test_database_connection();
+        let pool = setup_database_connection(&Settings::load());
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileDeleter::test(pool.clone())))
@@ -88,7 +88,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_delete_file_404_not_found() {
-        let pool = get_test_database_connection();
+        let pool = setup_database_connection(&Settings::load());
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileDeleter::test(pool.clone())))
@@ -114,7 +114,7 @@ mod tests {
     async fn test_delete_file_400_bad_request_invalid_id() {
         setup_test_env();
 
-        let pool = get_test_database_connection();
+        let pool = setup_database_connection(&Settings::load());
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileDeleter::test(pool.clone())))

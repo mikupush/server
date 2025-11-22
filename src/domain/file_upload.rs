@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::path::{Path, PathBuf};
 use crate::config::Settings;
 use chrono::NaiveDateTime;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -51,7 +51,7 @@ impl FileUpload {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     impl FileUpload {
         pub fn create(id: &str) -> Self {
             Self {

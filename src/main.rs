@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use actix_web::{web, App, HttpServer};
 use actix_files as fs;
+use actix_web::{web, App, HttpServer};
 use tracing_actix_web::TracingLogger;
 
 mod routes;
@@ -30,13 +30,12 @@ mod domain;
 mod repository;
 mod model;
 
-use config::Settings;
-use crate::database::{setup_database_connection, get_database_connection};
+use crate::database::setup_database_connection;
 use crate::logging::configure_logging;
 use crate::routes::json_error_handler;
 use clap::Parser;
+use config::Settings;
 use std::path::PathBuf;
-use crate::services::FileUploader;
 
 #[derive(Debug, Parser)]
 #[command(

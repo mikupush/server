@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use tracing::debug;
 use crate::config::Settings;
+use tracing::debug;
 
 #[derive(Debug, Clone)]
 pub struct FileSizeLimiter {
@@ -49,8 +49,8 @@ impl FileSizeLimiter {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::config::{DataBase, LoggingConfig, Server, Upload};
     use super::*;
+    use crate::config::{DataBase, LoggingConfig, Server, Upload};
 
     impl FileSizeLimiter {
         pub fn create() -> Self {

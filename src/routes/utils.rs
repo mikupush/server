@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use tracing::warn;
 use crate::config::Settings;
+use tracing::warn;
 
 pub fn read_template(settings: &Settings, template: &str) -> String {
     let template_dir = settings.server.templates_directory();
@@ -48,7 +48,6 @@ pub mod tests {
     use std::path::{Path, PathBuf};
     use std::sync::Mutex;
     use uuid::Uuid;
-    use crate::database::tests::get_test_database_connection;
 
     // used to give unique prefix to the test file
     static TEST_FILE_COUNT: Mutex<i32> = Mutex::new(0);
