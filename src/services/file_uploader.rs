@@ -174,7 +174,6 @@ impl From<FileWriteError> for FileUploadError {
     fn from(value: FileWriteError) -> Self {
         match value {
             FileWriteError::Io(err) => FileUploadError::IO { message: err.to_string() },
-            FileWriteError::FileSizeLimitExceeded => FileUploadError::MaxFileSizeExceeded,
         }
     }
 }

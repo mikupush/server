@@ -1,5 +1,4 @@
-use crate::config::{Settings, Upload as UploadSettings};
-use crate::services::FileSizeLimiter;
+use crate::config::{Upload as UploadSettings};
 use actix_web::error::PayloadError;
 use futures::{StreamExt, TryFutureExt};
 use std::io::Write;
@@ -71,7 +70,6 @@ impl FileWriter for FileSystemFileWriter {
 #[derive(Debug)]
 pub enum FileWriteError {
     Io(String),
-    FileSizeLimitExceeded
 }
 
 impl From<std::io::Error> for FileWriteError {
