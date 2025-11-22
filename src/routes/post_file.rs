@@ -21,6 +21,7 @@ use actix_web::{post, web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 use uuid::Uuid;
+use crate::config::Settings;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileCreate {
@@ -34,11 +35,13 @@ pub struct FileCreate {
 #[post("/api/file")]
 pub async fn post_file(
     request: web::Json<FileCreate>,
-    file_upload_register: web::Data<FileRegister<PostgresFileUploadRepository>>
+    settings: web::Data<Settings>
 ) -> Result<HttpResponse> {
+    let settings = settings.get_ref().clone();
+    let file_register = FileRegister::get_with_settings(settings);
     let request = request.into_inner();
 
-    match file_upload_register.register_file(request.clone()) {
+    match file_register.register_file(request.clone()) {
         Ok(_) => {
             debug!("returning status code 200 for registered file {}", request.id);
             Ok(HttpResponse::Ok().finish())
@@ -64,22 +67,20 @@ fn handle_register_file_failure(request: FileCreate, err: FileUploadError) -> Ht
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::tests::{set_test_env, setup_test_env};
     use crate::errors::route_error_codes;
     use crate::routes::json_error_handler;
     use crate::services::file_upload_codes;
     use actix_web::http::{Method, StatusCode};
     use actix_web::{http::header::ContentType, test, App};
     use serial_test::serial;
+    use crate::config::Upload;
 
     #[actix_web::test]
     #[serial]
     async fn test_post_file_200_ok() {
-        setup_test_env();
-
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileRegister::test()))
+                .app_data(web::Data::new(Settings::load()))
                 .service(post_file)
         ).await;
         let body = FileCreate {
@@ -101,11 +102,9 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_post_file_409_conflict() {
-        setup_test_env();
-
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileRegister::test()))
+                .app_data(web::Data::new(Settings::load()))
                 .service(post_file)
         ).await;
         let body = FileCreate {
@@ -141,12 +140,9 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_post_file_413_payload_too_large() {
-        setup_test_env();
-        set_test_env("MIKU_PUSH_UPLOAD_MAX_SIZE", "200");
-
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileRegister::test()))
+                .app_data(web::Data::new(create_settings_limited()))
                 .service(post_file)
         ).await;
 
@@ -175,12 +171,10 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_post_file_400_bad_request() {
-        setup_test_env();
-
         let app = test::init_service(
             App::new()
                 .app_data(web::JsonConfig::default().error_handler(json_error_handler))
-                .app_data(web::Data::new(FileRegister::test()))
+                .app_data(web::Data::new(Settings::load()))
                 .service(post_file)
         ).await;
 
@@ -208,5 +202,11 @@ mod tests {
 
         let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
         assert_eq!(response_body.code, route_error_codes::INVALID_REQUEST_BODY_CODE);
+    }
+
+    fn create_settings_limited() -> Settings {
+        let mut settings = Settings::load();
+        settings.upload = Upload::create_with_limit(200);
+        settings
     }
 }

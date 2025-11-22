@@ -15,10 +15,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::domain::FileUpload;
-use crate::repository::FileUploadRepository;
+use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::routes::FileCreate;
 use crate::services::{FileSizeLimiter, FileUploadError};
 use chrono::Utc;
+use crate::config::Settings;
 
 #[derive(Debug, Clone)]
 pub struct FileRegister<FR>
@@ -63,19 +64,92 @@ where
     }
 }
 
+impl FileRegister<PostgresFileUploadRepository> {
+    pub fn get_with_settings(settings: Settings) -> Self {
+        Self::new(
+            PostgresFileUploadRepository::get_with_settings(settings.clone()),
+            FileSizeLimiter::new(settings)
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::database::tests::get_test_database_connection;
-    use crate::repository::PostgresFileUploadRepository;
-    use crate::services::{FileRegister, FileSizeLimiter};
+    use crate::repository::InMemoryFileUploadRepository;
+    use crate::services::{FileRegister, FileSizeLimiter, FileUploadError};
+    use std::collections::HashMap;
+    use uuid::Uuid;
+    use crate::domain::FileUpload;
+    use crate::routes::FileCreate;
 
-    impl FileRegister<PostgresFileUploadRepository> {
-        pub fn test() -> Self {
-            let pool = get_test_database_connection();
+    impl FileRegister<InMemoryFileUploadRepository> {
+        pub fn create() -> Self {
             Self::new(
-                PostgresFileUploadRepository::new(pool),
+                Self::create_repository(),
                 FileSizeLimiter::create()
             )
         }
+
+        pub fn create_limited() -> Self {
+            Self::new(
+                Self::create_repository(),
+                FileSizeLimiter::create_limited()
+            )
+        }
+
+        fn create_repository() -> InMemoryFileUploadRepository {
+            let items: HashMap<Uuid, FileUpload> = HashMap::from([(
+                Uuid::parse_str("9317393a-c4ef-4b69-bfb9-060050f0879a").unwrap(),
+                FileUpload::create("9317393a-c4ef-4b69-bfb9-060050f0879a")
+            )]);
+            InMemoryFileUploadRepository::new(items)
+        }
+    }
+
+    #[test]
+    fn test_register_file() {
+        let register = FileRegister::create();
+        let id = Uuid::new_v4();
+        let file_create = FileCreate {
+            id,
+            name: String::from("test.txt"),
+            mime_type: String::from("text/plain"),
+            size: 100
+        };
+
+        let result = register.register_file(file_create);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_register_file_exists() {
+        let register = FileRegister::create();
+        let id = Uuid::parse_str("9317393a-c4ef-4b69-bfb9-060050f0879a").unwrap();
+        let file_create = FileCreate {
+            id,
+            name: String::from("test.txt"),
+            mime_type: String::from("text/plain"),
+            size: 100
+        };
+
+        let result = register.register_file(file_create);
+        assert!(result.is_err());
+        assert_eq!(FileUploadError::Exists, result.unwrap_err());
+    }
+
+    #[test]
+    fn test_register_file_exceed_max_size() {
+        let register = FileRegister::create_limited();
+        let id = Uuid::new_v4();
+        let file_create = FileCreate {
+            id,
+            name: String::from("test.txt"),
+            mime_type: String::from("text/plain"),
+            size: 300
+        };
+
+        let result = register.register_file(file_create);
+        assert!(result.is_err());
+        assert_eq!(FileUploadError::MaxFileSizeExceeded, result.unwrap_err());
     }
 }
