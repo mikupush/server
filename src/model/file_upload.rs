@@ -14,11 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::config::Settings;
 use crate::domain::FileUpload as DomainFileUpload;
 use chrono::NaiveDateTime;
 use diesel::{Insertable, Queryable};
-use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Queryable, Insertable)]
@@ -31,21 +29,6 @@ pub struct FileUpload {
     pub size: i64,
     pub uploaded_at: NaiveDateTime,
     pub chunked: bool
-}
-
-impl FileUpload {
-    /// Create and retrieve the directory for the file upload
-    pub fn directory(&self, settings: &Settings) -> Result<PathBuf, std::io::Error> {
-        let destination_directory = settings.upload.directory();
-        let destination_directory = Path::new(destination_directory.as_str())
-            .join(self.id.to_string());
-
-        if let Err(err) = std::fs::create_dir_all(&destination_directory) {
-            return Err(err)
-        }
-
-        Ok(destination_directory)
-    }
 }
 
 impl From<FileUpload> for DomainFileUpload {
