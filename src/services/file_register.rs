@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::domain::FileUpload;
+use crate::model::FileUpload;
 use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::routes::FileCreate;
 use crate::services::{FileSizeLimiter, FileUploadError};
@@ -79,7 +79,7 @@ mod tests {
     use crate::services::{FileRegister, FileSizeLimiter, FileUploadError};
     use std::collections::HashMap;
     use uuid::Uuid;
-    use crate::domain::FileUpload;
+    use crate::model::FileUpload;
     use crate::routes::FileCreate;
 
     impl FileRegister<InMemoryFileUploadRepository> {

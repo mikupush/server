@@ -26,7 +26,6 @@ mod serialization;
 mod services;
 mod errors;
 mod logging;
-mod domain;
 mod repository;
 mod model;
 
@@ -93,16 +92,4 @@ async fn main() -> std::io::Result<()> {
     .bind((settings.server.host(), settings.server.port()))?
     .run()
     .await
-}
-
-fn try_load_config_from_path(path: PathBuf) -> Settings {
-    if !path.exists() {
-        panic!(
-            "error: configuration file not found: {}\nUse -c <path> or --config <path> with an existing file.",
-            path.display()
-        );
-    }
-
-    Settings::load_from_path(path)
-        .expect("error: failed to load configuration file")
 }

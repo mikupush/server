@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::domain::FileUpload;
+use crate::model::FileUpload;
 use crate::errors::FileReadError;
 use crate::repository::FileUploadRepository;
 use std::path::Path;

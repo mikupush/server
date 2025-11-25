@@ -54,7 +54,7 @@ mod tests {
     use crate::config::Settings;
     use crate::database::{setup_database_connection, DbPool};
     use crate::errors::{file_delete_codes, route_error_codes};
-    use crate::model::FileUpload;
+    use crate::model::FileUploadModel;
     use crate::routes::utils::tests::create_test_file_upload;
     use crate::routes::{delete_file, ErrorResponse};
     use crate::schema::file_uploads;
@@ -138,7 +138,7 @@ mod tests {
 
     fn assert_file_upload_deleted_in_database(id: Uuid, pool: DbPool) {
         let mut connection = pool.get().unwrap();
-        let file_upload: Option<FileUpload> = file_uploads::table
+        let file_upload: Option<FileUploadModel> = file_uploads::table
             .find(id)
             .first(&mut connection)
             .optional()

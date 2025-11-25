@@ -18,3 +18,4 @@ mod file_upload;
 mod manifest;
 
 pub use file_upload::*;
+pub use manifest::*;

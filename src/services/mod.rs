@@ -21,6 +21,7 @@ mod file_deleter;
 mod file_reader;
 mod file_info;
 mod file_writer;
+mod file_removal;
 
 pub use file_deleter::*;
 pub use file_info::*;

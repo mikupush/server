@@ -15,10 +15,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 mod file_upload;
+mod manifest;
 
-use crate::domain::FileUpload as DomainFileUpload;
-use chrono::NaiveDateTime;
 pub use file_upload::*;
+pub use manifest::*;
+
+use file_upload::FileUpload as DomainFileUpload;
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use uuid::Uuid;

@@ -1,12 +1,14 @@
+use std::collections::HashMap;
 use crate::config::Settings;
-use crate::domain::{Manifest, Part};
+use crate::model::{Manifest, Part};
 use rusqlite::types::FromSqlError;
 use rusqlite::{params, Connection};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use uuid::Uuid;
 
 #[derive(Debug, PartialEq)]
-enum ManifestError {
+pub enum ManifestError {
     IO(String),
     DuplicatedPart
 }
@@ -23,13 +25,47 @@ impl From<std::io::Error> for ManifestError {
     }
 }
 
-trait ManifestRepository {
+pub trait ManifestRepository {
     fn find_by_upload_id(&self, upload_id: Uuid) -> Result<Manifest, ManifestError>;
     fn put_part(&self, part: Part) -> Result<(), ManifestError>;
 }
 
 #[derive(Debug, Clone)]
-struct SQLiteManifestRepository {
+pub struct InMemoryManifestRepository {
+    parts: Arc<Mutex<HashMap<Uuid, Part>>>
+}
+
+impl InMemoryManifestRepository {
+    pub fn new() -> Self {
+        Self { parts: Arc::new(Mutex::new(HashMap::new())) }
+    }
+}
+
+impl ManifestRepository for InMemoryManifestRepository {
+    fn find_by_upload_id(&self, upload_id: Uuid) -> Result<Manifest, ManifestError> {
+        let parts = self.parts.lock().unwrap();
+        let parts = parts.values()
+            .filter(|part| part.upload_id == upload_id)
+            .cloned()
+            .collect();
+
+        Ok(Manifest { upload_id, parts })
+    }
+
+    fn put_part(&self, part: Part) -> Result<(), ManifestError> {
+        let mut parts = self.parts.lock().unwrap();
+        let existing_part = parts.get(&part.id);
+        if existing_part.is_some() {
+            return Err(ManifestError::DuplicatedPart);
+        }
+
+        parts.insert(part.id, part);
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SQLiteManifestRepository {
     settings: Settings
 }
 
@@ -86,14 +122,12 @@ impl ManifestRepository for SQLiteManifestRepository {
             FROM `parts` WHERE `upload_id` = ?1
         "#)?;
         let result = stmt.query_map(&[&upload_id.to_string()], Self::map_part)?;
+        let parts: Vec<Part> = result
+            .filter(|item| item.is_ok())
+            .map(|item| item.unwrap())
+            .collect();
 
-        Ok(Manifest {
-            upload_id,
-            parts: result
-                .filter(|item| item.is_ok())
-                .map(|item| item.unwrap())
-                .collect()
-        })
+        Ok(Manifest { upload_id, parts })
     }
 
     fn put_part(&self, part: Part) -> Result<(), ManifestError> {

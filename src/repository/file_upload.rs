@@ -16,8 +16,8 @@
 
 use crate::config::Settings;
 use crate::database::{get_database_connection, DbPool};
-use crate::domain::FileUpload;
-use crate::model::FileUpload as FileUploadModel;
+use crate::model::FileUpload;
+use crate::model::FileUploadModel as FileUploadModel;
 use crate::schema::file_uploads;
 use diesel::result::Error as DieselError;
 use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};

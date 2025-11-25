@@ -14,14 +14,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::domain::FileUpload as DomainFileUpload;
+use std::path::{Path, PathBuf};
 use chrono::NaiveDateTime;
 use diesel::{Insertable, Queryable};
 use uuid::Uuid;
+use crate::config::Settings;
 
-#[derive(Debug, Clone, Queryable, Insertable)]
-#[diesel(table_name = crate::schema::file_uploads)]
-#[diesel(check_for_backend(diesel::pg::Pg))]
+#[derive(Debug, Clone)]
 pub struct FileUpload {
     pub id: Uuid,
     pub name: String,
@@ -31,8 +30,39 @@ pub struct FileUpload {
     pub chunked: bool
 }
 
-impl From<FileUpload> for DomainFileUpload {
-    fn from(model: FileUpload) -> Self {
+impl FileUpload {
+    pub fn new(id: Uuid, name: String, mime_type: String, size: i64, uploaded_at: NaiveDateTime) -> Self {
+        Self { id, name, mime_type, size, uploaded_at, chunked: false }
+    }
+
+    /// Create and retrieve the directory for the file upload
+    pub fn directory(&self, settings: &Settings) -> Result<PathBuf, std::io::Error> {
+        let destination_directory = settings.upload.directory();
+        let destination_directory = Path::new(destination_directory.as_str())
+            .join(self.id.to_string());
+
+        if let Err(err) = std::fs::create_dir_all(&destination_directory) {
+            return Err(err)
+        }
+
+        Ok(destination_directory)
+    }
+}
+
+#[derive(Debug, Clone, Queryable, Insertable)]
+#[diesel(table_name = crate::schema::file_uploads)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct FileUploadModel {
+    pub id: Uuid,
+    pub name: String,
+    pub mime_type: String,
+    pub size: i64,
+    pub uploaded_at: NaiveDateTime,
+    pub chunked: bool
+}
+
+impl From<FileUploadModel> for FileUpload {
+    fn from(model: FileUploadModel) -> Self {
         Self {
             id: model.id,
             name: model.name,
@@ -44,8 +74,8 @@ impl From<FileUpload> for DomainFileUpload {
     }
 }
 
-impl From<DomainFileUpload> for FileUpload {
-    fn from(domain: DomainFileUpload) -> Self {
+impl From<FileUpload> for FileUploadModel {
+    fn from(domain: FileUpload) -> Self {
         Self {
             id: domain.id,
             name: domain.name,
@@ -53,6 +83,25 @@ impl From<DomainFileUpload> for FileUpload {
             size: domain.size,
             uploaded_at: domain.uploaded_at,
             chunked: domain.chunked,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use uuid::Uuid;
+    use crate::model::FileUpload;
+
+    impl FileUpload {
+        pub fn create(id: &str) -> Self {
+            Self {
+                id: Uuid::parse_str(id).unwrap(),
+                name: "test.txt".to_string(),
+                mime_type: "text/plain".to_string(),
+                size: 10,
+                uploaded_at: chrono::Utc::now().naive_utc(),
+                chunked: false
+            }
         }
     }
 }

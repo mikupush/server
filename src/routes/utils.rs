@@ -39,8 +39,8 @@ pub fn read_template(settings: &Settings, template: &str) -> String {
 pub mod tests {
     use crate::config::Upload;
     use crate::database::DbPool;
-    use crate::domain::FileUpload;
-    use crate::model::FileUpload as FileUploadModel;
+    use crate::model::FileUpload;
+    use crate::model::FileUploadModel as FileUploadModel;
     use crate::schema::file_uploads;
     use actix_web::dev::ServiceResponse;
     use chrono::Utc;
