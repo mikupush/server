@@ -20,7 +20,7 @@ use diesel::{AsChangeset, Insertable, Queryable};
 use uuid::Uuid;
 use crate::config::Settings;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FileUpload {
     pub id: Uuid,
     pub name: String,

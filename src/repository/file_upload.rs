@@ -187,6 +187,7 @@ mod tests {
 
         let stored = find_file_upload(&pool, file_upload.id);
         assert!(stored.is_some(), "file upload should be saved to database");
+        assert_eq!(file_upload, stored.unwrap().into(), "saved file upload should be equals to expected");
     }
 
     #[test]
@@ -200,12 +201,13 @@ mod tests {
 
         let stored = find_file_upload(&pool, file_upload.id);
         assert!(stored.is_some(), "file upload should be saved to database");
+        assert_eq!(file_upload, stored.unwrap().into(), "saved file upload should be equals to expected");
 
         file_upload.name = "new_name.jpg".to_string();
         repository.save(file_upload.clone()).unwrap();
 
         let stored = find_file_upload(&pool, file_upload.id);
-        assert!(stored.is_some(), "file upload should be saved to database");
+        assert_eq!(file_upload, stored.unwrap().into(), "saved file upload should be equals to expected");
     }
 
     fn create_file_upload() -> FileUploadModel {
