@@ -88,19 +88,37 @@ where
         index: i64,
         reader: impl AsyncRead + Unpin
     ) -> Result<(), FileUploadError> {
-        let file_upload = self.find_upload_by_id(id)?;
+        let mut file_upload = self.find_upload_by_id(id)?;
 
-        let part = Part::new(file_upload.id, index);
+        if file_upload.chunked == false {
+            file_upload.chunked = true;
+            self.repository.save(file_upload.clone())?;
+        }
+
+        let mut part = Part::new(file_upload.id, index);
         let destination_path = self.build_destination_path(&file_upload, &part.file_name())?;
 
         // write chunk with 10MB limit
-        self.writer.write(reader, destination_path.clone(), Some(1048576)).await?;
+        let bytes_wrote = self.writer.write(reader, destination_path.clone(), Some(1048576)).await?;
+        part.size = bytes_wrote;
         let put_part_result = self.manifest_repository.put_part(part);
 
         // if a chunk is already uploaded, or there is other error, remove the written file
         if let Err(err) = put_part_result {
             let _ = self.remover.remove(destination_path);
             return Err(err.into());
+        }
+
+        let parts = self.manifest_repository.find_by_upload_id(id)?;
+        let mut total_bytes = 0;
+
+        for part in parts.parts {
+            total_bytes += part.size;
+        }
+
+        if self.limiter.check_file_size(total_bytes) == false {
+            debug!("file size limit exceeded");
+            return Err(FileUploadError::MaxFileSizeExceeded);
         }
 
         Ok(())
@@ -350,6 +368,56 @@ mod tests {
 
         let reader = StreamReader::new(stream);
         let result = uploader.upload_file(id, reader).await;
+
+        assert_eq!(true, result.is_err());
+        assert_eq!(FileUploadError::MaxFileSizeExceeded, result.unwrap_err());
+    }
+
+    #[actix_web::test]
+    async fn test_upload_chunk() {
+        let uploader = FileUploader::create();
+        let index = 0;
+        let id = Uuid::parse_str("5769aa43-2380-49be-aafb-e9dd4bd4564f").unwrap();
+        let stream = tokio_stream::iter(vec![
+            tokio::io::Result::Ok(Bytes::from("Hello")),
+            tokio::io::Result::Ok(Bytes::from("World")),
+        ]);
+
+        let reader = StreamReader::new(stream);
+        let result = uploader.upload_chunk(id, index, reader).await;
+
+        assert_eq!(true, result.is_ok());
+    }
+
+    #[actix_web::test]
+    async fn test_upload_chunk_not_exists() {
+        let uploader = FileUploader::create();
+        let index = 0;
+        let id = Uuid::parse_str("f5dcca7d-e8ba-4e87-b7b1-e3cde6bc857d").unwrap();
+        let stream = tokio_stream::iter(vec![
+            tokio::io::Result::Ok(Bytes::from("Hello")),
+            tokio::io::Result::Ok(Bytes::from("World")),
+        ]);
+
+        let reader = StreamReader::new(stream);
+        let result = uploader.upload_chunk(id, index, reader).await;
+
+        assert_eq!(true, result.is_err());
+        assert_eq!(FileUploadError::NotExists { id }, result.unwrap_err());
+    }
+
+    #[actix_web::test]
+    async fn test_upload_chunk_max_file_size_exceeded() {
+        let uploader = FileUploader::create_with_limit();
+        let index = 0;
+        let id = Uuid::parse_str("5769aa43-2380-49be-aafb-e9dd4bd4564f").unwrap();
+        let content = vec![1u8; 200];
+        let stream = tokio_stream::iter(vec![
+            tokio::io::Result::Ok(Bytes::from(content)),
+        ]);
+
+        let reader = StreamReader::new(stream);
+        let result = uploader.upload_chunk(id, index, reader).await;
 
         assert_eq!(true, result.is_err());
         assert_eq!(FileUploadError::MaxFileSizeExceeded, result.unwrap_err());

@@ -91,30 +91,19 @@ impl Default for Upload {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
 
     impl Upload {
         pub fn create() -> Self {
             Self::new(
                 None,
-                Some(
-                    PathBuf::from("data")
-                        .join("test")
-                        .to_string_lossy()
-                        .to_string()
-                )
+                Some("data".to_string())
             )
         }
 
         pub fn create_with_limit(limit: u64) -> Self {
             Self::new(
                 Some(limit),
-                Some(
-                    PathBuf::from("data")
-                        .join("test")
-                        .to_string_lossy()
-                        .to_string()
-                )
+                Some("data".to_string())
             )
         }
     }

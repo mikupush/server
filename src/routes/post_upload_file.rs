@@ -47,9 +47,30 @@ pub async fn post_upload_file(
     }
 }
 
+#[post("/api/file/{id}/upload/part/{index}")]
+pub async fn post_upload_part(
+    settings: web::Data<Settings>,
+    path: web::Path<(String, i64)>,
+    payload: Payload
+) -> Result<HttpResponse> {
+    let (id, index) = path.into_inner();
+    let settings = settings.get_ref().clone();
+    let file_uploader = FileUploader::get_with_settings(settings);
+    let Ok(id) = Uuid::try_from(id.to_string()) else {
+        debug!("cant convert id to uuid: {}", id.to_string());
+        return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
+    };
+
+    let mapper = payload.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
+    let body_reader = StreamReader::new(mapper);
+    match file_uploader.upload_chunk(id, index, body_reader).await {
+        Ok(_) => Ok(HttpResponse::Ok().finish()),
+        Err(err) => Ok(handle_post_upload_file_error(err))
+    }
+}
+
 fn handle_post_upload_file_error(err: FileUploadError) -> HttpResponse {
     let mut response_builder = match err {
-        FileUploadError::NotCompleted => HttpResponse::BadRequest(),
         FileUploadError::MaxFileSizeExceeded => HttpResponse::PayloadTooLarge(),
         FileUploadError::NotExists { .. } => HttpResponse::NotFound(),
         _ => HttpResponse::InternalServerError()
@@ -60,6 +81,7 @@ fn handle_post_upload_file_error(err: FileUploadError) -> HttpResponse {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Read;
     use super::*;
     use crate::config::{Settings, Upload};
     use crate::database::setup_database_connection;
@@ -164,6 +186,115 @@ mod tests {
         let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{id}/upload").as_str())
+            .method(Method::POST)
+            .insert_header(ContentType::octet_stream())
+            .set_payload(file_content)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let status_code = response.status().clone();
+        assert_eq!(status_code, StatusCode::NOT_FOUND);
+
+        let response = test::read_body(response).await;
+        let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
+        assert_eq!(response.code, file_upload_codes::NOT_EXISTS_CODE);
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_post_file_part_200_ok() {
+        let settings = create_settings();
+        let pool = setup_database_connection(&settings);
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
+                .service(post_upload_part)
+        ).await;
+
+        let file_upload = register_test_file(pool);
+        let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
+
+        let request = test::TestRequest::default()
+            .uri(format!("/api/file/{}/upload/part/0", file_upload.id).as_str())
+            .method(Method::POST)
+            .insert_header(ContentType::octet_stream())
+            .set_payload(file_content)
+            .to_request();
+
+        let response = test::call_service(&app, request).await;
+        assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_post_file_part_400_bad_request_invalid_id() {
+        let settings = create_settings();
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
+                .service(post_upload_part)
+        ).await;
+
+        let id = "1"; // invalid uuid
+        let bytes = vec![1u8; 100];
+        let request = test::TestRequest::default()
+            .uri(format!("/api/file/{id}/upload/part/0").as_str())
+            .method(Method::POST)
+            .insert_header(ContentType::octet_stream())
+            .set_payload(bytes)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let status_code = response.status().clone();
+        assert_eq!(status_code, StatusCode::BAD_REQUEST);
+
+        let response = test::read_body(response).await;
+        let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
+        assert_eq!(response.code, route_error_codes::INVALID_PATH_PARAMETER_CODE);
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_post_file_part_413_payload_too_large() {
+        let settings = create_settings_limited();
+        let pool = setup_database_connection(&settings);
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
+                .service(post_upload_part)
+        ).await;
+
+        let file_upload = register_test_file(pool);
+        let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
+        let request = test::TestRequest::default()
+            .uri(format!("/api/file/{}/upload/part/0", file_upload.id).as_str())
+            .method(Method::POST)
+            .insert_header(ContentType::octet_stream())
+            .set_payload(file_content)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let status_code = response.status().clone();
+        let response = test::read_body(response).await;
+        assert_eq!(status_code, StatusCode::PAYLOAD_TOO_LARGE);
+
+        let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
+        assert_eq!(response.code, file_upload_codes::MAX_FILE_SIZE_EXCEEDED_CODE);
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_post_file_part_404_not_found() {
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(create_settings()))
+                .service(post_upload_part)
+        ).await;
+
+        let id = Uuid::new_v4();
+        let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
+        let request = test::TestRequest::default()
+            .uri(format!("/api/file/{id}/upload/part/0").as_str())
             .method(Method::POST)
             .insert_header(ContentType::octet_stream())
             .set_payload(file_content)

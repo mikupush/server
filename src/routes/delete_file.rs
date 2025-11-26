@@ -50,7 +50,6 @@ fn handle_delete_file_failure(err: FileDeleteError) -> HttpResponse {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::tests::setup_test_env;
     use crate::config::Settings;
     use crate::database::{setup_database_connection, DbPool};
     use crate::errors::{file_delete_codes, route_error_codes};
@@ -112,8 +111,6 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_delete_file_400_bad_request_invalid_id() {
-        setup_test_env();
-
         let pool = setup_database_connection(&Settings::load());
         let app = test::init_service(
             App::new()

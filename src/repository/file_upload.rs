@@ -117,8 +117,12 @@ impl FileUploadRepository for PostgresFileUploadRepository {
     fn save(&self, file_upload: FileUpload) -> Result<(), FileUploadRepositoryError> {
         let mut connection = self.db_pool.get()?;
         let model: FileUploadModel = file_upload.into();
+
         diesel::insert_into(file_uploads::table)
             .values(&model)
+            .on_conflict(file_uploads::id)
+            .do_update()
+            .set(&model)
             .execute(&mut connection)?;
 
         Ok(())
@@ -174,11 +178,30 @@ mod tests {
 
     #[test]
     #[serial]
-    fn test_save_file_upload() {
+    fn test_save_insert_file_upload() {
         let pool = setup_database_connection(&Settings::load());
         let repository = PostgresFileUploadRepository::new(pool.clone());
         let file_upload: FileUpload = create_file_upload().into();
 
+        repository.save(file_upload.clone()).unwrap();
+
+        let stored = find_file_upload(&pool, file_upload.id);
+        assert!(stored.is_some(), "file upload should be saved to database");
+    }
+
+    #[test]
+    #[serial]
+    fn test_save_update_file_upload() {
+        let pool = setup_database_connection(&Settings::load());
+        let repository = PostgresFileUploadRepository::new(pool.clone());
+        let mut file_upload: FileUpload = create_file_upload().into();
+
+        repository.save(file_upload.clone()).unwrap();
+
+        let stored = find_file_upload(&pool, file_upload.id);
+        assert!(stored.is_some(), "file upload should be saved to database");
+
+        file_upload.name = "new_name.jpg".to_string();
         repository.save(file_upload.clone()).unwrap();
 
         let stored = find_file_upload(&pool, file_upload.id);

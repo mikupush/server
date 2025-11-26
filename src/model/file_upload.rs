@@ -16,7 +16,7 @@
 
 use std::path::{Path, PathBuf};
 use chrono::NaiveDateTime;
-use diesel::{Insertable, Queryable};
+use diesel::{AsChangeset, Insertable, Queryable};
 use uuid::Uuid;
 use crate::config::Settings;
 
@@ -49,7 +49,7 @@ impl FileUpload {
     }
 }
 
-#[derive(Debug, Clone, Queryable, Insertable)]
+#[derive(Debug, Clone, Queryable, Insertable, AsChangeset, PartialEq, Eq, Hash)]
 #[diesel(table_name = crate::schema::file_uploads)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct FileUploadModel {

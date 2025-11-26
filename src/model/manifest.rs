@@ -11,11 +11,12 @@ pub struct Part {
     pub id: Uuid,
     pub index: i64,
     pub upload_id: Uuid,
+    pub size: u64,
 }
 
 impl Part {
     pub fn new(upload_id: Uuid, index: i64) -> Self {
-        Self { index, upload_id, id: Uuid::new_v4() }
+        Self { index, upload_id, id: Uuid::new_v4(), size: 0 }
     }
 
     pub fn file_name(&self) -> String {

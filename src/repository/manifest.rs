@@ -95,7 +95,8 @@ impl SQLiteManifestRepository {
             CREATE TABLE IF NOT EXISTS `parts` (
                 `id` TEXT PRIMARY KEY,
                 `index` INTEGER NOT NULL,
-                `upload_id` TEXT NOT NULL
+                `upload_id` TEXT NOT NULL,
+                `size` INTEGER NOT NULL
             );
         "#;
 
@@ -109,7 +110,8 @@ impl SQLiteManifestRepository {
                 .map_err(|err| FromSqlError::Other(err.into()))?,
             index: row.get(1)?,
             upload_id: Uuid::parse_str(row.get::<usize, String>(2)?.as_str())
-                .map_err(|err| FromSqlError::Other(err.into()))?
+                .map_err(|err| FromSqlError::Other(err.into()))?,
+            size: row.get(3)?,
         })
     }
 }
@@ -118,7 +120,7 @@ impl ManifestRepository for SQLiteManifestRepository {
     fn find_by_upload_id(&self, upload_id: Uuid) -> Result<Manifest, ManifestError> {
         let connection = self.create_connection(upload_id)?;
         let mut stmt = connection.prepare(r#"
-            SELECT `id`, `index`, `upload_id`
+            SELECT `id`, `index`, `upload_id`, `size`
             FROM `parts` WHERE `upload_id` = ?1
         "#)?;
         let result = stmt.query_map(&[&upload_id.to_string()], Self::map_part)?;
@@ -152,13 +154,14 @@ impl ManifestRepository for SQLiteManifestRepository {
 
         connection.execute(
             r#"
-                INSERT INTO `parts` (`id`, `index`, `upload_id`)
-                VALUES (?1, ?2, ?3)
+                INSERT INTO `parts` (`id`, `index`, `upload_id`, `size`)
+                VALUES (?1, ?2, ?3, ?4)
             "#,
             params![
                 part.id.to_string(),
                 part.index,
-                part.upload_id.to_string()
+                part.upload_id.to_string(),
+                part.size
             ]
         )?;
 

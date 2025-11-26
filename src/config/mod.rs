@@ -92,18 +92,3 @@ fn env(name: &str) -> Option<String> {
 
     None
 }
-
-#[cfg(test)]
-pub mod tests {
-    use crate::config::{TEST_ENV, UPLOAD_MAX_SIZE_UNLIMITED};
-
-    pub fn set_test_env(name: &str, value: &str) {
-        let mut test_env = TEST_ENV.lock().unwrap();
-        test_env.insert(name.to_string(), value.to_string());
-    }
-
-    pub fn setup_test_env() {
-        set_test_env("MIKU_PUSH_UPLOAD_MAX_SIZE", UPLOAD_MAX_SIZE_UNLIMITED);
-        set_test_env("MIKU_PUSH_UPLOAD_DIRECTORY", "data/tests")
-    }
-}
