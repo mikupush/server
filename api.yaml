@@ -167,6 +167,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api/file/{id}/upload/part/{index}:
+    post:
+      summary: Upload file content part for registered file upload
+      description: Upload file content part for registered file upload
+      operationId: uploadFilePart
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: acdb1260-d4de-4aab-a3a9-02665ae25771
+        - name: index
+          in: path
+          required: true
+          schema:
+            type: number
+      requestBody:
+        description: The file contents part max 10MB
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+        required: true
+      responses:
+        200:
+          description: Successful operation
+        400:
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        413:
+          description: The entire file contents exceeds the size limit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        404:
+          description: File is not registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        500:
+          description: Unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /health:
     get:
       summary: Health check
