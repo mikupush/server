@@ -23,7 +23,7 @@ use tokio::fs::OpenOptions;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncReadExt;
 
-pub trait FileWriter {
+pub trait ObjectStorageWriter {
     /// Write an entire file with an optional size limit.
     /// Returns the total bytes written.
     /// * `limit` - size limit in bytes (optional)
@@ -32,40 +32,40 @@ pub trait FileWriter {
         reader: impl AsyncRead + Unpin,
         destination: String,
         limit: Option<u64>
-    ) -> Result<u64, FileWriteError>;
+    ) -> Result<u64, ObjectStorageWriteError>;
 }
 
 #[derive(Clone)]
-pub struct FakeFileWriter;
+pub struct FakeObjectStorageWriter;
 
-impl FileWriter for FakeFileWriter {
+impl ObjectStorageWriter for FakeObjectStorageWriter {
     async fn write(
         &self,
         mut reader: impl AsyncRead + Unpin,
         _destination: String,
         _limit: Option<u64>
-    ) -> Result<u64, FileWriteError> {
+    ) -> Result<u64, ObjectStorageWriteError> {
         Ok(tokio::io::copy(&mut reader, &mut tokio::io::sink()).await?)
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct FileSystemFileWriter;
+pub struct FileSystemObjectStorageWriter;
 
-impl FileSystemFileWriter {
+impl FileSystemObjectStorageWriter {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl FileWriter for FileSystemFileWriter {
+impl ObjectStorageWriter for FileSystemObjectStorageWriter {
     /// Write an entire file with a size limit.
     async fn write(
         &self,
         mut reader: impl AsyncRead + Unpin,
         destination: String,
         limit: Option<u64>
-    ) -> Result<u64, FileWriteError> {
+    ) -> Result<u64, ObjectStorageWriteError> {
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
@@ -84,19 +84,19 @@ impl FileWriter for FileSystemFileWriter {
 }
 
 #[derive(Debug)]
-pub enum FileWriteError {
-    Io(String),
+pub enum ObjectStorageWriteError {
+    IO(String),
 }
 
-impl From<std::io::Error> for FileWriteError {
+impl From<std::io::Error> for ObjectStorageWriteError {
     fn from(error: std::io::Error) -> Self {
-        Self::Io(error.to_string())
+        Self::IO(error.to_string())
     }
 }
 
-impl From<PayloadError> for FileWriteError {
+impl From<PayloadError> for ObjectStorageWriteError {
     fn from(error: PayloadError) -> Self {
-        Self::Io(error.to_string())
+        Self::IO(error.to_string())
     }
 }
 
@@ -109,7 +109,7 @@ mod tests {
     use tokio_util::io::StreamReader;
     use uuid::Uuid;
 
-    impl FileSystemFileWriter {
+    impl FileSystemObjectStorageWriter {
         pub fn create() -> Self {
             Self::new()
         }
@@ -121,7 +121,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis();
-        let writer = FileSystemFileWriter::create();
+        let writer = FileSystemObjectStorageWriter::create();
         let stream = tokio_stream::iter(vec![
             tokio::io::Result::Ok(Bytes::from("Hello")),
             tokio::io::Result::Ok(Bytes::from("World")),
@@ -145,7 +145,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_millis();
-        let writer = FileSystemFileWriter::create();
+        let writer = FileSystemObjectStorageWriter::create();
         let stream = tokio_stream::iter(vec![
             tokio::io::Result::Ok(Bytes::from("Hello")),
             tokio::io::Result::Ok(Bytes::from("World")),

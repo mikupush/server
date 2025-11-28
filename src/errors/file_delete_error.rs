@@ -18,6 +18,7 @@ use crate::errors::Error;
 use crate::repository::FileUploadRepositoryError;
 use std::fmt::Display;
 use uuid::Uuid;
+use crate::services::ObjectStorageRemoveError;
 
 #[derive(Debug)]
 pub enum FileDeleteError {
@@ -73,6 +74,15 @@ impl From<FileUploadRepositoryError> for FileDeleteError {
         match value {
             FileUploadRepositoryError::Db(err) => err.into(),
             FileUploadRepositoryError::Pool(err) => err.into(),
+        }
+    }
+}
+
+impl From<ObjectStorageRemoveError> for FileDeleteError {
+    fn from(value: ObjectStorageRemoveError) -> Self {
+        match value {
+            ObjectStorageRemoveError::IO(err) => Self::IO { message: err },
+            ObjectStorageRemoveError::NotExists => Self::NotExists { id: Uuid::nil() },
         }
     }
 }

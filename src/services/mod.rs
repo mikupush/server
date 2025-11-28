@@ -20,8 +20,8 @@ mod file_size_limiter;
 mod file_deleter;
 mod file_reader;
 mod file_info;
-mod file_writer;
-mod file_removal;
+mod object_storage_writer;
+mod object_storage_remover;
 
 pub use file_deleter::*;
 pub use file_info::*;
@@ -29,3 +29,4 @@ pub use file_reader::*;
 pub use file_register::*;
 pub use file_size_limiter::*;
 pub use file_uploader::*;
+pub use object_storage_remover::*;

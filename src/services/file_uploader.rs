@@ -18,7 +18,7 @@ use crate::config::Settings;
 use crate::errors::Error;
 use crate::model::{FileUpload, Part};
 use crate::repository::{FileUploadRepository, FileUploadRepositoryError, ManifestError, ManifestRepository, PostgresFileUploadRepository, SQLiteManifestRepository};
-use crate::services::file_writer::{FileSystemFileWriter, FileWriteError, FileWriter};
+use crate::services::object_storage_writer::{FileSystemObjectStorageWriter, ObjectStorageWriteError, ObjectStorageWriter};
 use crate::services::FileSizeLimiter;
 use actix_web::web::Payload;
 use futures::StreamExt;
@@ -28,36 +28,36 @@ use std::io::Write;
 use tokio::io::AsyncRead;
 use tracing::debug;
 use uuid::Uuid;
-use crate::services::file_removal::{FileRemoval, FileRemovalError, FileSystemFileRemoval};
+use crate::services::object_storage_remover::{ObjectStorageRemover, ObjectStorageRemoveError, FileSystemObjectStorageRemover};
 
 #[derive(Debug, Clone)]
-pub struct FileUploader<FR, MR, FW, FD>
+pub struct FileUploader<FR, MR, OSW, OSR>
 where
     FR: FileUploadRepository + Clone,
     MR: ManifestRepository + Clone,
-    FW: FileWriter + Clone,
-    FD: FileRemoval + Clone
+    OSW: ObjectStorageWriter + Clone,
+    OSR: ObjectStorageRemover + Clone
 {
     repository: FR,
     manifest_repository: MR,
-    writer: FW,
-    remover: FD,
+    writer: OSW,
+    remover: OSR,
     settings: Settings,
     limiter: FileSizeLimiter
 }
 
-impl<FR, MR, FW, FD> FileUploader<FR, MR, FW, FD>
+impl<FR, MR, OSW, OSD> FileUploader<FR, MR, OSW, OSD>
 where
     FR: FileUploadRepository + Clone,
     MR: ManifestRepository + Clone,
-    FW: FileWriter + Clone,
-    FD: FileRemoval + Clone
+    OSW: ObjectStorageWriter + Clone,
+    OSD: ObjectStorageRemover + Clone
 {
     pub fn new(
         repository: FR,
         manifest_repository: MR,
-        writer: FW,
-        remover: FD,
+        writer: OSW,
+        remover: OSD,
         settings: Settings,
         limiter: FileSizeLimiter
     ) -> Self {
@@ -144,15 +144,15 @@ where
 impl FileUploader<
     PostgresFileUploadRepository,
     SQLiteManifestRepository,
-    FileSystemFileWriter,
-    FileSystemFileRemoval
+    FileSystemObjectStorageWriter,
+    FileSystemObjectStorageRemover
 > {
     pub fn get_with_settings(settings: Settings) -> Self {
         Self::new(
             PostgresFileUploadRepository::get_with_settings(settings.clone()),
             SQLiteManifestRepository::new(settings.clone()),
-            FileSystemFileWriter::new(),
-            FileSystemFileRemoval::new(),
+            FileSystemObjectStorageWriter::new(),
+            FileSystemObjectStorageRemover::new(),
             settings.clone(),
             FileSizeLimiter::new(settings.clone()),
         )
@@ -239,10 +239,10 @@ impl From<FileUploadRepositoryError> for FileUploadError {
     }
 }
 
-impl From<FileWriteError> for FileUploadError {
-    fn from(value: FileWriteError) -> Self {
+impl From<ObjectStorageWriteError> for FileUploadError {
+    fn from(value: ObjectStorageWriteError) -> Self {
         match value {
-            FileWriteError::Io(err) => FileUploadError::IO { message: err.to_string() },
+            ObjectStorageWriteError::IO(err) => FileUploadError::IO { message: err.to_string() },
         }
     }
 }
@@ -256,8 +256,8 @@ impl From<ManifestError> for FileUploadError {
     }
 }
 
-impl From<FileRemovalError> for FileUploadError {
-    fn from(value: FileRemovalError) -> Self {
+impl From<ObjectStorageRemoveError> for FileUploadError {
+    fn from(value: ObjectStorageRemoveError) -> Self {
         FileUploadError::IO { message: value.to_string() }
     }
 }
@@ -278,28 +278,28 @@ mod tests {
     use crate::config::Settings;
     use crate::model::FileUpload;
     use crate::repository::{InMemoryFileUploadRepository, InMemoryManifestRepository};
-    use crate::services::file_writer::FakeFileWriter;
+    use crate::services::object_storage_writer::FakeObjectStorageWriter;
     use crate::services::{FileSizeLimiter, FileUploadError, FileUploader};
     use bytes::Bytes;
     use std::collections::HashMap;
     use tokio_util::io::StreamReader;
     use uuid::Uuid;
-    use crate::services::file_removal::FakeFileRemoval;
+    use crate::services::object_storage_remover::FakeObjectStorageRemover;
 
     impl FileUploader<
         InMemoryFileUploadRepository,
         InMemoryManifestRepository,
-        FakeFileWriter,
-        FakeFileRemoval
+        FakeObjectStorageWriter,
+        FakeObjectStorageRemover
     > {
         pub fn create() -> Self {
             Self {
                 repository: Self::create_repository(),
                 manifest_repository: InMemoryManifestRepository::new(),
-                writer: FakeFileWriter,
+                writer: FakeObjectStorageWriter,
                 settings: Settings::default(),
                 limiter: FileSizeLimiter::create(),
-                remover: FakeFileRemoval::new()
+                remover: FakeObjectStorageRemover::new()
             }
         }
 
@@ -307,10 +307,10 @@ mod tests {
             Self {
                 repository: Self::create_repository(),
                 manifest_repository: InMemoryManifestRepository::new(),
-                writer: FakeFileWriter,
+                writer: FakeObjectStorageWriter,
                 settings: Settings::default(),
                 limiter: FileSizeLimiter::create_limited(),
-                remover: FakeFileRemoval::new()
+                remover: FakeObjectStorageRemover::new()
             }
         }
 

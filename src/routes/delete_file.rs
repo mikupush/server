@@ -22,12 +22,14 @@ use actix_web::error::Result;
 use actix_web::{delete, web, HttpResponse};
 use tracing::debug;
 use uuid::Uuid;
+use crate::config::Settings;
 
 #[delete("/api/file/{id}")]
 pub async fn delete_file(
-    deleter: web::Data<FileDeleter<PostgresFileUploadRepository>>,
+    settings: web::Data<Settings>,
     id: web::Path<String>
 ) -> Result<HttpResponse> {
+    let deleter = FileDeleter::get_with_settings(settings.get_ref().clone());
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
         return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
@@ -66,10 +68,11 @@ mod tests {
 
     #[actix_web::test]
     async fn test_delete_file_200_ok() {
-        let pool = setup_database_connection(&Settings::load());
+        let settings = Settings::load();
+        let pool = setup_database_connection(&settings);
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileDeleter::test(pool.clone())))
+                .app_data(web::Data::new(settings))
                 .service(delete_file)
         ).await;
 
@@ -87,10 +90,10 @@ mod tests {
 
     #[actix_web::test]
     async fn test_delete_file_404_not_found() {
-        let pool = setup_database_connection(&Settings::load());
+        let settings = Settings::load();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileDeleter::test(pool.clone())))
+                .app_data(web::Data::new(settings))
                 .service(delete_file)
         ).await;
 
@@ -111,10 +114,10 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_delete_file_400_bad_request_invalid_id() {
-        let pool = setup_database_connection(&Settings::load());
+        let settings = Settings::load();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileDeleter::test(pool.clone())))
+                .app_data(web::Data::new(settings))
                 .service(delete_file)
         ).await;
 
