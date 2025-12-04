@@ -81,7 +81,6 @@ fn handle_post_upload_file_error(err: FileUploadError) -> HttpResponse {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Read;
     use super::*;
     use crate::config::{Settings, Upload};
     use crate::database::setup_database_connection;
@@ -91,6 +90,7 @@ mod tests {
     use actix_web::http::{Method, StatusCode};
     use actix_web::{http::header::ContentType, test, App};
     use serial_test::serial;
+    use std::io::Read;
 
     #[actix_web::test]
     #[serial]

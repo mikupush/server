@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use crate::config::Settings;
 use crate::errors::{route_error_helpers, FileDeleteError};
 use crate::repository::PostgresFileUploadRepository;
 use crate::routes::ErrorResponse;
@@ -22,7 +23,6 @@ use actix_web::error::Result;
 use actix_web::{delete, web, HttpResponse};
 use tracing::debug;
 use uuid::Uuid;
-use crate::config::Settings;
 
 #[delete("/api/file/{id}")]
 pub async fn delete_file(
@@ -59,7 +59,6 @@ mod tests {
     use crate::routes::utils::tests::create_test_file_upload;
     use crate::routes::{delete_file, ErrorResponse};
     use crate::schema::file_uploads;
-    use crate::services::FileDeleter;
     use actix_web::http::{Method, StatusCode};
     use actix_web::{test, web, App};
     use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};

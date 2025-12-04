@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import Handlebars from 'handlebars'
-import { execSync } from 'node:child_process'
+import {execSync} from 'node:child_process'
 
 interface Package {
     name: string

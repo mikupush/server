@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
-import { globSync } from 'glob'
+import {globSync} from 'glob'
 import ignore from 'ignore'
 
 const licenseHeaderRust = `

@@ -18,6 +18,7 @@ use crate::config::Settings;
 use crate::errors::Error;
 use crate::model::{FileUpload, Part};
 use crate::repository::{FileUploadRepository, FileUploadRepositoryError, ManifestError, ManifestRepository, PostgresFileUploadRepository, SQLiteManifestRepository};
+use crate::services::object_storage_remover::{FileSystemObjectStorageRemover, ObjectStorageRemoveError, ObjectStorageRemover};
 use crate::services::object_storage_writer::{FileSystemObjectStorageWriter, ObjectStorageWriteError, ObjectStorageWriter};
 use crate::services::FileSizeLimiter;
 use actix_web::web::Payload;
@@ -28,7 +29,6 @@ use std::io::Write;
 use tokio::io::AsyncRead;
 use tracing::debug;
 use uuid::Uuid;
-use crate::services::object_storage_remover::{ObjectStorageRemover, ObjectStorageRemoveError, FileSystemObjectStorageRemover};
 
 #[derive(Debug, Clone)]
 pub struct FileUploader<FR, MR, OSW, OSR>
@@ -278,13 +278,13 @@ mod tests {
     use crate::config::Settings;
     use crate::model::FileUpload;
     use crate::repository::{InMemoryFileUploadRepository, InMemoryManifestRepository};
+    use crate::services::object_storage_remover::FakeObjectStorageRemover;
     use crate::services::object_storage_writer::FakeObjectStorageWriter;
     use crate::services::{FileSizeLimiter, FileUploadError, FileUploader};
     use bytes::Bytes;
     use std::collections::HashMap;
     use tokio_util::io::StreamReader;
     use uuid::Uuid;
-    use crate::services::object_storage_remover::FakeObjectStorageRemover;
 
     impl FileUploader<
         InMemoryFileUploadRepository,

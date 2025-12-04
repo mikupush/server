@@ -20,8 +20,8 @@ mod manifest;
 pub use file_upload::*;
 pub use manifest::*;
 
-use file_upload::FileUpload as DomainFileUpload;
 use chrono::NaiveDateTime;
+use file_upload::FileUpload as DomainFileUpload;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use uuid::Uuid;

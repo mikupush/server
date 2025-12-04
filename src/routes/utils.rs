@@ -39,8 +39,9 @@ pub fn read_template(settings: &Settings, template: &str) -> String {
 pub mod tests {
     use crate::config::{Settings, Upload};
     use crate::database::DbPool;
-    use crate::model::{FileUpload, Part};
     use crate::model::FileUploadModel as FileUploadModel;
+    use crate::model::{FileUpload, Part};
+    use crate::repository::tests::insert_test_manifest_part;
     use crate::schema::file_uploads;
     use actix_web::dev::ServiceResponse;
     use chrono::Utc;
@@ -48,7 +49,6 @@ pub mod tests {
     use std::path::{Path, PathBuf};
     use std::sync::Mutex;
     use uuid::Uuid;
-    use crate::repository::tests::insert_test_manifest_part;
 
     // used to give unique prefix to the test file
     static TEST_FILE_COUNT: Mutex<i32> = Mutex::new(0);

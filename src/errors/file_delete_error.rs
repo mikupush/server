@@ -16,9 +16,9 @@
 
 use crate::errors::Error;
 use crate::repository::FileUploadRepositoryError;
+use crate::services::ObjectStorageRemoveError;
 use std::fmt::Display;
 use uuid::Uuid;
-use crate::services::ObjectStorageRemoveError;
 
 #[derive(Debug)]
 pub enum FileDeleteError {

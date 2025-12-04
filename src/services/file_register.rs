@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use crate::config::Settings;
 use crate::model::FileUpload;
 use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::routes::FileCreate;
 use crate::services::{FileSizeLimiter, FileUploadError};
 use chrono::Utc;
-use crate::config::Settings;
 
 #[derive(Debug, Clone)]
 pub struct FileRegister<FR>
@@ -75,12 +75,12 @@ impl FileRegister<PostgresFileUploadRepository> {
 
 #[cfg(test)]
 mod tests {
+    use crate::model::FileUpload;
     use crate::repository::InMemoryFileUploadRepository;
+    use crate::routes::FileCreate;
     use crate::services::{FileRegister, FileSizeLimiter, FileUploadError};
     use std::collections::HashMap;
     use uuid::Uuid;
-    use crate::model::FileUpload;
-    use crate::routes::FileCreate;
 
     impl FileRegister<InMemoryFileUploadRepository> {
         pub fn create() -> Self {

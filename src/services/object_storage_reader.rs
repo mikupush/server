@@ -1,8 +1,7 @@
-use async_trait::async_trait;
-use tokio::fs::File;
 use bytes::Bytes;
 use futures::future::BoxFuture;
 use futures::Stream;
+use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
 pub trait ObjectStorageReader {
@@ -56,8 +55,8 @@ impl ObjectStorageReader for FileSystemObjectStorageReader {
 
 #[cfg(test)]
 mod test {
-    use futures::TryStreamExt;
     use super::*;
+    use futures::TryStreamExt;
 
     #[tokio::test]
     async fn test_file_system_read() {

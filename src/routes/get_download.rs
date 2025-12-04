@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use crate::config::Settings;
 use crate::errors::{route_error_helpers, FileReadError};
 use crate::repository::PostgresFileUploadRepository;
 use crate::routes::ErrorResponse;
-use crate::services::{SingleFileReader, FileReader, FileStreamWrapper};
+use crate::services::{FileReader, FileStreamWrapper, SingleFileReader};
 use actix_web::{get, web, HttpResponse, Result};
 use tracing::debug;
 use uuid::Uuid;
-use crate::config::Settings;
 
 #[get("/u/{id}")]
 pub async fn get_download(

@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
-use std::fmt::{Display, Formatter};
 use crate::config::Settings;
 use crate::model::{Manifest, Part};
 use rusqlite::types::FromSqlError;
 use rusqlite::{params, Connection};
+use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;

@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::path::{Path, PathBuf};
+use crate::config::Settings;
 use chrono::NaiveDateTime;
 use diesel::{AsChangeset, Insertable, Queryable};
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
-use crate::config::Settings;
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct FileUpload {
@@ -89,8 +89,8 @@ impl From<FileUpload> for FileUploadModel {
 
 #[cfg(test)]
 mod tests {
-    use uuid::Uuid;
     use crate::model::FileUpload;
+    use uuid::Uuid;
 
     impl FileUpload {
         pub fn create(id: &str) -> Self {
