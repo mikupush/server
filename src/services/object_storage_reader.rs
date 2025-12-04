@@ -5,7 +5,7 @@ use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
 pub trait ObjectStorageReader {
-    fn read(&self, location: String) -> BoxFuture<std::io::Result<impl Stream<Item = std::io::Result<Bytes>>>>;
+    fn read(&self, location: String) -> BoxFuture<std::io::Result<impl Stream<Item = std::io::Result<Bytes>> + Send + Unpin + 'static>>;
     fn read_all(&self, location: String) -> BoxFuture<std::io::Result<Bytes>>;
 }
 
@@ -13,7 +13,7 @@ pub trait ObjectStorageReader {
 pub struct FakeObjectStorageReader;
 
 impl ObjectStorageReader for FakeObjectStorageReader {
-    fn read(&self, _location: String) -> BoxFuture<std::io::Result<impl Stream<Item = std::io::Result<Bytes>>>> {
+    fn read(&self, _location: String) -> BoxFuture<std::io::Result<impl Stream<Item = std::io::Result<Bytes>> + Send + Unpin + 'static>> {
         Box::pin(async move {
             let data = b"sample content";
             let stream = ReaderStream::new(&data[..]);
@@ -38,7 +38,7 @@ impl FileSystemObjectStorageReader {
 }
 
 impl ObjectStorageReader for FileSystemObjectStorageReader {
-    fn read(&self, location: String) -> BoxFuture<std::io::Result<impl Stream<Item = std::io::Result<Bytes>>>> {
+    fn read(&self, location: String) -> BoxFuture<std::io::Result<impl Stream<Item = std::io::Result<Bytes>> + Send + Unpin + 'static>> {
         Box::pin(async move {
             let file = File::open(location).await?;
             let stream = ReaderStream::new(file);

@@ -74,7 +74,8 @@ where
         } else {
             let reader = SingleFileReader {
                 details: file_upload,
-                settings: self.settings.clone()
+                settings: self.settings.clone(),
+                reader: self.reader.clone()
             };
 
             reader.read().await
@@ -93,32 +94,36 @@ impl FileReader<PostgresFileUploadRepository, FileSystemObjectStorageReader, SQL
     }
 }
 
-type StreamBuilderResult = io::Result<Box<dyn Stream<Item = io::Result<Bytes>>>>;
-type StreamBuilder = Box<dyn Fn() -> BoxFuture<'static, StreamBuilderResult>>;
-
 pub struct FileStreamWrapper {
     pub details: FileUpload,
     pub stream: Box<dyn Stream<Item = io::Result<Bytes>> + Send + Unpin + 'static>,
 }
 
 #[derive(Clone)]
-pub struct SingleFileReader {
+pub struct SingleFileReader<OBR>
+where
+    OBR: ObjectStorageReader + Clone + Send + 'static
+{
     pub details: FileUpload,
     pub settings: Settings,
+    pub reader: OBR
 }
 
-impl SingleFileReader {
+impl<OBR> SingleFileReader<OBR>
+where
+    OBR: ObjectStorageReader + Clone + Send + 'static
+{
     pub async fn read(&self) -> Result<FileStreamWrapper, FileReadError> {
         let directory = self.details.directory(&self.settings)?;
         let path = Path::new(&directory)
             .join(self.details.name.clone())
             .to_string_lossy()
             .to_string();
-        let file = File::open(path.clone()).await?;
+        let stream = self.reader.read(path).await?;
 
         Ok(FileStreamWrapper {
             details: self.details.clone(),
-            stream: Box::new(ReaderStream::new(file))
+            stream: Box::new(stream)
         })
     }
 }
