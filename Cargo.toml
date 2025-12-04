@@ -32,3 +32,5 @@ actix-http = "3.11.2"
 bytes = "1.10.1"
 tokio-stream = "0.1.17"
 rusqlite = { version = "0.37.0", features = ["bundled"] }
+async-stream = "0.3.6"
+async-trait = "0.1.89"

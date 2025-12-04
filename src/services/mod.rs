@@ -22,6 +22,7 @@ mod file_reader;
 mod file_info;
 mod object_storage_writer;
 mod object_storage_remover;
+mod object_storage_reader;
 
 pub use file_deleter::*;
 pub use file_info::*;

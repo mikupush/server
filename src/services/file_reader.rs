@@ -15,76 +15,197 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::model::FileUpload;
 use crate::errors::FileReadError;
-use crate::repository::FileUploadRepository;
+use crate::model::{FileUpload, Part};
+use crate::repository::{FileUploadRepository, ManifestRepository, PostgresFileUploadRepository, SQLiteManifestRepository};
+use crate::services::object_storage_reader::{FileSystemObjectStorageReader, ObjectStorageReader};
+use crate::services::ObjectStorageRemover;
+use async_stream::stream;
+use bytes::Bytes;
+use futures::future::BoxFuture;
+use futures::FutureExt;
+use futures::StreamExt;
+use rusqlite::fallible_iterator::FallibleIterator;
+use std::io;
 use std::path::Path;
+use tokio::sync::mpsc;
 use tokio::fs::File;
+use tokio_stream::wrappers::ReceiverStream;
+use tokio_stream::Stream;
 use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
-pub struct FileReader<FR>
+pub struct FileReader<FR, OBR, MR>
 where
-    FR: FileUploadRepository + Clone,
+    FR: FileUploadRepository + Clone + 'static,
+    OBR: ObjectStorageReader + Clone + Send + 'static,
+    MR: ManifestRepository + Clone + Send + 'static,
 {
     repository: FR,
+    reader: OBR,
+    manifest_repository: MR,
     settings: Settings,
 }
 
-impl<FR> FileReader<FR>
+impl<FR, OBR, MR> FileReader<FR, OBR, MR>
 where
     FR: FileUploadRepository + Clone,
+    OBR: ObjectStorageReader + Clone + Send,
+    MR: ManifestRepository + Clone + Send,
 {
-    pub fn new(repository: FR, settings: Settings) -> Self {
-        Self { repository, settings }
+    pub fn new(repository: FR, reader: OBR, manifest_repository: MR, settings: Settings) -> Self {
+        Self { repository, reader, manifest_repository, settings }
     }
 
-    pub async fn read(&self, id: Uuid) -> Result<FileRead, FileReadError> {
+    pub async fn read(&self, id: Uuid) -> Result<FileStreamWrapper, FileReadError> {
         let file_upload = match self.repository.find_by_id(id)? {
             Some(file_upload) => file_upload,
             None => return Err(FileReadError::NotExists { id })
         };
 
-        let directory = file_upload.directory(&self.settings)?;
-        let path = Path::new(&directory).join(file_upload.name.clone()).to_string_lossy().to_string();
+        if file_upload.chunked {
+            let reader = ChunkedFileReader::new(
+                self.manifest_repository.clone(),
+                self.reader.clone(),
+                file_upload.clone(),
+                self.settings.clone()
+            );
+
+            reader.read().await
+        } else {
+            let reader = SingleFileReader {
+                details: file_upload,
+                settings: self.settings.clone()
+            };
+
+            reader.read().await
+        }
+    }
+}
+
+impl FileReader<PostgresFileUploadRepository, FileSystemObjectStorageReader, SQLiteManifestRepository> {
+    pub fn get_with_settings(settings: Settings) -> Self {
+        Self::new(
+            PostgresFileUploadRepository::get_with_settings(settings.clone()),
+            FileSystemObjectStorageReader::new(),
+            SQLiteManifestRepository::new(settings.clone()),
+            settings
+        )
+    }
+}
+
+type StreamBuilderResult = io::Result<Box<dyn Stream<Item = io::Result<Bytes>>>>;
+type StreamBuilder = Box<dyn Fn() -> BoxFuture<'static, StreamBuilderResult>>;
+
+pub struct FileStreamWrapper {
+    pub details: FileUpload,
+    pub stream: Box<dyn Stream<Item = io::Result<Bytes>> + Send + Unpin + 'static>,
+}
+
+#[derive(Clone)]
+pub struct SingleFileReader {
+    pub details: FileUpload,
+    pub settings: Settings,
+}
+
+impl SingleFileReader {
+    pub async fn read(&self) -> Result<FileStreamWrapper, FileReadError> {
+        let directory = self.details.directory(&self.settings)?;
+        let path = Path::new(&directory)
+            .join(self.details.name.clone())
+            .to_string_lossy()
+            .to_string();
         let file = File::open(path.clone()).await?;
 
-        Ok(FileRead::from(file, &file_upload))
+        Ok(FileStreamWrapper {
+            details: self.details.clone(),
+            stream: Box::new(ReaderStream::new(file))
+        })
     }
 }
 
-pub struct FileRead {
-    pub name: String,
-    pub mime_type: String,
-    pub size: u64,
-    pub stream: ReaderStream<File>,
+#[derive(Debug, Clone)]
+pub struct ChunkedFileReader<MR, OBR>
+where
+    MR: ManifestRepository + Clone + Send + 'static,
+    OBR: ObjectStorageReader + Clone + Send + 'static
+{
+    repository: MR,
+    reader: OBR,
+    last_index: i32,
+    details: FileUpload,
+    settings: Settings
 }
 
-impl FileRead {
-    fn from(file: File, file_upload: &FileUpload) -> Self {
+impl<MR, OBR> ChunkedFileReader<MR, OBR>
+where
+    MR: ManifestRepository + Clone + Send + 'static,
+    OBR: ObjectStorageReader + Clone + Send + 'static
+{
+    pub fn new(repository: MR, reader: OBR, details: FileUpload, settings: Settings) -> Self {
         Self {
-            name: file_upload.name.clone(),
-            mime_type: file_upload.mime_type.clone(),
-            size: file_upload.size as u64,
-            stream: ReaderStream::new(file)
+            repository,
+            reader,
+            details,
+            settings,
+            last_index: -1,
         }
     }
-}
 
-#[cfg(test)]
-pub mod tests {
-    use crate::config::Settings;
-    use crate::database::DbPool;
-    use crate::repository::PostgresFileUploadRepository;
-    use crate::services::FileReader;
+    pub async fn read(&self) -> Result<FileStreamWrapper, FileReadError> {
+        let (sender, receiver) = mpsc::channel::<io::Result<Bytes>>(1);
 
-    impl FileReader<PostgresFileUploadRepository> {
-        pub fn test(pool: DbPool) -> Self {
-            Self {
-                repository: PostgresFileUploadRepository::new(pool),
-                settings: Settings::default()
-            }
+        let mut reader = self.clone();
+        tokio::spawn(async move {
+            let _ = reader.send_bytes(sender).await;
+        });
+
+        Ok(FileStreamWrapper {
+            details: self.details.clone(),
+            stream: Box::new(ReceiverStream::new(receiver))
+        })
+    }
+
+    fn next_part(&mut self) -> io::Result<Option<Part>> {
+        let parts = self.repository.take_parts(self.details.id.clone(), 1, self.last_index);
+        if let Err(err) = parts {
+            return Err(io::Error::new(io::ErrorKind::Other, err.to_string()));
         }
+
+        let part = parts
+            .unwrap()
+            .first()
+            .map(|part| part.clone());
+
+        self.last_index += 1;
+        Ok(part)
+    }
+
+    async fn send_bytes(&mut self, sender: mpsc::Sender<io::Result<Bytes>>) -> io::Result<()> {
+        let directory = self.details.directory(&self.settings)?;
+        let directory = directory.clone();
+
+        loop {
+            let part = self.next_part();
+
+            if let Err(err) = part {
+                let _ = sender.send(Err(err)).await;
+                continue;
+            }
+
+            let Some(part) = part.unwrap() else {
+                break;
+            };
+
+            let location = directory.join(part.file_name())
+                .to_string_lossy()
+                .to_string();
+
+            let bytes = self.reader.read_all(location).await;
+            let _ = sender.send(bytes).await;
+        }
+
+        Ok(())
     }
 }

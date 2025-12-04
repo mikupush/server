@@ -66,7 +66,6 @@ async fn main() -> std::io::Result<()> {
     let limiter = services::FileSizeLimiter::new(settings.clone());
     let file_upload_repository = repository::PostgresFileUploadRepository::new(pool.clone());
     let registerer = services::FileRegister::new(file_upload_repository.clone(), limiter.clone());
-    let reader = services::FileReader::new(file_upload_repository.clone(), settings.clone());
     let finder = services::FileInfoFinder::new(file_upload_repository.clone(), settings.clone());
 
     let settings_clone = settings.clone();
@@ -77,7 +76,6 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(settings_clone.clone()))
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(registerer.clone()))
-            .app_data(web::Data::new(reader.clone()))
             .app_data(web::Data::new(finder.clone()))
             .service(fs::Files::new("/static", settings_clone.server.static_directory()))
             .service(routes::post_file)

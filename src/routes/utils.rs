@@ -37,9 +37,9 @@ pub fn read_template(settings: &Settings, template: &str) -> String {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::config::Upload;
+    use crate::config::{Settings, Upload};
     use crate::database::DbPool;
-    use crate::model::FileUpload;
+    use crate::model::{FileUpload, Part};
     use crate::model::FileUploadModel as FileUploadModel;
     use crate::schema::file_uploads;
     use actix_web::dev::ServiceResponse;
@@ -48,6 +48,7 @@ pub mod tests {
     use std::path::{Path, PathBuf};
     use std::sync::Mutex;
     use uuid::Uuid;
+    use crate::repository::tests::insert_test_manifest_part;
 
     // used to give unique prefix to the test file
     static TEST_FILE_COUNT: Mutex<i32> = Mutex::new(0);
@@ -78,6 +79,37 @@ pub mod tests {
             .unwrap();
 
         *count += 1;
+        (path, file_upload)
+    }
+
+    pub fn create_test_chunked_file_upload(pool: &DbPool, settings: &Settings) -> (PathBuf, FileUpload) {
+        let parts = vec!["Hello", "World"];
+        let file_upload = FileUpload {
+            id: Uuid::new_v4(),
+            name: "chunked_file.txt".to_string(),
+            mime_type: "text/plain".to_string(),
+            size: 11,
+            uploaded_at: Utc::now().naive_utc(),
+            chunked: true
+        };
+
+        let path = Path::new(&settings.upload.directory())
+            .join(file_upload.id.to_string());
+        std::fs::create_dir_all(&path).unwrap();
+
+        for (i, content) in parts.iter().enumerate() {
+            let part = Part::new(file_upload.id, i as i64);
+            std::fs::write(path.join(part.file_name()), content).unwrap();
+            insert_test_manifest_part(&settings, &part);
+        }
+
+        let mut connection = pool.get().unwrap();
+        let record: FileUploadModel = file_upload.clone().into();
+        diesel::insert_into(file_uploads::table)
+            .values(&record)
+            .execute(&mut connection)
+            .unwrap();
+
         (path, file_upload)
     }
 

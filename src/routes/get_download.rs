@@ -17,34 +17,36 @@
 use crate::errors::{route_error_helpers, FileReadError};
 use crate::repository::PostgresFileUploadRepository;
 use crate::routes::ErrorResponse;
-use crate::services::{FileRead, FileReader};
+use crate::services::{SingleFileReader, FileReader, FileStreamWrapper};
 use actix_web::{get, web, HttpResponse, Result};
 use tracing::debug;
 use uuid::Uuid;
+use crate::config::Settings;
 
 #[get("/u/{id}")]
 pub async fn get_download(
-    file_reader: web::Data<FileReader<PostgresFileUploadRepository>>,
+    settings: web::Data<Settings>,
     id: web::Path<String>,
 ) -> Result<HttpResponse> {
+    let file_reader = FileReader::get_with_settings(settings.get_ref().clone());
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
         return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
     };
 
     match file_reader.read(id).await {
-        Ok(details) => Ok(handle_get_download_ok(details)),
+        Ok(stream_wrapper) => Ok(handle_get_download_ok(stream_wrapper)),
         Err(err) => Ok(handle_get_download_error(err))
     }
 }
 
-fn handle_get_download_ok(file_read: FileRead) -> HttpResponse {
+fn handle_get_download_ok(stream_wrapper: FileStreamWrapper) -> HttpResponse {
     HttpResponse::Ok()
-        .content_type(file_read.mime_type.clone())
-        .insert_header(("Content-Length", file_read.size.to_string()))
-        .insert_header(("Content-Disposition", format!("inline; filename=\"{}\"", file_read.name)))
-        .insert_header(("Content-Type", file_read.mime_type.to_string()))
-        .streaming(file_read.stream)
+        .content_type(stream_wrapper.details.mime_type.clone())
+        .insert_header(("Content-Length", stream_wrapper.details.size.to_string()))
+        .insert_header(("Content-Disposition", format!("inline; filename=\"{}\"", stream_wrapper.details.name)))
+        .insert_header(("Content-Type", stream_wrapper.details.mime_type.to_string()))
+        .streaming(stream_wrapper.stream)
 }
 
 fn handle_get_download_error(err: FileReadError) -> HttpResponse {
@@ -62,7 +64,7 @@ mod tests {
     use crate::config::Settings;
     use crate::database::setup_database_connection;
     use crate::errors::{file_read_codes, route_error_codes};
-    use crate::routes::utils::tests::{create_test_file_upload, header_value};
+    use crate::routes::utils::tests::{create_test_chunked_file_upload, create_test_file_upload, header_value};
     use actix_web::http::{Method, StatusCode};
     use actix_web::{test, App};
     use serial_test::serial;
@@ -70,10 +72,11 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_get_download_200_ok() {
-        let pool = setup_database_connection(&Settings::load());
+        let settings = Settings::load();
+        let pool = setup_database_connection(&settings);
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileReader::test(pool.clone())))
+                .app_data(web::Data::new(settings))
                 .service(get_download)
         ).await;
 
@@ -95,11 +98,41 @@ mod tests {
 
     #[actix_web::test]
     #[serial]
-    async fn test_get_download_404_not_found() {
-        let pool = setup_database_connection(&Settings::load());
+    async fn test_get_download_200_chunked_ok() {
+        let settings = Settings::load();
+        let pool = setup_database_connection(&settings);
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileReader::test(pool.clone())))
+                .app_data(web::Data::new(settings.clone()))
+                .service(get_download)
+        ).await;
+
+        let (_, file_upload) = create_test_chunked_file_upload(&pool, &settings);
+        let request = test::TestRequest::default()
+            .uri(format!("/u/{}", file_upload.id.clone()).as_str())
+            .method(Method::GET)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let content_length = header_value("Content-Length", &response);
+        let content_disposition = header_value("Content-Disposition", &response);
+        let content_type = header_value("Content-Type", &response);
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(content_length, file_upload.size.to_string());
+        assert_eq!(content_disposition, format!("inline; filename=\"{}\"", file_upload.name));
+        assert_eq!(content_type, file_upload.mime_type);
+
+        let body = test::read_body(response).await;
+        assert_eq!(body, "HelloWorld");
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_404_not_found() {
+        let settings = Settings::load();
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
                 .service(get_download)
         ).await;
 
@@ -121,10 +154,10 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_get_download_400_bad_request_invalid_id() {
-        let pool = setup_database_connection(&Settings::load());
+        let settings = Settings::load();
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileReader::test(pool.clone())))
+                .app_data(web::Data::new(settings))
                 .service(get_download)
         ).await;
 

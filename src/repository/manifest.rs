@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use crate::config::Settings;
 use crate::model::{Manifest, Part};
 use rusqlite::types::FromSqlError;
@@ -41,9 +42,19 @@ impl From<std::io::Error> for ManifestError {
     }
 }
 
+impl Display for ManifestError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::IO(msg) => write!(f, "{}", msg),
+            Self::DuplicatedPart => write!(f, "Duplicated part")
+        }
+    }
+}
+
 pub trait ManifestRepository {
     fn find_by_upload_id(&self, upload_id: Uuid) -> Result<Manifest, ManifestError>;
     fn put_part(&self, part: Part) -> Result<(), ManifestError>;
+    fn take_parts(&self, upload_id: Uuid, size: i32, from_index: i32) -> Result<Vec<Part>, ManifestError>;
 }
 
 #[derive(Debug, Clone)]
@@ -78,7 +89,30 @@ impl ManifestRepository for InMemoryManifestRepository {
         parts.insert(part.id, part);
         Ok(())
     }
+
+    fn take_parts(
+        &self,
+        upload_id: Uuid,
+        size: i32,
+        from_index: i32
+    ) -> Result<Vec<Part>, ManifestError> {
+        Ok(Vec::new())
+    }
 }
+
+pub const CREATE_MANIFEST_SCHEMA_SQL: &str = r#"
+CREATE TABLE IF NOT EXISTS `parts` (
+    `id` TEXT PRIMARY KEY,
+    `index` INTEGER NOT NULL,
+    `upload_id` TEXT NOT NULL,
+    `size` INTEGER NOT NULL
+);
+"#;
+
+pub const INSERT_MANIFEST_PART_SQL: &str = r#"
+INSERT INTO `parts` (`id`, `index`, `upload_id`, `size`)
+VALUES (?1, ?2, ?3, ?4)
+"#;
 
 #[derive(Debug, Clone)]
 pub struct SQLiteManifestRepository {
@@ -102,22 +136,8 @@ impl SQLiteManifestRepository {
 
         let path = directory.join("manifest");
         let connection = Connection::open(path)?;
-        self.setup_manifest_schema(&connection)?;
+        connection.execute(CREATE_MANIFEST_SCHEMA_SQL, [])?;
         Ok(connection)
-    }
-
-    fn setup_manifest_schema(&self, connection: &Connection) -> Result<(), ManifestError> {
-        let sql = r#"
-            CREATE TABLE IF NOT EXISTS `parts` (
-                `id` TEXT PRIMARY KEY,
-                `index` INTEGER NOT NULL,
-                `upload_id` TEXT NOT NULL,
-                `size` INTEGER NOT NULL
-            );
-        "#;
-
-        connection.execute(sql, [])?;
-        Ok(())
     }
 
     fn map_part(row: &rusqlite::Row) -> rusqlite::Result<Part> {
@@ -169,10 +189,7 @@ impl ManifestRepository for SQLiteManifestRepository {
         }
 
         connection.execute(
-            r#"
-                INSERT INTO `parts` (`id`, `index`, `upload_id`, `size`)
-                VALUES (?1, ?2, ?3, ?4)
-            "#,
+            INSERT_MANIFEST_PART_SQL,
             params![
                 part.id.to_string(),
                 part.index,
@@ -183,10 +200,38 @@ impl ManifestRepository for SQLiteManifestRepository {
 
         Ok(())
     }
+
+    fn take_parts(
+        &self,
+        upload_id: Uuid,
+        size: i32,
+        from_index: i32
+    ) -> Result<Vec<Part>, ManifestError> {
+        let connection = self.create_connection(upload_id)?;
+        let mut parts_stmt = connection.prepare(r#"
+            SELECT `id`, `index`, `upload_id`, `size`
+            FROM `parts`
+            WHERE `index` > ?2
+            ORDER BY `index` ASC
+            LIMIT ?3
+        "#)?;
+
+        let parts = parts_stmt.query_map(
+            params![upload_id.to_string(), from_index, size],
+            Self::map_part
+        )?;
+
+        let parts: Vec<Part> = parts
+            .filter(|item| item.is_ok())
+            .map(|item| item.unwrap())
+            .collect();
+
+        Ok(parts)
+    }
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
 
     fn create_repository() -> SQLiteManifestRepository {
@@ -269,5 +314,27 @@ mod tests {
         assert_eq!(manifest2.parts.len(), 1);
         assert_eq!(manifest1.parts[0].id, part1.id);
         assert_eq!(manifest2.parts[0].id, part2.id);
+    }
+
+    pub fn insert_test_manifest_part(settings: &Settings, part: &Part) {
+        let directory = PathBuf::from(settings.upload.directory())
+            .join(part.upload_id.to_string());
+
+        if !directory.exists() {
+            std::fs::create_dir_all(directory.clone()).unwrap();
+        }
+
+        let path = directory.join("manifest");
+        let connection = Connection::open(path).unwrap();
+        connection.execute(CREATE_MANIFEST_SCHEMA_SQL, []).unwrap();
+        connection.execute(
+            INSERT_MANIFEST_PART_SQL,
+            params![
+                part.id.to_string(),
+                part.index,
+                part.upload_id.to_string(),
+                part.size
+            ]
+        ).unwrap();
     }
 }
