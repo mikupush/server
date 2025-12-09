@@ -36,7 +36,7 @@ impl FileSizeLimiter {
         }
 
         let limit = self.settings.upload.max_size().unwrap();
-        debug!("file size is limited by: {} bytes", limit);
+        debug!("file size limit is set to: {} bytes", limit);
 
         if file_size > limit {
             debug!("file size limit exceeded: {} > {} bytes", file_size, limit);

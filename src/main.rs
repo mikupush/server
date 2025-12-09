@@ -81,6 +81,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::post_file)
             .service(routes::delete_file)
             .service(routes::post_upload_file)
+            .service(routes::post_upload_part)
             .service(routes::get_download)
             .service(routes::health)
             .service(routes::get_file_info)

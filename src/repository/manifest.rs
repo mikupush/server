@@ -22,6 +22,7 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+use tracing::debug;
 use uuid::Uuid;
 
 #[derive(Debug, PartialEq)]
@@ -169,6 +170,7 @@ impl ManifestRepository for SQLiteManifestRepository {
     }
 
     fn put_part(&self, part: Part) -> Result<(), ManifestError> {
+        debug!("writing upload part manifest");
         let connection = self.create_connection(part.upload_id)?;
         let existing_stmt = connection.prepare(r#"
             SELECT COUNT(`id`)
@@ -188,6 +190,7 @@ impl ManifestRepository for SQLiteManifestRepository {
             return Err(ManifestError::DuplicatedPart);
         }
 
+        debug!("executing part manifest insert to file upload SQLite database");
         connection.execute(
             INSERT_MANIFEST_PART_SQL,
             params![

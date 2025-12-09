@@ -22,6 +22,7 @@ use std::path::PathBuf;
 use tokio::fs::OpenOptions;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncReadExt;
+use tracing::debug;
 
 pub trait ObjectStorageWriter {
     /// Write an entire file with an optional size limit.
@@ -66,6 +67,7 @@ impl ObjectStorageWriter for FileSystemObjectStorageWriter {
         destination: String,
         limit: Option<u64>
     ) -> Result<u64, ObjectStorageWriteError> {
+        debug!("writing content to {}", destination);
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
@@ -79,6 +81,7 @@ impl ObjectStorageWriter for FileSystemObjectStorageWriter {
             tokio::io::copy(&mut reader, &mut file).await?
         };
 
+        debug!("wrote {} bytes on {}", bytes_written, destination);
         Ok(bytes_written)
     }
 }

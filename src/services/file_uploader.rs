@@ -88,9 +88,11 @@ where
         index: i64,
         reader: impl AsyncRead + Unpin
     ) -> Result<(), FileUploadError> {
+        debug!("upload chunk {} for file {}", index, id);
         let mut file_upload = self.find_upload_by_id(id)?;
 
         if file_upload.chunked == false {
+            debug!("updating file upload type to chunked");
             file_upload.chunked = true;
             self.repository.save(file_upload.clone())?;
         }
@@ -103,12 +105,16 @@ where
         part.size = bytes_wrote;
         let put_part_result = self.manifest_repository.put_part(part);
 
-        // if a chunk is already uploaded, or there is other error, remove the written file
         if let Err(err) = put_part_result {
-            let _ = self.remover.remove(destination_path);
+            if err != ManifestError::DuplicatedPart {
+                debug!("removing failed uploaded part: {}", err);
+                let _ = self.remover.remove(destination_path);
+            }
+
             return Err(err.into());
         }
 
+        debug!("checking all parts not exceed file size limit");
         let parts = self.manifest_repository.find_by_upload_id(id)?;
         let mut total_bytes = 0;
 
@@ -117,7 +123,6 @@ where
         }
 
         if self.limiter.check_file_size(total_bytes) == false {
-            debug!("file size limit exceeded");
             return Err(FileUploadError::MaxFileSizeExceeded);
         }
 
