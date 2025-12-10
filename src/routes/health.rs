@@ -38,14 +38,14 @@ pub async fn health(
         .unwrap_or(ANY_CONTENT_TYPE);
     let json = accept_header == "application/json";
 
-    if let Err(_) = check_db_connection(&pool) {
+    if let Err(_) = check_db_connection(&pool).await {
         return respond_error(json, &settings);
     }
 
     respond_ok(json, &settings)
 }
 
-fn check_db_connection(pool: &DbPool) -> Result<(), Box<dyn std::error::Error>> {
+async fn check_db_connection(pool: &DbPool) -> Result<(), Box<dyn std::error::Error>> {
     debug!("checking database connection");
     let connection = pool.get();
     if let Err(err) = connection {
@@ -54,7 +54,11 @@ fn check_db_connection(pool: &DbPool) -> Result<(), Box<dyn std::error::Error>> 
     }
 
     let mut connection = connection.unwrap();
-    let result = sql_query("SELECT 1").execute(&mut connection);
+    let result = match web::block(move || sql_query("SELECT 1").execute(&mut connection)).await {
+        Ok(result) => result,
+        Err(err) => return Err(err.into())
+    };
+
     if let Err(err) = result {
         warn!("database connection check failed: {}", err);
         return Err(err.into());

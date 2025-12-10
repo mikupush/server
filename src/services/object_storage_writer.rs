@@ -14,15 +14,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::config::Upload as UploadSettings;
 use actix_web::error::PayloadError;
-use futures::{StreamExt, TryFutureExt};
-use std::io::Write;
-use std::path::PathBuf;
 use tokio::fs::OpenOptions;
-use tokio::io::AsyncRead;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tracing::debug;
+
+#[cfg(test)]
+use crate::config::Upload as UploadSettings;
+#[cfg(test)]
+use std::path::PathBuf;
 
 pub trait ObjectStorageWriter {
     /// Write an entire file with an optional size limit.
@@ -80,6 +80,10 @@ impl ObjectStorageWriter for FileSystemObjectStorageWriter {
         } else {
             tokio::io::copy(&mut reader, &mut file).await?
         };
+
+        // Ensure all data is flushed to disk before closing
+        file.flush().await?;
+        file.sync_all().await?;
 
         debug!("wrote {} bytes on {}", bytes_written, destination);
         Ok(bytes_written)

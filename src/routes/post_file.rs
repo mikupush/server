@@ -41,7 +41,16 @@ pub async fn post_file(
     let file_register = FileRegister::get_with_settings(settings);
     let request = request.into_inner();
 
-    match file_register.register_file(request.clone()) {
+    let request_clone = request.clone();
+    let register_result = match web::block(move || file_register.register_file(request_clone)).await {
+        Ok(result) => result,
+        Err(err) => {
+            let response: ErrorResponse = err.into();
+            return Ok(HttpResponse::InternalServerError().json(response));
+        }
+    };
+
+    match register_result {
         Ok(_) => {
             debug!("returning status code 200 for registered file {}", request.id);
             Ok(HttpResponse::Ok().finish())

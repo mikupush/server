@@ -36,7 +36,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone)]
 pub struct FileReader<FR, OBR, MR>
 where
-    FR: FileUploadRepository + Clone + 'static,
+    FR: FileUploadRepository + Clone + Send + 'static,
     OBR: ObjectStorageReader + Clone + Send + 'static,
     MR: ManifestRepository + Clone + Send + 'static,
 {
@@ -48,7 +48,7 @@ where
 
 impl<FR, OBR, MR> FileReader<FR, OBR, MR>
 where
-    FR: FileUploadRepository + Clone,
+    FR: FileUploadRepository + Clone + Send + 'static,
     OBR: ObjectStorageReader + Clone + Send,
     MR: ManifestRepository + Clone + Send,
 {
@@ -57,7 +57,10 @@ where
     }
 
     pub async fn read(&self, id: Uuid) -> Result<FileStreamWrapper, FileReadError> {
-        let file_upload = match self.repository.find_by_id(id)? {
+        let repository = self.repository.clone();
+        let file_upload_result = tokio::task::spawn_blocking(move || repository.find_by_id(id)).await
+            .map_err(|err| FileReadError::IO { message: err.to_string() })?;
+        let file_upload = match file_upload_result? {
             Some(file_upload) => file_upload,
             None => return Err(FileReadError::NotExists { id })
         };

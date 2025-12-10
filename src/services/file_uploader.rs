@@ -16,16 +16,12 @@
 
 use crate::config::Settings;
 use crate::errors::Error;
-use crate::model::{FileUpload, Part};
+use crate::model::{FileUpload, Manifest, Part};
 use crate::repository::{FileUploadRepository, FileUploadRepositoryError, ManifestError, ManifestRepository, PostgresFileUploadRepository, SQLiteManifestRepository};
 use crate::services::object_storage_remover::{FileSystemObjectStorageRemover, ObjectStorageRemoveError, ObjectStorageRemover};
 use crate::services::object_storage_writer::{FileSystemObjectStorageWriter, ObjectStorageWriteError, ObjectStorageWriter};
 use crate::services::FileSizeLimiter;
-use actix_web::web::Payload;
-use futures::StreamExt;
 use std::fmt::Display;
-use std::fs::{File, OpenOptions};
-use std::io::Write;
 use tokio::io::AsyncRead;
 use tracing::debug;
 use uuid::Uuid;
@@ -33,10 +29,10 @@ use uuid::Uuid;
 #[derive(Debug, Clone)]
 pub struct FileUploader<FR, MR, OSW, OSR>
 where
-    FR: FileUploadRepository + Clone,
-    MR: ManifestRepository + Clone,
-    OSW: ObjectStorageWriter + Clone,
-    OSR: ObjectStorageRemover + Clone
+    FR: FileUploadRepository + Clone + Send + 'static,
+    MR: ManifestRepository + Clone + Send + 'static,
+    OSW: ObjectStorageWriter + Clone + Send + 'static,
+    OSR: ObjectStorageRemover + Clone + Send + 'static
 {
     repository: FR,
     manifest_repository: MR,
@@ -48,10 +44,10 @@ where
 
 impl<FR, MR, OSW, OSD> FileUploader<FR, MR, OSW, OSD>
 where
-    FR: FileUploadRepository + Clone,
-    MR: ManifestRepository + Clone,
-    OSW: ObjectStorageWriter + Clone,
-    OSD: ObjectStorageRemover + Clone
+    FR: FileUploadRepository + Clone + Send + 'static,
+    MR: ManifestRepository + Clone + Send + 'static,
+    OSW: ObjectStorageWriter + Clone + Send + 'static,
+    OSD: ObjectStorageRemover + Clone + Send + 'static
 {
     pub fn new(
         repository: FR,
@@ -65,7 +61,7 @@ where
     }
 
     pub async fn upload_file(&self, id: Uuid, reader: impl AsyncRead + Unpin) -> Result<(), FileUploadError> {
-        let file_upload = self.find_upload_by_id(id)?;
+        let file_upload = self.find_upload_by_id(id).await?;
         let destination_path = self.build_destination_path(&file_upload, &file_upload.name)?;
 
         let bytes_written = if self.settings.upload.is_limited() {
@@ -89,12 +85,12 @@ where
         reader: impl AsyncRead + Unpin
     ) -> Result<(), FileUploadError> {
         debug!("upload chunk {} for file {}", index, id);
-        let mut file_upload = self.find_upload_by_id(id)?;
+        let mut file_upload = self.find_upload_by_id(id).await?;
 
         if file_upload.chunked == false {
             debug!("updating file upload type to chunked");
             file_upload.chunked = true;
-            self.repository.save(file_upload.clone())?;
+            self.save_upload(file_upload.clone()).await?;
         }
 
         let mut part = Part::new(file_upload.id, index);
@@ -103,22 +99,23 @@ where
         // write chunk with 10MB limit
         let bytes_wrote = self.writer.write(reader, destination_path.clone(), Some(1048576)).await?;
         part.size = bytes_wrote;
-        let put_part_result = self.manifest_repository.put_part(part);
 
+        let put_part_result = self.put_part_in_manifest(part.clone()).await;
         if let Err(err) = put_part_result {
             if err != ManifestError::DuplicatedPart {
                 debug!("removing failed uploaded part: {}", err);
-                let _ = self.remover.remove(destination_path);
+                let remover = self.remover.clone();
+                let _ = tokio::task::spawn_blocking(move || remover.remove(destination_path)).await;
             }
 
             return Err(err.into());
         }
 
         debug!("checking all parts not exceed file size limit");
-        let parts = self.manifest_repository.find_by_upload_id(id)?;
+        let manifest = self.find_manifest_by_upload_id(id).await?;
         let mut total_bytes = 0;
 
-        for part in parts.parts {
+        for part in manifest.parts {
             total_bytes += part.size;
         }
 
@@ -129,14 +126,41 @@ where
         Ok(())
     }
 
-    fn find_upload_by_id(&self, id: Uuid) -> Result<FileUpload, FileUploadError> {
-        let file_upload = self.repository.find_by_id(id)?;
+    async fn save_upload(&self, file_upload: FileUpload) -> Result<(), FileUploadError> {
+        let repository = self.repository.clone();
+        tokio::task::spawn_blocking(move || repository.save(file_upload)).await
+            .map_err(|e| FileUploadError::IO { message: e.to_string() })??;
+
+        Ok(())
+    }
+
+    async fn find_upload_by_id(&self, id: Uuid) -> Result<FileUpload, FileUploadError> {
+        let repository = self.repository.clone();
+        let file_upload = tokio::task::spawn_blocking(move || repository.find_by_id(id)).await
+            .map_err(|e| FileUploadError::IO { message: e.to_string() })??;
+
         if let None = file_upload {
             debug!("file upload {} does not exist", id);
             return Err(FileUploadError::NotExists { id })
         }
 
         Ok(file_upload.unwrap())
+    }
+
+    async fn find_manifest_by_upload_id(&self, id: Uuid) -> Result<Manifest, FileUploadError> {
+        let manifest_repo = self.manifest_repository.clone();
+        let manifest = tokio::task::spawn_blocking(move || manifest_repo.find_by_upload_id(id)).await
+            .map_err(|e| FileUploadError::IO { message: e.to_string() })??;
+
+        Ok(manifest)
+    }
+
+    async fn put_part_in_manifest(&self, part: Part) -> Result<(), ManifestError> {
+        let manifest_repo = self.manifest_repository.clone();
+        let result = tokio::task::spawn_blocking(move || manifest_repo.put_part(part)).await
+            .map_err(|err| ManifestError::IO(err.to_string()))?;
+
+        result
     }
 
     fn build_destination_path(&self, file_upload: &FileUpload, file_name: &String) -> Result<String, FileUploadError> {

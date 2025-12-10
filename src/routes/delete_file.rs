@@ -35,7 +35,15 @@ pub async fn delete_file(
         return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
     };
 
-    match deleter.delete(id) {
+    let result = match web::block(move || deleter.delete(id)).await {
+        Ok(res) => res,
+        Err(err) => {
+            let response: ErrorResponse = err.into();
+            return Ok(HttpResponse::InternalServerError().json(response))
+        }
+    };
+
+    match result {
         Ok(_) => Ok(HttpResponse::Ok().finish()),
         Err(err) => Ok(handle_delete_file_failure(err))
     }

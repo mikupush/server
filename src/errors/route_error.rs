@@ -16,6 +16,8 @@
 
 use crate::errors::Error;
 use std::fmt::{Display, Formatter};
+use actix_web::error::BlockingError;
+use crate::routes::ErrorResponse;
 
 pub enum RouteError {
     InvalidPathParameter {
@@ -77,5 +79,14 @@ pub mod route_error_helpers {
             name,
             format!("{} is not a valid UUID", value).as_str()
         )
+    }
+}
+
+impl From<BlockingError> for ErrorResponse {
+    fn from(value: BlockingError) -> Self {
+        Self {
+            code: "SERVER_ERROR".to_string(),
+            message: value.to_string(),
+        }
     }
 }
