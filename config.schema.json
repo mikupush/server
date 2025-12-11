@@ -56,10 +56,10 @@
           "enum": ["console", "file"],
           "default": "console"
         },
-        "file": {
+        "file_prefix": {
           "type": "string",
-          "description": "Log file name. It configures the log file name if the output is set to file. Alternatively, you can use MIKU_PUSH_LOG_FILE to override this value.",
-          "default": "server.log"
+          "description": "Log file name. It configures the log file name if the output is set to file. For example, if the value is \"server\", the log file will be named \"server.2025-12-11-14.log\". Alternatively, you can use MIKU_PUSH_LOG_FILE to override this value.",
+          "default": "server"
         },
         "directory": {
           "type": "string",

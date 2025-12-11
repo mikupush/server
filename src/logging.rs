@@ -20,6 +20,7 @@ use tracing::level_filters::LevelFilter;
 use tracing::{debug, warn};
 use tracing::{Dispatch, Level};
 use tracing_appender::non_blocking::NonBlocking;
+use tracing_appender::rolling::{Builder, Rotation};
 
 pub fn configure_logging(settings: Settings) {
     let config = settings.log;
@@ -48,7 +49,12 @@ fn configure_logging_file_output(config: &LoggingConfig) {
         }
     }
 
-    let file_appender = tracing_appender::rolling::hourly(directory, config.file());
+    let file_appender = Builder::new()
+        .rotation(Rotation::HOURLY)
+        .filename_prefix(config.file_prefix())
+        .filename_suffix("log")
+        .build(directory)
+        .expect("failed to create log file appender");
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
 
     configure_logging_subscriber(&config, non_blocking);

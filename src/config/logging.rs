@@ -122,7 +122,7 @@ pub struct LoggingConfig {
     #[serde(default)]
     output: Option<LoggingOutput>,
     #[serde(default)]
-    file: Option<String>,
+    file_prefix: Option<String>,
     #[serde(default)]
     directory: Option<String>,
     #[serde(default)]
@@ -134,7 +134,7 @@ impl Default for LoggingConfig {
         LoggingConfig {
             level: None,
             output: None,
-            file: None,
+            file_prefix: None,
             directory: None,
             json: None
         }
@@ -174,19 +174,19 @@ impl LoggingConfig {
         LoggingOutput::default()
     }
 
-    pub fn file(&self) -> String {
-        if let Some(value) = env("MIKU_PUSH_LOG_FILE") {
-            local_trace(|| debug!("using env variable MIKU_PUSH_LOG_FILE: {}", value));
+    pub fn file_prefix(&self) -> String {
+        if let Some(value) = env("MIKU_PUSH_LOG_FILE_PREFIX") {
+            local_trace(|| debug!("using env variable MIKU_PUSH_LOG_FILE_PREFIX: {}", value));
             return value;
         }
 
-        let value = self.file.clone();
+        let value = self.file_prefix.clone();
         if let Some(value) = value {
-            local_trace(|| debug!("using log.file configuration: {}", value));
+            local_trace(|| debug!("using log.file_prefix configuration: {}", value));
             return value;
         }
 
-        local_trace(|| debug!("using log.file default value: {}", LoggingLevel::default()));
+        local_trace(|| debug!("using log.file_prefix default value: {}", LoggingLevel::default()));
         "server.log".to_string()
     }
 

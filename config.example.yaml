@@ -32,9 +32,10 @@ log:
   # Default value if not specified: console
   output: console
   # Log file name.
-  # It configures the log file name if the output is set to file.
-  # Alternatively, you can use MIKU_PUSH_LOG_FILE environment variable to override this value.
-  file: server.log
+  # It configures the log file name prefix if the output is set to file.
+  # For example, if the value is "server", the log file will be named "server.2025-12-11-14.log".
+  # Alternatively, you can use MIKU_PUSH_LOG_FILE_PREFIX environment variable to override this value.
+  file_prefix: server
   # Log directory.
   # It configures the log directory if the output is set to file.
   # Alternatively, you can use MIKU_PUSH_LOG_DIRECTORY environment variable to override this value.

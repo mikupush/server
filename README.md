@@ -138,8 +138,9 @@ log:
   # Log output. Possible values: console, file
   # Default: console
   output: console
-  # Log file name, used when output is file
-  file: server.log
+  # It configures the log file name prefix if the output is set to file.
+  # For example, if the value is "server", the log file will be named "server.2025-12-11-14.log".
+  file_prefix: server
   # Log directory, used when output is file
   # Platform-specific default if not specified:
   # - Linux: /var/log/io.mikupush.server
@@ -155,8 +156,8 @@ log:
 ```text
 MIKU_PUSH_LOG_LEVEL=info
 MIKU_PUSH_LOG_OUTPUT=console
-# File name when output is file
-MIKU_PUSH_LOG_FILE=server.log
+# File name prefix when output is file
+MIKU_PUSH_LOG_FILE_PREFIX=server
 # Directory when output is file
 MIKU_PUSH_LOG_DIRECTORY=/var/log/io.mikupush.server
 MIKU_PUSH_LOG_JSON=false
