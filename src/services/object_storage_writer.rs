@@ -23,6 +23,7 @@ use tracing::debug;
 use crate::config::Upload as UploadSettings;
 #[cfg(test)]
 use std::path::PathBuf;
+use tracing::field::debug;
 
 pub trait ObjectStorageWriter {
     /// Write an entire file with an optional size limit.
@@ -75,9 +76,11 @@ impl ObjectStorageWriter for FileSystemObjectStorageWriter {
             .await?;
 
         let bytes_written = if let Some(limit) = limit {
+            debug!("writing content with limit: {} bytes", limit);
             let mut limited_reader = reader.take(limit + 1);
             tokio::io::copy(&mut limited_reader, &mut file).await?
         } else {
+            debug!("writing content without limit");
             tokio::io::copy(&mut reader, &mut file).await?
         };
 

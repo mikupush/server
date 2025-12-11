@@ -26,6 +26,8 @@ use tokio::io::AsyncRead;
 use tracing::debug;
 use uuid::Uuid;
 
+pub const CONTENT_PART_SIZE_LIMIT: u64 = 10 * 1024 * 1024;
+
 #[derive(Debug, Clone)]
 pub struct FileUploader<FR, MR, OSW, OSR>
 where
@@ -97,7 +99,7 @@ where
         let destination_path = self.build_destination_path(&file_upload, &part.file_name())?;
 
         // write chunk with 10MB limit
-        let bytes_wrote = self.writer.write(reader, destination_path.clone(), Some(1048576)).await?;
+        let bytes_wrote = self.writer.write(reader, destination_path.clone(), Some(CONTENT_PART_SIZE_LIMIT)).await?;
         part.size = bytes_wrote;
 
         let put_part_result = self.put_part_in_manifest(part.clone()).await;
@@ -194,6 +196,7 @@ pub enum FileUploadError {
     Exists,
     NotExists { id: Uuid },
     MaxFileSizeExceeded,
+    MaxFilePartSizeExceeded,
     NotCompleted,
     StreamRead { message: String },
     IO { message: String },
@@ -213,6 +216,7 @@ impl Error for FileUploadError {
             Self::Exists => file_upload_codes::EXISTS_CODE.to_string(),
             Self::NotExists { .. } => file_upload_codes::NOT_EXISTS_CODE.to_string(),
             Self::MaxFileSizeExceeded => file_upload_codes::MAX_FILE_SIZE_EXCEEDED_CODE.to_string(),
+            Self::MaxFilePartSizeExceeded => file_upload_codes::MAX_FILE_PART_SIZE_EXCEEDED_CODE.to_string(),
             Self::StreamRead { .. } => file_upload_codes::STREAM_READ_CODE.to_string(),
             Self::DB { .. } => file_upload_codes::DB_CODE.to_string(),
             Self::IO { .. } => file_upload_codes::IO_CODE.to_string(),
@@ -226,6 +230,7 @@ impl Error for FileUploadError {
             Self::Exists => "File is already registered".to_string(),
             Self::NotExists { id: uuid } => format!("File with uuid {} is not registered", uuid),
             Self::MaxFileSizeExceeded => "Max file size exceeded".to_string(),
+            Self::MaxFilePartSizeExceeded => "Max file part size exceeded".to_string(),
             Self::StreamRead { message } => format!("Error reading uploaded file stream: {}", message),
             Self::DB { message } => message.clone(),
             Self::IO { message } => message.clone(),
@@ -294,6 +299,7 @@ impl From<ObjectStorageRemoveError> for FileUploadError {
 pub mod file_upload_codes {
     pub const EXISTS_CODE: &str = "Exists";
     pub const NOT_EXISTS_CODE: &str = "NotExists";
+    pub const MAX_FILE_PART_SIZE_EXCEEDED_CODE: &str = "MaxFilePartSizeExceeded";
     pub const MAX_FILE_SIZE_EXCEEDED_CODE: &str = "MaxFileSizeExceeded";
     pub const NOT_COMPLETED_CODE: &str = "NotCompleted";
     pub const STREAM_READ_CODE: &str = "StreamRead";

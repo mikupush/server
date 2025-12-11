@@ -18,9 +18,9 @@ use crate::config::Settings;
 use crate::errors::route_error_helpers;
 use crate::repository::PostgresFileUploadRepository;
 use crate::routes::error::ErrorResponse;
-use crate::services::{FileUploadError, FileUploader};
+use crate::services::{FileUploadError, FileUploader, CONTENT_PART_SIZE_LIMIT};
 use actix_web::web::Payload;
-use actix_web::{post, web, HttpResponse, Result};
+use actix_web::{post, web, HttpRequest, HttpResponse, Result};
 use futures::TryStreamExt;
 use tokio_util::io::StreamReader;
 use tracing::debug;
@@ -51,10 +51,24 @@ pub async fn post_upload_file(
 pub async fn post_upload_part(
     settings: web::Data<Settings>,
     path: web::Path<(String, i64)>,
-    payload: Payload
+    payload: Payload,
+    request: HttpRequest
 ) -> Result<HttpResponse> {
     let (id, index) = path.into_inner();
     let settings = settings.get_ref().clone();
+    let content_length = request.headers()
+        .get("Content-Length")
+        .and_then(|cl| cl.to_str().ok())
+        .map(|value| value.parse::<u64>().ok())
+        .map(|value| value.unwrap_or(0))
+        .unwrap_or(0);
+
+    if content_length > CONTENT_PART_SIZE_LIMIT {
+        debug!("content length {} is greater than max part size {}", content_length, CONTENT_PART_SIZE_LIMIT);
+        let response = ErrorResponse::from(FileUploadError::MaxFilePartSizeExceeded);
+        return Ok(HttpResponse::PayloadTooLarge().json(response))
+    }
+
     let file_uploader = FileUploader::get_with_settings(settings);
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
@@ -91,6 +105,7 @@ mod tests {
     use actix_web::{http::header::ContentType, test, App};
     use serial_test::serial;
     use std::io::Read;
+    use bytes::Bytes;
 
     #[actix_web::test]
     #[serial]
@@ -280,6 +295,35 @@ mod tests {
 
         let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
         assert_eq!(response.code, file_upload_codes::MAX_FILE_SIZE_EXCEEDED_CODE);
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_post_file_part_413_payload_too_large_part() {
+        let settings = create_settings();
+        let pool = setup_database_connection(&settings);
+
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
+                .service(post_upload_part)
+        ).await;
+
+        let file_upload = register_test_file(pool);
+        let file_content = Bytes::from(vec![1u8; (CONTENT_PART_SIZE_LIMIT + 1) as usize]);
+        let request = test::TestRequest::default()
+            .uri(format!("/api/file/{}/upload/part/0", file_upload.id).as_str())
+            .method(Method::POST)
+            .insert_header(ContentType::octet_stream())
+            .set_payload(file_content)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let status_code = response.status().clone();
+        let response = test::read_body(response).await;
+        assert_eq!(status_code, StatusCode::PAYLOAD_TOO_LARGE);
+
+        let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
+        assert_eq!(response.code, file_upload_codes::MAX_FILE_PART_SIZE_EXCEEDED_CODE);
     }
 
     #[actix_web::test]
