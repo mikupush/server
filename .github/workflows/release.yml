@@ -144,6 +144,3 @@ jobs:
           docker buildx imagetools create -t mikupush/server:${{ steps.version.outputs.current }} \
           mikupush/server:${{ steps.version.outputs.current }}-amd64 \
           mikupush/server:${{ steps.version.outputs.current }}-arm64
-
-      - name: Push
-        run: docker push mikupush/server:latest && docker push mikupush/server:${{ steps.version.outputs.current }}
