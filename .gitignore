@@ -15,3 +15,4 @@ docker-compose.*.yml
 *.log.*
 node_modules
 .cache
+.DS_Store

@@ -1,3 +1,7 @@
 [*]
 insert_final_newline = true
 end_of_line = lf
+
+[*.{js,jsx,ts,tsx,yaml,yml}]
+indent_size = 2
+indent_style = space
