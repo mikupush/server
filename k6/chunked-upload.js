@@ -1,5 +1,5 @@
 import http from 'k6/http';
-import { sleep } from 'k6';
+import { check } from 'k6';
 import { uuidv4 } from 'https://jslib.k6.io/k6-utils/1.4.0/index.js';
 
 const BASE_URL = __ENV.BASE_URL ?? 'http://localhost:8080'
@@ -26,19 +26,27 @@ export default function() {
     size: FILE_SIZE
   }
 
-  http.post(`${BASE_URL}/api/file`, JSON.stringify(file), {
+  const registerResponse = http.post(`${BASE_URL}/api/file`, JSON.stringify(file), {
     headers: {
       'Content-Type': 'application/json',
     }
   })
 
+  check(registerResponse, {
+    'is status 200': (r) => r.status === 200,
+  })
+
   const parts = file.size / FILE_CHUNK_SIZE;
 
   for (let i = 0; i < parts; i++) {
-    http.post(`${BASE_URL}/api/file/${file.id}/upload/part/${i}`, FIXED_CHUNK_BUFFER, {
+    const uploadResponse =http.post(`${BASE_URL}/api/file/${file.id}/upload/part/${i}`, FIXED_CHUNK_BUFFER, {
       headers: {
         'Content-Type': 'application/octet-stream',
       }
+    })
+
+    check(uploadResponse, {
+      'is status 200': (r) => r.status === 200,
     })
   }
 }
