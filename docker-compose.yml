@@ -25,5 +25,14 @@ services:
       POSTGRES_PASSWORD: miku_push
       POSTGRES_DB: miku_push
 
+  swagger:
+    image: swaggerapi/swagger-ui:v5.31.0
+    ports:
+      - "8081:8080"
+    volumes:
+      - "./api.yaml:/api.yaml:ro"
+    environment:
+      SWAGGER_JSON: /api.yaml
+
 volumes:
   postgres:
