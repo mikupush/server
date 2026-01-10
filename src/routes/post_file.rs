@@ -22,6 +22,7 @@ use actix_web::{post, web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
 use uuid::Uuid;
+use crate::tracing::ElapsedTimeTracing;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileCreate {
@@ -37,6 +38,7 @@ pub async fn post_file(
     request: web::Json<FileCreate>,
     settings: web::Data<Settings>
 ) -> Result<HttpResponse> {
+    let time_tracing = ElapsedTimeTracing::new("post_file");
     let settings = settings.get_ref().clone();
     let file_register = FileRegister::get_with_settings(settings);
     let request = request.into_inner();
@@ -46,10 +48,12 @@ pub async fn post_file(
         Ok(result) => result,
         Err(err) => {
             let response: ErrorResponse = err.into();
+            time_tracing.trace();
             return Ok(HttpResponse::InternalServerError().json(response));
         }
     };
 
+    time_tracing.trace();
     match register_result {
         Ok(_) => {
             debug!("returning status code 200 for registered file {}", request.id);
@@ -89,7 +93,7 @@ mod tests {
     async fn test_post_file_200_ok() {
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(Settings::load()))
+                .app_data(web::Data::new(Settings::load(None)))
                 .service(post_file)
         ).await;
         let body = FileCreate {
@@ -113,7 +117,7 @@ mod tests {
     async fn test_post_file_409_conflict() {
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(Settings::load()))
+                .app_data(web::Data::new(Settings::load(None)))
                 .service(post_file)
         ).await;
         let body = FileCreate {
@@ -183,7 +187,7 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .app_data(web::JsonConfig::default().error_handler(json_error_handler))
-                .app_data(web::Data::new(Settings::load()))
+                .app_data(web::Data::new(Settings::load(None)))
                 .service(post_file)
         ).await;
 
@@ -214,7 +218,7 @@ mod tests {
     }
 
     fn create_settings_limited() -> Settings {
-        let mut settings = Settings::load();
+        let mut settings = Settings::load(None);
         settings.upload = Upload::create_with_limit(200);
         settings
     }

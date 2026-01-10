@@ -14,70 +14,75 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::config::{LoggingConfig, LoggingOutput, Settings};
+use crate::config::Settings;
 use std::path::Path;
 use tracing::level_filters::LevelFilter;
-use tracing::{debug, warn};
-use tracing::{Dispatch, Level};
-use tracing_appender::non_blocking::NonBlocking;
+use tracing_appender::non_blocking::WorkerGuard;
 use tracing_appender::rolling::{Builder, Rotation};
+use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::{prelude::*, registry};
 
-pub fn configure_logging(settings: Settings) {
-    let config = settings.log;
-    match config.output() {
-        LoggingOutput::Console => configure_logging_console_output(&config),
-        LoggingOutput::File => configure_logging_file_output(&config)
-    }
-}
-
-fn configure_logging_console_output(config: &LoggingConfig) {
-    let (non_blocking, _guard) = tracing_appender::non_blocking(std::io::stdout());
-
-    configure_logging_subscriber(&config, non_blocking);
-    std::mem::forget(_guard);
-}
-
-fn configure_logging_file_output(config: &LoggingConfig) {
-    let directory = config.directory();
-    let path = Path::new(&directory);
-    if !path.exists() {
-        local_trace(|| debug!("creating log directory: {}", directory));
-
-        if let Err(err) = std::fs::create_dir(path) {
-            local_trace(|| warn!("failed to create log directory: {}", err));
-            return
-        }
+pub fn configure_logging(settings: &Settings) -> WorkerGuard {
+    let config = settings.log.clone();
+    let directory = config.directory;
+    let directory = Path::new(&directory);
+    if !directory.exists() {
+        std::fs::create_dir(directory).expect("failed to create log directory");
     }
 
     let file_appender = Builder::new()
         .rotation(Rotation::HOURLY)
-        .filename_prefix(config.file_prefix())
+        .filename_prefix(config.file_prefix)
         .filename_suffix("log")
         .build(directory)
         .expect("failed to create log file appender");
+
     let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    let level_filter = LevelFilter::from_level(config.level.as_tracing_enum());
 
-    configure_logging_subscriber(&config, non_blocking);
-    std::mem::forget(_guard);
-}
-
-fn configure_logging_subscriber(config: &LoggingConfig, writer: NonBlocking) {
-    if config.json() {
-        tracing_subscriber::fmt()
-            .json()
+    if config.json {
+        let file_layer = tracing_subscriber::fmt::layer()
             .with_ansi(false)
-            .with_max_level(LevelFilter::from_level(config.level().as_tracing_enum()))
             .with_level(true)
-            .with_writer(writer)
+            .with_span_events(FmtSpan::CLOSE)
+            .with_writer(non_blocking)
+            .json()
+            .flatten_event(true);
+
+        let stdout_layer = tracing_subscriber::fmt::layer()
+            .with_ansi(false)
+            .with_level(true)
+            .with_span_events(FmtSpan::CLOSE)
+            .with_writer(std::io::stdout)
+            .json()
+            .flatten_event(true);
+
+        registry()
+            .with(level_filter)
+            .with(file_layer)
+            .with(stdout_layer)
             .init();
     } else {
-        tracing_subscriber::fmt()
+        let file_layer = tracing_subscriber::fmt::layer()
             .with_ansi(false)
-            .with_max_level(LevelFilter::from_level(config.level().as_tracing_enum()))
             .with_level(true)
-            .with_writer(writer)
+            .with_span_events(FmtSpan::CLOSE)
+            .with_writer(non_blocking);
+
+        let stdout_layer = tracing_subscriber::fmt::layer()
+            .with_ansi(false)
+            .with_level(true)
+            .with_span_events(FmtSpan::CLOSE)
+            .with_writer(std::io::stdout);
+
+        registry()
+            .with(level_filter)
+            .with(file_layer)
+            .with(stdout_layer)
             .init();
-    };
+    }
+
+    _guard
 }
 
 pub fn system_log_directory() -> String {
@@ -91,24 +96,4 @@ pub fn system_log_directory() -> String {
     let directory = "/var/log/io.mikupush.server".to_string();
 
     directory
-}
-
-pub fn local_trace<T>(f: impl FnOnce() -> T) -> T {
-    let directory = system_log_directory();
-    let directory = Path::new(&directory);
-    if !directory.exists() {
-        std::fs::create_dir(directory).unwrap();
-    }
-
-    let file_appender = tracing_appender::rolling::hourly(directory, "server.log");
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
-
-    let subscriber = tracing_subscriber::fmt()
-        .with_ansi(false)
-        .with_writer(non_blocking)
-        .with_writer(std::io::stdout)
-        .with_max_level(Level::DEBUG)
-        .finish();
-    let dispatch = Dispatch::new(subscriber);
-    tracing::dispatcher::with_default(&dispatch, f)
 }

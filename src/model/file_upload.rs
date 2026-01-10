@@ -37,7 +37,7 @@ impl FileUpload {
 
     /// Create and retrieve the directory for the file upload
     pub fn directory(&self, settings: &Settings) -> Result<PathBuf, std::io::Error> {
-        let destination_directory = settings.upload.directory();
+        let destination_directory = settings.upload.directory.clone();
         let destination_directory = Path::new(destination_directory.as_str())
             .join(self.id.to_string());
 

@@ -24,6 +24,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tracing::debug;
 use uuid::Uuid;
+use crate::tracing::ElapsedTimeTracing;
 
 #[derive(Debug, PartialEq)]
 pub enum ManifestError {
@@ -128,7 +129,8 @@ impl SQLiteManifestRepository {
 
 impl SQLiteManifestRepository {
     fn create_connection(&self, upload_id: Uuid) -> Result<Connection, ManifestError> {
-        let directory = PathBuf::from(self.settings.upload.directory())
+        let trace_time = ElapsedTimeTracing::new("sqlite_manifest_create_connection");
+        let directory = PathBuf::from(self.settings.upload.directory.clone())
             .join(upload_id.to_string());
 
         if !directory.exists() {
@@ -138,6 +140,7 @@ impl SQLiteManifestRepository {
         let path = directory.join("manifest");
         let connection = Connection::open(path)?;
         connection.execute(CREATE_MANIFEST_SCHEMA_SQL, [])?;
+        trace_time.trace();
         Ok(connection)
     }
 
@@ -155,6 +158,7 @@ impl SQLiteManifestRepository {
 
 impl ManifestRepository for SQLiteManifestRepository {
     fn find_by_upload_id(&self, upload_id: Uuid) -> Result<Manifest, ManifestError> {
+        let trace_time = ElapsedTimeTracing::new("sqlite_manifest_find_by_upload_id");
         let connection = self.create_connection(upload_id)?;
         let mut stmt = connection.prepare(r#"
             SELECT `id`, `index`, `upload_id`, `size`
@@ -166,10 +170,12 @@ impl ManifestRepository for SQLiteManifestRepository {
             .map(|item| item.unwrap())
             .collect();
 
+        trace_time.trace();
         Ok(Manifest { upload_id, parts })
     }
 
     fn put_part(&self, part: Part) -> Result<(), ManifestError> {
+        let trace_time = ElapsedTimeTracing::new("sqlite_manifest_put_part");
         debug!("writing upload part manifest");
         let connection = self.create_connection(part.upload_id)?;
         let existing_stmt = connection.prepare(r#"
@@ -187,6 +193,7 @@ impl ManifestRepository for SQLiteManifestRepository {
         )?;
 
         if existing > 0 {
+            trace_time.trace();
             return Err(ManifestError::DuplicatedPart);
         }
 
@@ -201,6 +208,7 @@ impl ManifestRepository for SQLiteManifestRepository {
             ]
         )?;
 
+        trace_time.trace();
         Ok(())
     }
 
@@ -210,6 +218,7 @@ impl ManifestRepository for SQLiteManifestRepository {
         size: i32,
         from_index: i32
     ) -> Result<Vec<Part>, ManifestError> {
+        let trace_time = ElapsedTimeTracing::new("sqlite_manifest_take_parts");
         let connection = self.create_connection(upload_id)?;
         let mut parts_stmt = connection.prepare(r#"
             SELECT `id`, `index`, `upload_id`, `size`
@@ -229,6 +238,7 @@ impl ManifestRepository for SQLiteManifestRepository {
             .map(|item| item.unwrap())
             .collect();
 
+        trace_time.trace();
         Ok(parts)
     }
 }
@@ -238,7 +248,7 @@ pub mod tests {
     use super::*;
 
     fn create_repository() -> SQLiteManifestRepository {
-        let settings = Settings::load();
+        let settings = Settings::load(None);
         SQLiteManifestRepository::new(settings)
     }
 
@@ -320,7 +330,7 @@ pub mod tests {
     }
 
     pub fn insert_test_manifest_part(settings: &Settings, part: &Part) {
-        let directory = PathBuf::from(settings.upload.directory())
+        let directory = PathBuf::from(settings.upload.directory.clone())
             .join(part.upload_id.to_string());
 
         if !directory.exists() {

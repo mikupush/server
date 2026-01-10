@@ -28,6 +28,7 @@ mod errors;
 mod logging;
 mod repository;
 mod model;
+mod tracing;
 
 use crate::database::setup_database_connection;
 use crate::logging::configure_logging;
@@ -35,6 +36,7 @@ use crate::routes::json_error_handler;
 use clap::Parser;
 use config::Settings;
 use std::path::PathBuf;
+use std::time::Duration;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -53,11 +55,10 @@ async fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
     let config_path = cli.config;
 
-    Settings::setup_global_from(config_path);
-    let settings = Settings::get();
+    let settings = Settings::setup_global_from(config_path);
 
     // logging config
-    configure_logging(settings.clone());
+    let _guard = configure_logging(&settings);
 
     // database connection pool
     let pool = setup_database_connection(&settings);
@@ -77,7 +78,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(registerer.clone()))
             .app_data(web::Data::new(finder.clone()))
-            .service(fs::Files::new("/static", settings_clone.server.static_directory()))
+            .service(fs::Files::new("/static", settings_clone.server.static_directory.clone()))
             .service(routes::post_file)
             .service(routes::delete_file)
             .service(routes::post_upload_file)
@@ -86,7 +87,8 @@ async fn main() -> std::io::Result<()> {
             .service(routes::health)
             .service(routes::get_file_info)
     })
-    .bind((settings.server.host(), settings.server.port()))?
+    .keep_alive(Duration::from_secs(10))
+    .bind((settings.server.host, settings.server.port))?
     .run()
     .await
 }

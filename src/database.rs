@@ -64,7 +64,7 @@ pub mod tests {
             return pool.clone();
         }
 
-        let settings = Settings::load();
+        let settings = Settings::load(None);
         let pool = setup_database_connection(&settings);
         TEST_DB_POOL.set(pool.clone())
             .expect("database connection pool already set");

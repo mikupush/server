@@ -22,19 +22,24 @@ use crate::services::{FileReader, FileStreamWrapper, SingleFileReader};
 use actix_web::{get, web, HttpResponse, Result};
 use tracing::debug;
 use uuid::Uuid;
+use crate::tracing::ElapsedTimeTracing;
 
 #[get("/u/{id}")]
 pub async fn get_download(
     settings: web::Data<Settings>,
     id: web::Path<String>,
 ) -> Result<HttpResponse> {
+    let time_tracing = ElapsedTimeTracing::new("get_download");
     let file_reader = FileReader::get_with_settings(settings.get_ref().clone());
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
         return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
     };
 
-    match file_reader.read(id).await {
+    let result = file_reader.read(id).await;
+    time_tracing.trace();
+
+    match result {
         Ok(stream_wrapper) => Ok(handle_get_download_ok(stream_wrapper)),
         Err(err) => Ok(handle_get_download_error(err))
     }
@@ -72,7 +77,7 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_get_download_200_ok() {
-        let settings = Settings::load();
+        let settings = Settings::load(None);
         let pool = setup_database_connection(&settings);
         let app = test::init_service(
             App::new()
@@ -99,7 +104,7 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_get_download_200_chunked_ok() {
-        let settings = Settings::load();
+        let settings = Settings::load(None);
         let pool = setup_database_connection(&settings);
         let app = test::init_service(
             App::new()
@@ -129,7 +134,7 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_get_download_404_not_found() {
-        let settings = Settings::load();
+        let settings = Settings::load(None);
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(settings))
@@ -154,7 +159,7 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_get_download_400_bad_request_invalid_id() {
-        let settings = Settings::load();
+        let settings = Settings::load(None);
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(settings))

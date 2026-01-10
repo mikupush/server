@@ -23,12 +23,14 @@ use actix_web::error::Result;
 use actix_web::{delete, web, HttpResponse};
 use tracing::debug;
 use uuid::Uuid;
+use crate::tracing::ElapsedTimeTracing;
 
 #[delete("/api/file/{id}")]
 pub async fn delete_file(
     settings: web::Data<Settings>,
     id: web::Path<String>
 ) -> Result<HttpResponse> {
+    let time_tracing = ElapsedTimeTracing::new("delete_file");
     let deleter = FileDeleter::get_with_settings(settings.get_ref().clone());
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
@@ -43,6 +45,7 @@ pub async fn delete_file(
         }
     };
 
+    time_tracing.trace();
     match result {
         Ok(_) => Ok(HttpResponse::Ok().finish()),
         Err(err) => Ok(handle_delete_file_failure(err))
@@ -75,7 +78,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_delete_file_200_ok() {
-        let settings = Settings::load();
+        let settings = Settings::load(None);
         let pool = setup_database_connection(&settings);
         let app = test::init_service(
             App::new()
@@ -97,7 +100,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_delete_file_404_not_found() {
-        let settings = Settings::load();
+        let settings = Settings::load(None);
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(settings))
@@ -121,7 +124,7 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_delete_file_400_bad_request_invalid_id() {
-        let settings = Settings::load();
+        let settings = Settings::load(None);
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(settings))

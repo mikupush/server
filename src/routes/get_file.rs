@@ -22,14 +22,17 @@ use actix_web::error::Result;
 use actix_web::{get, web, HttpResponse};
 use tracing::debug;
 use uuid::Uuid;
+use crate::tracing::ElapsedTimeTracing;
 
 #[get("/api/file/{id}")]
 pub async fn get_file_info(
     finder: web::Data<FileInfoFinder<PostgresFileUploadRepository>>,
     id: web::Path<String>
 ) -> Result<HttpResponse> {
+    let time_tracing = ElapsedTimeTracing::new("get_file_info");
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
+        time_tracing.trace();
         return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
     };
 
@@ -37,10 +40,12 @@ pub async fn get_file_info(
         Ok(result) => result,
         Err(err) => {
             let response: ErrorResponse = err.into();
+            time_tracing.trace();
             return Ok(HttpResponse::InternalServerError().json(response));
         }
     };
 
+    time_tracing.trace();
     match find_result {
         Ok(info) => Ok(HttpResponse::Ok().json(info)),
         Err(err) => Ok(handle_get_file_info_failure(err))
@@ -72,7 +77,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_get_file_info_200_ok() {
-        let pool = setup_database_connection(&Settings::load());
+        let pool = setup_database_connection(&Settings::load(None));
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileInfoFinder::test(pool.clone())))
@@ -181,6 +186,6 @@ mod tests {
     }
 
     fn create_settings() -> Settings {
-        Settings::load()
+        Settings::load(None)
     }
 }

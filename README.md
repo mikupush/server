@@ -13,15 +13,15 @@ Download the `.deb` package for your architecture and install it with `dpkg`:
 #### amd64 (x86_64)
 
 ```sh
-curl -OL https://github.com/mikupush/server/releases/download/0.0.3/mikupush-server-0.0.3-amd64.deb
-sudo dpkg -i mikupush-server-0.0.3-amd64.deb
+curl -OL https://github.com/mikupush/server/releases/download/0.0.11/mikupush-server-0.0.3-amd64.deb
+sudo dpkg -i mikupush-server-0.0.11-amd64.deb
 ```
 
 #### arm64 (aarch64)
 
 ```sh
-curl -OL https://github.com/mikupush/server/releases/download/0.0.3/mikupush-server-0.0.3-arm64.deb
-sudo dpkg -i mikupush-server-0.0.3-arm64.deb
+curl -OL https://github.com/mikupush/server/releases/download/0.0.11/mikupush-server-0.0.3-arm64.deb
+sudo dpkg -i mikupush-server-0.0.11-arm64.deb
 ```
 
 #### Systemd
@@ -135,13 +135,10 @@ log:
   # Log level. Possible values: trace, debug, info, warn, error
   # Default: info
   level: info
-  # Log output. Possible values: console, file
-  # Default: console
-  output: console
-  # It configures the log file name prefix if the output is set to file.
+  # It configures the log file name prefix.
   # For example, if the value is "server", the log file will be named "server.2025-12-11-14.log".
   file_prefix: server
-  # Log directory, used when output is file
+  # Log directory
   # Platform-specific default if not specified:
   # - Linux: /var/log/io.mikupush.server
   # - macOS: /usr/local/var/log/io.mikupush.server
@@ -155,10 +152,7 @@ log:
 #### Environment variables
 ```text
 MIKU_PUSH_LOG_LEVEL=info
-MIKU_PUSH_LOG_OUTPUT=console
-# File name prefix when output is file
 MIKU_PUSH_LOG_FILE_PREFIX=server
-# Directory when output is file
 MIKU_PUSH_LOG_DIRECTORY=/var/log/io.mikupush.server
 MIKU_PUSH_LOG_JSON=false
 ```
@@ -202,7 +196,7 @@ MIKU_PUSH_DATABASE_PASSWORD=postgres
 ```yaml
 upload:
   # Maximum allowed upload size in bytes.
-  # If not set, or if set to "unlimited", there is no limit.
+  # If not set, there is no limit.
   # Example: 5000000000 for 5GB
   max_size: 5000000000
   # Directory where uploaded files are stored.
@@ -212,7 +206,7 @@ upload:
 ```
 #### Environment variables
 ```text
-# Number in bytes or the word "unlimited"
+# Number in bytes
 MIKU_PUSH_UPLOAD_MAX_SIZE=5000000000
 # Relative or absolute path; default is "data"
 MIKU_PUSH_UPLOAD_DIRECTORY=data

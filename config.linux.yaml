@@ -6,7 +6,6 @@ server:
 
 log:
   level: info
-  output: file
   file_prefix: server
   directory: /var/log/io.mikupush.server
   json: false

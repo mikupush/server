@@ -22,6 +22,7 @@ use actix_web::{get, web, HttpRequest, HttpResponse};
 use diesel::{sql_query, RunQueryDsl};
 use serde_json::json;
 use tracing::{debug, warn};
+use crate::tracing::ElapsedTimeTracing;
 
 const ANY_CONTENT_TYPE: &'static str = "*/*";
 
@@ -31,6 +32,7 @@ pub async fn health(
     settings: web::Data<Settings>,
     request: HttpRequest
 ) -> HttpResponse {
+    let time_tracing = ElapsedTimeTracing::new("health");
     let default_accept_header = HeaderValue::from_static(ANY_CONTENT_TYPE);
     let accept_header = request.headers().get("Accept")
         .unwrap_or(&default_accept_header)
@@ -39,9 +41,11 @@ pub async fn health(
     let json = accept_header == "application/json";
 
     if let Err(_) = check_db_connection(&pool).await {
+        time_tracing.trace();
         return respond_error(json, &settings);
     }
 
+    time_tracing.trace();
     respond_ok(json, &settings)
 }
 
@@ -97,7 +101,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_health_200_ok() {
-        let pool = setup_database_connection(&Settings::load());
+        let pool = setup_database_connection(&Settings::load(None));
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(pool))
@@ -118,7 +122,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_health_200_ok_json() {
-        let pool = setup_database_connection(&Settings::load());
+        let pool = setup_database_connection(&Settings::load(None));
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(pool))

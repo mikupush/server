@@ -50,20 +50,14 @@
           "enum": ["trace", "debug", "info", "warn", "error"],
           "default": "info"
         },
-        "output": {
-          "type": "string",
-          "description": "Log output. Alternatively, you can use MIKU_PUSH_LOG_OUTPUT to override this value.",
-          "enum": ["console", "file"],
-          "default": "console"
-        },
         "file_prefix": {
           "type": "string",
-          "description": "Log file name. It configures the log file name if the output is set to file. For example, if the value is \"server\", the log file will be named \"server.2025-12-11-14.log\". Alternatively, you can use MIKU_PUSH_LOG_FILE to override this value.",
+          "description": "Log file name. It configures the log file name. For example, if the value is \"server\", the log file will be named \"server.2025-12-11-14.log\". Alternatively, you can use MIKU_PUSH_LOG_FILE to override this value.",
           "default": "server"
         },
         "directory": {
           "type": "string",
-          "description": "Log directory used when output is 'file'. Alternatively, you can use MIKU_PUSH_LOG_DIRECTORY to override this value. Platform-specific default if not specified: Linux: /var/log/io.mikupush.server, macOS: /usr/local/var/log/io.mikupush.server, Windows: %LOCALAPPDATA%\\io.mikupush.server\\logs"
+          "description": "Log directory. Alternatively, you can use MIKU_PUSH_LOG_DIRECTORY to override this value. Platform-specific default if not specified: Linux: /var/log/io.mikupush.server, macOS: /usr/local/var/log/io.mikupush.server, Windows: %LOCALAPPDATA%\\io.mikupush.server\\logs"
         },
         "json": {
           "type": "boolean",
@@ -117,7 +111,7 @@
       "additionalProperties": false,
       "properties": {
         "max_size": {
-          "description": "Maximum allowed upload size in bytes. If not set, or is set unlimited, there is no limit. Alternatively, you can use MIKU_PUSH_UPLOAD_MAX_SIZE to override this value (number in bytes or 'unlimited').",
+          "description": "Maximum allowed upload size in bytes. If not set, there is no limit. Alternatively, you can use MIKU_PUSH_UPLOAD_MAX_SIZE to override this value (number in bytes or 'unlimited').",
           "oneOf": [
             { "type": "integer", "minimum": 0 },
             { "type": "null" }
