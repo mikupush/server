@@ -128,7 +128,7 @@ impl SQLiteManifestRepository {
 
 impl SQLiteManifestRepository {
     fn create_connection(&self, upload_id: Uuid) -> Result<Connection, ManifestError> {
-        let directory = PathBuf::from(self.settings.upload.directory())
+        let directory = PathBuf::from(self.settings.upload.directory.clone())
             .join(upload_id.to_string());
 
         if !directory.exists() {
@@ -238,7 +238,7 @@ pub mod tests {
     use super::*;
 
     fn create_repository() -> SQLiteManifestRepository {
-        let settings = Settings::load();
+        let settings = Settings::load(None);
         SQLiteManifestRepository::new(settings)
     }
 
@@ -320,7 +320,7 @@ pub mod tests {
     }
 
     pub fn insert_test_manifest_part(settings: &Settings, part: &Part) {
-        let directory = PathBuf::from(settings.upload.directory())
+        let directory = PathBuf::from(settings.upload.directory.clone())
             .join(part.upload_id.to_string());
 
         if !directory.exists() {

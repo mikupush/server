@@ -50,12 +50,6 @@
           "enum": ["trace", "debug", "info", "warn", "error"],
           "default": "info"
         },
-        "output": {
-          "type": "string",
-          "description": "Log output. Alternatively, you can use MIKU_PUSH_LOG_OUTPUT to override this value.",
-          "enum": ["console", "file"],
-          "default": "console"
-        },
         "file_prefix": {
           "type": "string",
           "description": "Log file name. It configures the log file name if the output is set to file. For example, if the value is \"server\", the log file will be named \"server.2025-12-11-14.log\". Alternatively, you can use MIKU_PUSH_LOG_FILE to override this value.",

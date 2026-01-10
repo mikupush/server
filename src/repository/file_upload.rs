@@ -139,7 +139,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_find_by_id() {
-        let pool = setup_database_connection(&Settings::load());
+        let pool = setup_database_connection(&Settings::load(None));
         let repository = PostgresFileUploadRepository::new(pool.clone());
         let file_upload = insert_file_upload(&pool);
 
@@ -155,7 +155,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_find_by_id_not_found() {
-        let pool = setup_database_connection(&Settings::load());
+        let pool = setup_database_connection(&Settings::load(None));
         let repository = PostgresFileUploadRepository::new(pool.clone());
 
         let result = repository.find_by_id(Uuid::new_v4()).unwrap();
@@ -166,7 +166,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_delete_file_upload() {
-        let pool = setup_database_connection(&Settings::load());
+        let pool = setup_database_connection(&Settings::load(None));
         let repository = PostgresFileUploadRepository::new(pool.clone());
         let file_upload = insert_file_upload(&pool);
 
@@ -179,7 +179,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_save_insert_file_upload() {
-        let pool = setup_database_connection(&Settings::load());
+        let pool = setup_database_connection(&Settings::load(None));
         let repository = PostgresFileUploadRepository::new(pool.clone());
         let file_upload: FileUpload = create_file_upload().into();
 
@@ -193,7 +193,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_save_update_file_upload() {
-        let pool = setup_database_connection(&Settings::load());
+        let pool = setup_database_connection(&Settings::load(None));
         let repository = PostgresFileUploadRepository::new(pool.clone());
         let mut file_upload: FileUpload = create_file_upload().into();
 

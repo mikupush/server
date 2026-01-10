@@ -72,7 +72,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_get_file_info_200_ok() {
-        let pool = setup_database_connection(&Settings::load());
+        let pool = setup_database_connection(&Settings::load(None));
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(FileInfoFinder::test(pool.clone())))
@@ -181,6 +181,6 @@ mod tests {
     }
 
     fn create_settings() -> Settings {
-        Settings::load()
+        Settings::load(None)
     }
 }

@@ -353,13 +353,13 @@ mod tests {
     }
 
     fn create_settings() -> Settings {
-        let mut settings = Settings::load();
-        settings.upload = Upload::create();
+        let mut settings = Settings::load(None);
+        settings.upload = Upload::default();
         settings
     }
 
     fn create_settings_limited() -> Settings {
-        let mut settings = Settings::load();
+        let mut settings = Settings::load(None);
         settings.upload = Upload::create_with_limit(200);
         settings
     }

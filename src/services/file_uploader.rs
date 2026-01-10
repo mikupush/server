@@ -67,7 +67,7 @@ where
         let destination_path = self.build_destination_path(&file_upload, &file_upload.name)?;
 
         let bytes_written = if self.settings.upload.is_limited() {
-            self.writer.write(reader, destination_path, self.settings.upload.max_size()).await?
+            self.writer.write(reader, destination_path, self.settings.upload.max_size).await?
         } else {
             self.writer.write(reader, destination_path, None).await?
         };

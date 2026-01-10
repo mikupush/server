@@ -6,7 +6,6 @@ server:
 
 log:
   level: info
-  output: file
   file_prefix: server
   directory: logs
   json: false

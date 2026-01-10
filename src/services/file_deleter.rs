@@ -122,7 +122,7 @@ mod tests {
         assert!(result.is_ok());
         let stored = deleter.repository.find_by_id(id).unwrap();
         assert!(stored.is_none(), "file upload should be removed from repository");
-        cleanup_directory(&deleter.settings.upload.directory(), id);
+        cleanup_directory(&deleter.settings.upload.directory, id);
     }
 
     #[test]
@@ -152,7 +152,7 @@ mod tests {
 
         assert!(result.is_ok(), "removal should continue when storage object is missing");
         assert!(repository.find_by_id(id).unwrap().is_none(), "record should still be deleted from repository");
-        cleanup_directory(&settings.upload.directory(), id);
+        cleanup_directory(&settings.upload.directory, id);
     }
 
     #[test]
@@ -167,7 +167,7 @@ mod tests {
 
         assert!(matches!(result, Err(FileDeleteError::IO { .. })));
         assert!(repository.find_by_id(id).unwrap().is_some(), "record should remain when storage removal fails");
-        cleanup_directory(&settings.upload.directory(), id);
+        cleanup_directory(&settings.upload.directory, id);
     }
 
     #[derive(Clone)]

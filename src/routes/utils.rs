@@ -18,7 +18,7 @@ use crate::config::Settings;
 use tracing::warn;
 
 pub fn read_template(settings: &Settings, template: &str) -> String {
-    let template_dir = settings.server.templates_directory();
+    let template_dir = settings.server.templates_directory.clone();
     let path = std::path::Path::new(&template_dir).join(template);
 
     if !path.exists() {
@@ -65,7 +65,7 @@ pub mod tests {
         };
 
         let settings = Upload::default();
-        let path = Path::new(&settings.directory())
+        let path = Path::new(&settings.directory)
             .join(file_upload.id.to_string())
             .join(file_upload.name.clone());
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -93,7 +93,7 @@ pub mod tests {
             chunked: true
         };
 
-        let path = Path::new(&settings.upload.directory())
+        let path = Path::new(&settings.upload.directory)
             .join(file_upload.id.to_string());
         std::fs::create_dir_all(&path).unwrap();
 

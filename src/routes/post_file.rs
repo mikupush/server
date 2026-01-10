@@ -89,7 +89,7 @@ mod tests {
     async fn test_post_file_200_ok() {
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(Settings::load()))
+                .app_data(web::Data::new(Settings::load(None)))
                 .service(post_file)
         ).await;
         let body = FileCreate {
@@ -113,7 +113,7 @@ mod tests {
     async fn test_post_file_409_conflict() {
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(Settings::load()))
+                .app_data(web::Data::new(Settings::load(None)))
                 .service(post_file)
         ).await;
         let body = FileCreate {
@@ -183,7 +183,7 @@ mod tests {
         let app = test::init_service(
             App::new()
                 .app_data(web::JsonConfig::default().error_handler(json_error_handler))
-                .app_data(web::Data::new(Settings::load()))
+                .app_data(web::Data::new(Settings::load(None)))
                 .service(post_file)
         ).await;
 
@@ -214,7 +214,7 @@ mod tests {
     }
 
     fn create_settings_limited() -> Settings {
-        let mut settings = Settings::load();
+        let mut settings = Settings::load(None);
         settings.upload = Upload::create_with_limit(200);
         settings
     }

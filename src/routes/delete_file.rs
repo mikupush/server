@@ -75,7 +75,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_delete_file_200_ok() {
-        let settings = Settings::load();
+        let settings = Settings::load(None);
         let pool = setup_database_connection(&settings);
         let app = test::init_service(
             App::new()
@@ -97,7 +97,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_delete_file_404_not_found() {
-        let settings = Settings::load();
+        let settings = Settings::load(None);
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(settings))
@@ -121,7 +121,7 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_delete_file_400_bad_request_invalid_id() {
-        let settings = Settings::load();
+        let settings = Settings::load(None);
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(settings))

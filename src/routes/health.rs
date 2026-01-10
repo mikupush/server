@@ -97,7 +97,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_health_200_ok() {
-        let pool = setup_database_connection(&Settings::load());
+        let pool = setup_database_connection(&Settings::load(None));
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(pool))
@@ -118,7 +118,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test_health_200_ok_json() {
-        let pool = setup_database_connection(&Settings::load());
+        let pool = setup_database_connection(&Settings::load(None));
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(pool))

@@ -14,81 +14,49 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod database;
-mod server;
+
 mod settings;
-mod upload;
 mod logging;
+mod yaml;
+mod env;
 
-pub use database::*;
 pub use logging::*;
-pub use server::*;
 pub use settings::*;
-pub use upload::*;
 
-use std::collections::{HashMap, VecDeque};
-use std::sync::{LazyLock, Mutex, Once};
-use tracing::debug;
+use std::path::PathBuf;
 
-fn load_dotenv() -> HashMap<String, String> {
-    let mut env_files: VecDeque<&str> = VecDeque::new();
-    env_files.push_back(".env");
 
-    #[cfg(test)]
-    env_files.push_back(".env.test");
+pub fn user_config_path() -> PathBuf {
+    #[cfg(target_os = "linux")]
+    let paths: Vec<PathBuf> = vec![
+        PathBuf::from("config.yaml"),
+        PathBuf::from(format!("{}/.io.mikupush.server/config.yaml", env!("HOME"))),
+        PathBuf::from(format!("{}/.config/io.mikupush.server/config.yaml", env!("HOME"))),
+        PathBuf::from("/etc/io.mikupush.server/config.yaml"),
+    ];
 
-    for env_file in env_files {
-        debug!("loading dotenv file: {}", env_file);
+    #[cfg(target_os = "windows")]
+    let paths: Vec<PathBuf> = vec![
+        PathBuf::from("config.yaml"),
+        PathBuf::from(format!("{}\\io.mikupush.server\\config.yaml", env!("LOCALAPPDATA"))),
+    ];
 
-        let dotenv_variables = dotenvy::from_filename_iter(env_file);
-        if let Err(err) = dotenv_variables {
-            debug!("failed to load dotenv file {}: {}", env_file, err);
-            continue;
-        }
+    #[cfg(target_os = "macos")]
+    let paths: Vec<PathBuf> = vec![
+        PathBuf::from("config.yaml"),
+        PathBuf::from(format!("{}/.io.mikupush.server/config.yaml", env!("HOME"))),
+        PathBuf::from(format!("{}/.config/io.mikupush.server/config.yaml", env!("HOME"))),
+        PathBuf::from(format!("{}/Library/Application Support/io.mikupush.server/config.yaml", env!("HOME"))),
+    ];
 
-        debug!("dotenv file {} loaded!", env_file);
-        let mut variables = HashMap::new();
-        for item in dotenv_variables.unwrap() {
-            if let Ok((key, value)) = item {
-                variables.insert(key, value);
-            }
-        }
+    for path in paths {
+        println!("attempting to find configuration file: {}", path.display());
 
-        return variables
-    }
-
-    HashMap::new()
-}
-
-static DOTENV_LOADED: Once = Once::new();
-static DOTENV_VARS: LazyLock<Mutex<HashMap<String, String>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
-
-#[cfg(test)]
-static TEST_ENV: LazyLock<Mutex<HashMap<String, String>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
-
-fn env(name: &str) -> Option<String> {
-    #[cfg(test)]
-    {
-        let test_env = TEST_ENV.lock().unwrap();
-        if let Some(test_value) = test_env.get(name) {
-            println!("using {}={} test variable", name, test_value);
-            return Some(test_value.clone());
+        if path.exists() {
+            println!("configuration file found: {}", path.display());
+            return path;
         }
     }
 
-    DOTENV_LOADED.call_once(|| {
-        let dotenv_vars = load_dotenv();
-        *DOTENV_VARS.lock().unwrap() = dotenv_vars;
-    });
-
-    let dotenv_vars = DOTENV_VARS.lock().unwrap();
-    if let Some(value) = dotenv_vars.get(name) {
-        return Some(value.to_string());
-    }
-
-    if let Some(value) = std::env::var(name).ok() {
-        return Some(value.to_string());
-    }
-
-    None
+    PathBuf::from("config.yaml")
 }

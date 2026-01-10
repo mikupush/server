@@ -35,7 +35,7 @@ impl FileSizeLimiter {
             return true;
         }
 
-        let limit = self.settings.upload.max_size().unwrap();
+        let limit = self.settings.upload.max_size.unwrap();
         debug!("file size limit is set to: {} bytes", limit);
 
         if file_size > limit {
@@ -62,7 +62,7 @@ pub mod tests {
                 Server::default(),
                 LoggingConfig::default(),
                 DataBase::default(),
-                Upload::new(Some(100), None)
+                Upload::create_with_limit(100)
             );
 
             FileSizeLimiter::new(settings)
@@ -73,7 +73,7 @@ pub mod tests {
                 Server::default(),
                 LoggingConfig::default(),
                 DataBase::default(),
-                Upload::new(None, None)
+                Upload::default()
             );
 
             FileSizeLimiter::new(settings)

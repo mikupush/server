@@ -174,7 +174,7 @@ mod tests {
     }
 
     fn test_directory() -> PathBuf {
-        let directory = PathBuf::from(UploadSettings::create().directory());
+        let directory = PathBuf::from(UploadSettings::default().directory);
 
         if !std::fs::exists(&directory).unwrap() {
             std::fs::create_dir_all(&directory).unwrap();

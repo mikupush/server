@@ -14,27 +14,227 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::config::upload::Upload;
-use crate::config::{DataBase, LoggingConfig, Server};
-use crate::logging::local_trace;
-use serde::Deserialize;
-use std::fs::File;
+use crate::config::env::EnvSettings;
+use crate::config::yaml::YamlSettings;
+use crate::config::{user_config_path, LoggingLevel};
+use crate::logging::system_log_directory;
 use std::path::PathBuf;
 use std::sync::OnceLock;
-use tracing::{debug, warn};
 
 static SETTINGS_INSTANCE: OnceLock<Settings> = OnceLock::new();
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone)]
+pub struct DataBase {
+    pub host: String,
+    pub port: u16,
+    pub database: String,
+    pub user: String,
+    pub password: String,
+}
+
+impl DataBase {
+    pub fn from(yaml: YamlSettings, env: EnvSettings) -> Self {
+        let default = Self::default();
+
+        Self {
+            host: log_yaml_config("database.host", yaml.database.host)
+                .or_else(|| env.database.host)
+                .or_else(|| log_default_config("database.host", Some(default.host)))
+                .unwrap(),
+            port: log_yaml_config("database.port", yaml.database.port)
+                .or_else(|| env.database.port)
+                .or_else(|| log_default_config("database.port", Some(default.port)))
+                .unwrap(),
+            database: log_yaml_config("database.database", yaml.database.database)
+                .or_else(|| env.database.database)
+                .or_else(|| log_default_config("database.database", Some(default.database)))
+                .unwrap(),
+            user: log_yaml_config("database.user", yaml.database.user)
+                .or_else(|| env.database.user)
+                .or_else(|| log_default_config("database.user", Some(default.user)))
+                .unwrap(),
+            password: log_yaml_config("database.password", yaml.database.password)
+                .or_else(|| env.database.password)
+                .or_else(|| log_default_config("database.password", Some(default.password)))
+                .unwrap(),
+        }
+    }
+    
+    pub fn url(&self) -> String {
+        format!("postgresql://{}:{}@{}:{}/{}", self.user, self.password, self.host, self.port, self.database)
+    }
+}
+
+impl Default for DataBase {
+    fn default() -> Self {
+        Self {
+            host: "localhost".to_string(),
+            port: 5432,
+            database: "postgres".to_string(),
+            user: "postgres".to_string(),
+            password: "postgres".to_string()
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct LoggingConfig {
+    pub level: LoggingLevel,
+    pub file_prefix: String,
+    pub directory: String,
+    pub json: bool
+}
+
+impl LoggingConfig {
+    pub fn from(yaml: YamlSettings, env: EnvSettings) -> Self {
+        let default = Self::default();
+        Self {
+            level: log_yaml_config("log.level", yaml.log.level)
+                .or_else(|| env.log.level)
+                .or_else(|| log_default_config("log.level", Some(default.level)))
+                .unwrap(),
+            file_prefix: log_yaml_config("log.file_prefix", yaml.log.file_prefix)
+                .or_else(|| env.log.file_prefix)
+                .or_else(|| log_default_config("log.file_prefix", Some(default.file_prefix)))
+                .unwrap(),
+            directory: log_yaml_config("log.directory", yaml.log.directory)
+                .or_else(|| env.log.directory)
+                .or_else(|| log_default_config("log.directory", Some(default.directory)))
+                .unwrap(),
+            json: log_yaml_config("log.json", yaml.log.json)
+                .or_else(|| env.log.json)
+                .or_else(|| log_default_config("log.json", Some(default.json)))
+                .unwrap(),
+        }
+    }
+}
+
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            level: LoggingLevel::default(),
+            file_prefix: "server".to_string(),
+            directory: system_log_directory(),
+            json: false
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Server {
+    pub host: String,
+    pub port: u16,
+    pub static_directory: String,
+    pub templates_directory: String,
+}
+
+impl Server {
+    pub fn from(yaml: YamlSettings, env: EnvSettings) -> Self {
+        let default = Self::default();
+        Self {
+            host: log_yaml_config("server.host", yaml.server.host)
+                .or_else(|| env.server.host)
+                .or_else(|| log_default_config("server.host", Some(default.host)))
+                .unwrap(),
+            port: log_yaml_config("server.port", yaml.server.port)
+                .or_else(|| env.server.port)
+                .or_else(|| log_default_config("server.port", Some(default.port)))
+                .unwrap(),
+            static_directory: log_yaml_config("server.static_directory", yaml.server.static_directory)
+                .or_else(|| env.server.static_directory)
+                .or_else(|| log_default_config("server.static_directory", Some(default.static_directory)))
+                .unwrap(),
+            templates_directory: log_yaml_config("server.templates_directory", yaml.server.templates_directory)
+                .or_else(|| env.server.templates_directory)
+                .or_else(|| log_default_config("server.templates_directory", Some(default.templates_directory)))
+                .unwrap(),
+        }
+    }
+}
+
+impl Default for Server {
+    fn default() -> Self {
+        Self {
+            host: "0.0.0.0".to_string(),
+            port: 8080,
+            static_directory: "static".to_string(),
+            templates_directory: "templates".to_string(),
+        }
+    }
+
+}
+
+#[derive(Debug, Clone)]
+pub struct Upload {
+    pub max_size: Option<u64>,
+    pub directory: String,
+}
+
+impl Upload {
+    pub fn from(yaml: YamlSettings, env: EnvSettings) -> Self {
+        let default = Self::default();
+        Self {
+            max_size: log_yaml_config("upload.max_size", yaml.upload.max_size)
+                .or_else(|| env.upload.max_size)
+                .or_else(|| log_default_config("upload.max_size", default.max_size)),
+            directory: log_yaml_config("upload.directory", yaml.upload.directory)
+                .or_else(|| env.upload.directory)
+                .or_else(|| log_default_config("upload.directory", Some(default.directory)))
+                .unwrap(),
+        }
+    }
+
+    pub fn create_with_limit(limit: u64) -> Self {
+        let default = Self::default();
+
+        Self {
+            max_size: Some(limit),
+            directory: default.directory,
+        }
+    }
+
+    pub fn is_limited(&self) -> bool {
+        self.max_size.is_some()
+    }
+}
+
+impl Default for Upload {
+    fn default() -> Self {
+        Self {
+            max_size: None,
+            directory: "data".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Settings {
-    #[serde(default)]
     pub server: Server,
-    #[serde(default)]
     pub log: LoggingConfig,
-    #[serde(default)]
     pub database: DataBase,
-    #[serde(default)]
     pub upload: Upload
+}
+
+fn log_yaml_config<T>(key: &str, value: Option<T>) -> Option<T>
+where
+    T: std::fmt::Debug
+{
+    if value.is_some() {
+        println!("using yaml config {}: {:?}", key, value);
+    }
+
+    value
+}
+
+fn log_default_config<T>(key: &str, value: Option<T>) -> Option<T>
+where
+    T: std::fmt::Debug
+{
+    if value.is_some() {
+        println!("using default config {}: {:?}", key, value);
+    }
+
+    value
 }
 
 impl Settings {
@@ -42,28 +242,25 @@ impl Settings {
         Self { server, log, database, upload }
     }
 
-    pub fn setup_global_from(path: Option<PathBuf>) {
-        let settings = if let Some(path) = path {
-            if !path.exists() {
-                panic!(
-                    "error: configuration file not found: {}\n\
-                    Use -c <path> or --config <path> with an existing file.",
-                    path.display()
-                );
-            }
+    pub fn from(yaml: YamlSettings, env: EnvSettings) -> Self {
+        Self {
+            server: Server::from(yaml.clone(), env.clone()),
+            log: LoggingConfig::from(yaml.clone(), env.clone()),
+            database: DataBase::from(yaml.clone(), env.clone()),
+            upload: Upload::from(yaml, env),
+        }
+    }
 
-            Settings::load_from_path(path).expect("failed to load configuration file")
-        } else {
-            Settings::load()
-        };
-
-        let result = SETTINGS_INSTANCE.set(settings);
+    pub fn setup_global_from(path: Option<PathBuf>) -> Self {
+        Self::check_specified_path_exists(path.clone());
+        let settings = Settings::load(path);
+        let result = SETTINGS_INSTANCE.set(settings.clone());
 
         if let Err(_) = result {
-            let error = "failed to set global configuration, it could be already set";
-            local_trace(|| warn!(error));
-            warn!(error);
+            println!("failed to set global configuration, it could be already set");
         }
+
+        settings
     }
 
     pub fn get() -> Settings {
@@ -74,89 +271,27 @@ impl Settings {
         panic!("failed to get global settings, it could be setup before");
     }
 
-    pub fn load() -> Self {
-        local_trace(|| {
-            Settings::load_from_file()
-                .or_else(|| Some(Settings::default()))
-                .unwrap()
-        })
+    pub fn load(path: Option<PathBuf>) -> Self {
+        let path = path.unwrap_or_else(|| user_config_path());
+        let yaml = YamlSettings::load(path);
+        let env = EnvSettings::load();
+        Settings::from(yaml, env)
     }
 
-    pub fn load_from_path(path: PathBuf) -> Option<Self> {
-        debug!("attempting to load configuration file: {}", path.display());
-        let file = match File::open(path.clone()) {
-            Err(e) => {
-                warn!("failed to open configuration file: {}: {}", path.display(), e);
-                return None;
-            },
-            Ok(file) => file,
+    fn check_specified_path_exists(path: Option<PathBuf>) {
+        if let Some(path) = path && !path.exists() {
+            panic!(
+                "error: configuration file not found: {}\n\
+                 Use -c <path> or --config <path> with an existing file.",
+                path.display()
+            );
         };
-
-        match serde_yaml::from_reader(file) {
-            Err(e) => {
-                warn!("failed to parse configuration file: {}: {}", path.display(), e);
-                None
-            },
-            Ok(settings) => {
-                debug!("successfully loaded configuration file: {}", path.display());
-                Some(settings)
-            }
-        }
-    }
-
-    fn load_from_file() -> Option<Self> {
-        let path = Self::resolve_path();
-
-        if path.is_none() {
-            return None;
-        }
-
-        let path = path.unwrap();
-        Self::load_from_path(path)
-    }
-
-    fn resolve_path() -> Option<PathBuf> {
-        #[cfg(target_os = "linux")]
-        let paths: Vec<PathBuf> = vec![
-            PathBuf::from("config.yaml"),
-            PathBuf::from(format!("{}/.io.mikupush.server/config.yaml", env!("HOME"))),
-            PathBuf::from(format!("{}/.config/io.mikupush.server/config.yaml", env!("HOME"))),
-            PathBuf::from("/etc/io.mikupush.server/config.yaml"),
-        ];
-
-        #[cfg(target_os = "windows")]
-        let paths: Vec<PathBuf> = vec![
-            PathBuf::from("config.yaml"),
-            PathBuf::from(format!("{}\\io.mikupush.server\\config.yaml", env!("LOCALAPPDATA"))),
-        ];
-
-        #[cfg(target_os = "macos")]
-        let paths: Vec<PathBuf> = vec![
-            PathBuf::from("config.yaml"),
-            PathBuf::from(format!("{}/.io.mikupush.server/config.yaml", env!("HOME"))),
-            PathBuf::from(format!("{}/.config/io.mikupush.server/config.yaml", env!("HOME"))),
-            PathBuf::from(format!("{}/Library/Application Support/io.mikupush.server/config.yaml", env!("HOME"))),
-        ];
-
-        let mut existing_path = None;
-        for path in paths {
-            debug!("attempting to load configuration file: {}", path.display());
-
-            if !path.exists() {
-                debug!("configuration file not found: {}", path.display());
-                continue;
-            }
-
-            existing_path = Some(path);
-        }
-
-        existing_path
     }
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        local_trace(|| debug!("using default configuration"));
+        println!("using default configuration");
 
         Settings {
             server: Server::default(),
