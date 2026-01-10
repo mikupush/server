@@ -24,6 +24,7 @@ use crate::config::Upload as UploadSettings;
 #[cfg(test)]
 use std::path::PathBuf;
 use tracing::field::debug;
+use crate::tracing::ElapsedTimeTracing;
 
 pub trait ObjectStorageWriter {
     /// Write an entire file with an optional size limit.
@@ -68,6 +69,7 @@ impl ObjectStorageWriter for FileSystemObjectStorageWriter {
         destination: String,
         limit: Option<u64>
     ) -> Result<u64, ObjectStorageWriteError> {
+        let time_trace = ElapsedTimeTracing::new("write_file_to_file_system");
         debug!("writing content to {}", destination);
         let mut file = OpenOptions::new()
             .create(true)
@@ -89,6 +91,7 @@ impl ObjectStorageWriter for FileSystemObjectStorageWriter {
         file.sync_all().await?;
 
         debug!("wrote {} bytes on {}", bytes_written, destination);
+        time_trace.trace();
         Ok(bytes_written)
     }
 }
