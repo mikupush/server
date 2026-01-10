@@ -25,6 +25,7 @@ use r2d2::Error as PoolError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use uuid::Uuid;
+use crate::tracing::ElapsedTimeTracing;
 
 #[derive(Debug)]
 pub enum FileUploadRepositoryError {
@@ -97,24 +98,30 @@ impl PostgresFileUploadRepository {
 
 impl FileUploadRepository for PostgresFileUploadRepository {
     fn find_by_id(&self, file_upload_id: Uuid) -> Result<Option<FileUpload>, FileUploadRepositoryError> {
+        let trace_time = ElapsedTimeTracing::new("postgres_find_file_by_id");
         let mut connection = self.db_pool.get()?;
         let record: Option<FileUploadModel> = file_uploads::table
             .find(file_upload_id)
             .first(&mut connection)
             .optional()?;
 
-        Ok(record.map(FileUpload::from))
+        let mapped = record.map(FileUpload::from);
+        trace_time.trace();
+        Ok(mapped)
     }
 
     fn delete(&self, file_upload_id: Uuid) -> Result<(), FileUploadRepositoryError> {
+        let trace_time = ElapsedTimeTracing::new("postgres_delete_file_by_id");
         let mut connection = self.db_pool.get()?;
         diesel::delete(file_uploads::table.find(file_upload_id))
             .execute(&mut connection)?;
 
+        trace_time.trace();
         Ok(())
     }
 
     fn save(&self, file_upload: FileUpload) -> Result<(), FileUploadRepositoryError> {
+        let trace_time = ElapsedTimeTracing::new("postgres_save_file");
         let mut connection = self.db_pool.get()?;
         let model: FileUploadModel = file_upload.into();
 
@@ -125,6 +132,7 @@ impl FileUploadRepository for PostgresFileUploadRepository {
             .set(&model)
             .execute(&mut connection)?;
 
+        trace_time.trace();
         Ok(())
     }
 }

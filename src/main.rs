@@ -28,6 +28,7 @@ mod errors;
 mod logging;
 mod repository;
 mod model;
+mod tracing;
 
 use crate::database::setup_database_connection;
 use crate::logging::configure_logging;

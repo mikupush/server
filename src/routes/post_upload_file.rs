@@ -25,6 +25,7 @@ use futures::TryStreamExt;
 use tokio_util::io::StreamReader;
 use tracing::debug;
 use uuid::Uuid;
+use crate::tracing::ElapsedTimeTracing;
 
 #[post("/api/file/{id}/upload")]
 pub async fn post_upload_file(
@@ -32,16 +33,21 @@ pub async fn post_upload_file(
     id: web::Path<String>,
     payload: Payload
 ) -> Result<HttpResponse> {
+    let time_tracing = ElapsedTimeTracing::new("post_upload_file");
     let settings = settings.get_ref().clone();
     let file_uploader = FileUploader::get_with_settings(settings);
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
+        time_tracing.trace();
         return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
     };
 
     let mapper = payload.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
     let body_reader = StreamReader::new(mapper);
-    match file_uploader.upload_file(id, body_reader).await {
+    let result = file_uploader.upload_file(id, body_reader).await;
+    time_tracing.trace();
+
+    match result {
         Ok(_) => Ok(HttpResponse::Ok().finish()),
         Err(err) => Ok(handle_post_upload_file_error(err))
     }
@@ -54,6 +60,7 @@ pub async fn post_upload_part(
     payload: Payload,
     request: HttpRequest
 ) -> Result<HttpResponse> {
+    let time_tracing = ElapsedTimeTracing::new("post_upload_part");
     let (id, index) = path.into_inner();
     let settings = settings.get_ref().clone();
     let content_length = request.headers()
@@ -66,18 +73,23 @@ pub async fn post_upload_part(
     if content_length > CONTENT_PART_SIZE_LIMIT {
         debug!("content length {} is greater than max part size {}", content_length, CONTENT_PART_SIZE_LIMIT);
         let response = ErrorResponse::from(FileUploadError::MaxFilePartSizeExceeded);
+        time_tracing.trace();
         return Ok(HttpResponse::PayloadTooLarge().json(response))
     }
 
     let file_uploader = FileUploader::get_with_settings(settings);
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
+        time_tracing.trace();
         return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
     };
 
     let mapper = payload.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
     let body_reader = StreamReader::new(mapper);
-    match file_uploader.upload_chunk(id, index, body_reader).await {
+    let result = file_uploader.upload_chunk(id, index, body_reader).await;
+    time_tracing.trace();
+
+    match result {
         Ok(_) => Ok(HttpResponse::Ok().finish()),
         Err(err) => Ok(handle_post_upload_file_error(err))
     }
