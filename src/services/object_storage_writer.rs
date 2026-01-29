@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::path::Path;
 use actix_web::error::PayloadError;
 use tokio::fs::OpenOptions;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
@@ -70,7 +71,15 @@ impl ObjectStorageWriter for FileSystemObjectStorageWriter {
         limit: Option<u64>
     ) -> Result<u64, ObjectStorageWriteError> {
         let time_trace = ElapsedTimeTracing::new("write_file_to_file_system");
-        debug!("writing content to {}", destination);
+        let destination = Path::new(&destination);
+        let destination_directory = destination.parent();
+        if let Some(destination_directory) = destination_directory
+            && destination_directory.exists() == false
+        {
+            std::fs::create_dir_all(destination_directory)?;
+        }
+
+        debug!("writing content to {:?}", destination);
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
@@ -90,7 +99,7 @@ impl ObjectStorageWriter for FileSystemObjectStorageWriter {
         file.flush().await?;
         file.sync_all().await?;
 
-        debug!("wrote {} bytes on {}", bytes_written, destination);
+        debug!("wrote {} bytes on {:?}", bytes_written, destination);
         time_trace.trace();
         Ok(bytes_written)
     }

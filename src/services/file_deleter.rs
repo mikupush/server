@@ -52,7 +52,7 @@ where
             }
         };
 
-        let directory = file_upload.directory(&self.settings)?;
+        let directory = file_upload.content_directory(&self.settings)?;
 
         debug!("deleting file from the filesystem: {} ({})", directory.display(), id.to_string());
         let remove_result = self.remover.remove(directory.to_string_lossy().to_string());

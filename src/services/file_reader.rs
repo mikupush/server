@@ -16,44 +16,36 @@
 
 use crate::config::Settings;
 use crate::errors::FileReadError;
-use crate::model::{FileUpload, Part};
-use crate::repository::{FileUploadRepository, ManifestRepository, PostgresFileUploadRepository, SQLiteManifestRepository};
+use crate::model::{FilePart, FileUpload};
+use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::services::object_storage_reader::{FileSystemObjectStorageReader, ObjectStorageReader};
 use bytes::Bytes;
-use futures::future::BoxFuture;
-use futures::FutureExt;
-use futures::StreamExt;
 use rusqlite::fallible_iterator::FallibleIterator;
 use std::io;
 use std::path::Path;
-use tokio::fs::File;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::Stream;
-use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
-pub struct FileReader<FR, OBR, MR>
+pub struct FileReader<FR, OBR>
 where
     FR: FileUploadRepository + Clone + Send + 'static,
     OBR: ObjectStorageReader + Clone + Send + 'static,
-    MR: ManifestRepository + Clone + Send + 'static,
 {
     repository: FR,
     reader: OBR,
-    manifest_repository: MR,
     settings: Settings,
 }
 
-impl<FR, OBR, MR> FileReader<FR, OBR, MR>
+impl<FR, OBR> FileReader<FR, OBR>
 where
     FR: FileUploadRepository + Clone + Send + 'static,
     OBR: ObjectStorageReader + Clone + Send,
-    MR: ManifestRepository + Clone + Send,
 {
-    pub fn new(repository: FR, reader: OBR, manifest_repository: MR, settings: Settings) -> Self {
-        Self { repository, reader, manifest_repository, settings }
+    pub fn new(repository: FR, reader: OBR, settings: Settings) -> Self {
+        Self { repository, reader, settings }
     }
 
     pub async fn read(&self, id: Uuid) -> Result<FileStreamWrapper, FileReadError> {
@@ -67,7 +59,6 @@ where
 
         if file_upload.chunked {
             let reader = ChunkedFileReader::new(
-                self.manifest_repository.clone(),
                 self.reader.clone(),
                 file_upload.clone(),
                 self.settings.clone()
@@ -86,12 +77,11 @@ where
     }
 }
 
-impl FileReader<PostgresFileUploadRepository, FileSystemObjectStorageReader, SQLiteManifestRepository> {
+impl FileReader<PostgresFileUploadRepository, FileSystemObjectStorageReader> {
     pub fn get_with_settings(settings: Settings) -> Self {
         Self::new(
             PostgresFileUploadRepository::get_with_settings(settings.clone()),
             FileSystemObjectStorageReader::new(),
-            SQLiteManifestRepository::new(settings.clone()),
             settings
         )
     }
@@ -117,7 +107,7 @@ where
     OBR: ObjectStorageReader + Clone + Send + 'static
 {
     pub async fn read(&self) -> Result<FileStreamWrapper, FileReadError> {
-        let directory = self.details.directory(&self.settings)?;
+        let directory = self.details.content_directory(&self.settings)?;
         let path = Path::new(&directory)
             .join(self.details.name.clone())
             .to_string_lossy()
@@ -132,26 +122,22 @@ where
 }
 
 #[derive(Debug, Clone)]
-pub struct ChunkedFileReader<MR, OBR>
+pub struct ChunkedFileReader<OBR>
 where
-    MR: ManifestRepository + Clone + Send + 'static,
     OBR: ObjectStorageReader + Clone + Send + 'static
 {
-    repository: MR,
     reader: OBR,
     last_index: i32,
     details: FileUpload,
-    settings: Settings
+    settings: Settings,
 }
 
-impl<MR, OBR> ChunkedFileReader<MR, OBR>
+impl<OBR> ChunkedFileReader<OBR>
 where
-    MR: ManifestRepository + Clone + Send + 'static,
     OBR: ObjectStorageReader + Clone + Send + 'static
 {
-    pub fn new(repository: MR, reader: OBR, details: FileUpload, settings: Settings) -> Self {
+    pub fn new(reader: OBR, details: FileUpload, settings: Settings) -> Self {
         Self {
-            repository,
             reader,
             details,
             settings,
@@ -173,38 +159,13 @@ where
         })
     }
 
-    fn next_part(&mut self) -> io::Result<Option<Part>> {
-        let parts = self.repository.take_parts(self.details.id.clone(), 1, self.last_index);
-        if let Err(err) = parts {
-            return Err(io::Error::new(io::ErrorKind::Other, err.to_string()));
-        }
-
-        let part = parts
-            .unwrap()
-            .first()
-            .map(|part| part.clone());
-
-        self.last_index += 1;
-        Ok(part)
-    }
-
     async fn send_bytes(&mut self, sender: mpsc::Sender<io::Result<Bytes>>) -> io::Result<()> {
-        let directory = self.details.directory(&self.settings)?;
+        let directory = self.details.content_directory(&self.settings)?;
+        let parts = std::fs::read_dir(&directory)?.count();
         let directory = directory.clone();
 
-        loop {
-            let part = self.next_part();
-
-            if let Err(err) = part {
-                let _ = sender.send(Err(err)).await;
-                continue;
-            }
-
-            let Some(part) = part.unwrap() else {
-                break;
-            };
-
-            let location = directory.join(part.file_name())
+        for part in 0..parts {
+            let location = directory.join(FilePart::name(part))
                 .to_string_lossy()
                 .to_string();
 

@@ -23,6 +23,7 @@ mod file_info;
 mod object_storage_writer;
 mod object_storage_remover;
 mod object_storage_reader;
+mod file_chunk_size;
 
 pub use file_deleter::*;
 pub use file_info::*;
