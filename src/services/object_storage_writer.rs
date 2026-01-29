@@ -95,10 +95,6 @@ impl ObjectStorageWriter for FileSystemObjectStorageWriter {
             tokio::io::copy(&mut reader, &mut file).await?
         };
 
-        // Ensure all data is flushed to disk before closing
-        file.flush().await?;
-        file.sync_all().await?;
-
         debug!("wrote {} bytes on {:?}", bytes_written, destination);
         time_trace.trace();
         Ok(bytes_written)
