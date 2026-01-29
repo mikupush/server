@@ -16,12 +16,13 @@
 
 use crate::config::Settings;
 use crate::errors::Error;
-use crate::model::{FileUpload, Manifest, Part};
-use crate::repository::{FileUploadRepository, FileUploadRepositoryError, ManifestError, ManifestRepository, PostgresFileUploadRepository, SQLiteManifestRepository};
+use crate::model::{FilePart, FileUpload};
+use crate::repository::{FileUploadRepository, FileUploadRepositoryError, PostgresFileUploadRepository};
+use crate::services::file_chunk_size::{ChunkedUploadSizeAccumulator, InMemoryChunkedUploadSizeAccumulator};
 use crate::services::object_storage_remover::{FileSystemObjectStorageRemover, ObjectStorageRemoveError, ObjectStorageRemover};
 use crate::services::object_storage_writer::{FileSystemObjectStorageWriter, ObjectStorageWriteError, ObjectStorageWriter};
 use crate::services::FileSizeLimiter;
-use std::fmt::Display;
+use std::fmt::{format, Display};
 use tokio::io::AsyncRead;
 use tracing::debug;
 use uuid::Uuid;
@@ -29,42 +30,40 @@ use uuid::Uuid;
 pub const CONTENT_PART_SIZE_LIMIT: u64 = 10 * 1024 * 1024;
 
 #[derive(Debug, Clone)]
-pub struct FileUploader<FR, MR, OSW, OSR>
+pub struct FileUploader<FR, OSW, CSA>
 where
     FR: FileUploadRepository + Clone + Send + 'static,
-    MR: ManifestRepository + Clone + Send + 'static,
     OSW: ObjectStorageWriter + Clone + Send + 'static,
-    OSR: ObjectStorageRemover + Clone + Send + 'static
+    CSA: ChunkedUploadSizeAccumulator + Clone + Send + 'static
 {
     repository: FR,
-    manifest_repository: MR,
     writer: OSW,
-    remover: OSR,
+    size_accumulator: CSA,
     settings: Settings,
     limiter: FileSizeLimiter
 }
 
-impl<FR, MR, OSW, OSD> FileUploader<FR, MR, OSW, OSD>
+impl<FR, OSW, CSA> FileUploader<FR, OSW, CSA>
 where
     FR: FileUploadRepository + Clone + Send + 'static,
-    MR: ManifestRepository + Clone + Send + 'static,
     OSW: ObjectStorageWriter + Clone + Send + 'static,
-    OSD: ObjectStorageRemover + Clone + Send + 'static
+    CSA: ChunkedUploadSizeAccumulator + Clone + Send + 'static
 {
     pub fn new(
         repository: FR,
-        manifest_repository: MR,
         writer: OSW,
-        remover: OSD,
         settings: Settings,
-        limiter: FileSizeLimiter
+        limiter: FileSizeLimiter,
+        size_accumulator: CSA
     ) -> Self {
-        Self { repository, manifest_repository, settings, limiter, writer, remover }
+        Self { repository, settings, limiter, writer, size_accumulator }
     }
 
     pub async fn upload_file(&self, id: Uuid, reader: impl AsyncRead + Unpin) -> Result<(), FileUploadError> {
         let file_upload = self.find_upload_by_id(id).await?;
-        let destination_path = self.build_destination_path(&file_upload, &file_upload.name)?;
+        let destination_path = file_upload.content_directory(&self.settings)?;
+        let destination_path = destination_path.join(file_upload.name);
+        let destination_path = destination_path.to_string_lossy().to_string();
 
         let bytes_written = if self.settings.upload.is_limited() {
             self.writer.write(reader, destination_path, self.settings.upload.max_size).await?
@@ -95,31 +94,15 @@ where
             self.save_upload(file_upload.clone()).await?;
         }
 
-        let mut part = Part::new(file_upload.id, index);
-        let destination_path = self.build_destination_path(&file_upload, &part.file_name())?;
+        let destination_path = file_upload.content_directory(&self.settings)?;
+        let destination_path = destination_path.join(FilePart::name(index as usize));
+        let destination_path = destination_path.to_string_lossy().to_string();
 
         // write chunk with 10MB limit
         let bytes_wrote = self.writer.write(reader, destination_path.clone(), Some(CONTENT_PART_SIZE_LIMIT)).await?;
-        part.size = bytes_wrote;
-
-        let put_part_result = self.put_part_in_manifest(part.clone()).await;
-        if let Err(err) = put_part_result {
-            if err != ManifestError::DuplicatedPart {
-                debug!("removing failed uploaded part: {}", err);
-                let remover = self.remover.clone();
-                let _ = tokio::task::spawn_blocking(move || remover.remove(destination_path)).await;
-            }
-
-            return Err(err.into());
-        }
 
         debug!("checking all parts not exceed file size limit");
-        let manifest = self.find_manifest_by_upload_id(id).await?;
-        let mut total_bytes = 0;
-
-        for part in manifest.parts {
-            total_bytes += part.size;
-        }
+        let total_bytes = self.size_accumulator.accumulate(id, bytes_wrote);
 
         if self.limiter.check_file_size(total_bytes) == false {
             return Err(FileUploadError::MaxFileSizeExceeded);
@@ -148,44 +131,20 @@ where
 
         Ok(file_upload.unwrap())
     }
-
-    async fn find_manifest_by_upload_id(&self, id: Uuid) -> Result<Manifest, FileUploadError> {
-        let manifest_repo = self.manifest_repository.clone();
-        let manifest = tokio::task::spawn_blocking(move || manifest_repo.find_by_upload_id(id)).await
-            .map_err(|e| FileUploadError::IO { message: e.to_string() })??;
-
-        Ok(manifest)
-    }
-
-    async fn put_part_in_manifest(&self, part: Part) -> Result<(), ManifestError> {
-        let manifest_repo = self.manifest_repository.clone();
-        let result = tokio::task::spawn_blocking(move || manifest_repo.put_part(part)).await
-            .map_err(|err| ManifestError::IO(err.to_string()))?;
-
-        result
-    }
-
-    fn build_destination_path(&self, file_upload: &FileUpload, file_name: &String) -> Result<String, FileUploadError> {
-        let destination_path = file_upload.directory(&self.settings)?;
-        let destination_path = destination_path.join(file_name);
-        Ok(destination_path.to_string_lossy().to_string())
-    }
 }
 
 impl FileUploader<
     PostgresFileUploadRepository,
-    SQLiteManifestRepository,
     FileSystemObjectStorageWriter,
-    FileSystemObjectStorageRemover
+    InMemoryChunkedUploadSizeAccumulator
 > {
     pub fn get_with_settings(settings: Settings) -> Self {
         Self::new(
             PostgresFileUploadRepository::get_with_settings(settings.clone()),
-            SQLiteManifestRepository::new(settings.clone()),
             FileSystemObjectStorageWriter::new(),
-            FileSystemObjectStorageRemover::new(),
             settings.clone(),
             FileSizeLimiter::new(settings.clone()),
+            InMemoryChunkedUploadSizeAccumulator::new()
         )
     }
 }
@@ -281,15 +240,6 @@ impl From<ObjectStorageWriteError> for FileUploadError {
     }
 }
 
-impl From<ManifestError> for FileUploadError {
-    fn from(value: ManifestError) -> Self {
-        match value {
-            ManifestError::IO(err) => FileUploadError::IO { message: err },
-            ManifestError::DuplicatedPart => FileUploadError::DuplicatedChunk,
-        }
-    }
-}
-
 impl From<ObjectStorageRemoveError> for FileUploadError {
     fn from(value: ObjectStorageRemoveError) -> Self {
         FileUploadError::IO { message: value.to_string() }
@@ -312,8 +262,8 @@ pub mod file_upload_codes {
 mod tests {
     use crate::config::Settings;
     use crate::model::FileUpload;
-    use crate::repository::{InMemoryFileUploadRepository, InMemoryManifestRepository};
-    use crate::services::object_storage_remover::FakeObjectStorageRemover;
+    use crate::repository::InMemoryFileUploadRepository;
+    use crate::services::file_chunk_size::InMemoryChunkedUploadSizeAccumulator;
     use crate::services::object_storage_writer::FakeObjectStorageWriter;
     use crate::services::{FileSizeLimiter, FileUploadError, FileUploader};
     use bytes::Bytes;
@@ -323,29 +273,26 @@ mod tests {
 
     impl FileUploader<
         InMemoryFileUploadRepository,
-        InMemoryManifestRepository,
         FakeObjectStorageWriter,
-        FakeObjectStorageRemover
+        InMemoryChunkedUploadSizeAccumulator
     > {
         pub fn create() -> Self {
             Self {
                 repository: Self::create_repository(),
-                manifest_repository: InMemoryManifestRepository::new(),
                 writer: FakeObjectStorageWriter,
                 settings: Settings::default(),
                 limiter: FileSizeLimiter::create(),
-                remover: FakeObjectStorageRemover::new()
+                size_accumulator: InMemoryChunkedUploadSizeAccumulator::new()
             }
         }
 
         pub fn create_with_limit() -> Self {
             Self {
                 repository: Self::create_repository(),
-                manifest_repository: InMemoryManifestRepository::new(),
                 writer: FakeObjectStorageWriter,
                 settings: Settings::default(),
                 limiter: FileSizeLimiter::create_limited(),
-                remover: FakeObjectStorageRemover::new()
+                size_accumulator: InMemoryChunkedUploadSizeAccumulator::new()
             }
         }
 

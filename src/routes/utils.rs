@@ -37,11 +37,10 @@ pub fn read_template(settings: &Settings, template: &str) -> String {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::config::{Settings, Upload};
+    use crate::config::Settings;
     use crate::database::DbPool;
-    use crate::model::FileUploadModel as FileUploadModel;
-    use crate::model::{FileUpload, Part};
-    use crate::repository::tests::insert_test_manifest_part;
+    use crate::model::{FilePart, FileUploadModel as FileUploadModel};
+    use crate::model::FileUpload;
     use crate::schema::file_uploads;
     use actix_web::dev::ServiceResponse;
     use chrono::Utc;
@@ -64,9 +63,9 @@ pub mod tests {
             chunked: false
         };
 
-        let settings = Upload::default();
-        let path = Path::new(&settings.directory)
-            .join(file_upload.id.to_string())
+        let settings = Settings::default();
+        let path = file_upload.content_directory(&settings)
+            .unwrap()
             .join(file_upload.name.clone());
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(path.clone(), vec![1; file_upload.size as usize]).unwrap();
@@ -93,14 +92,11 @@ pub mod tests {
             chunked: true
         };
 
-        let path = Path::new(&settings.upload.directory)
-            .join(file_upload.id.to_string());
+        let path = file_upload.content_directory(&settings).unwrap();
         std::fs::create_dir_all(&path).unwrap();
 
         for (i, content) in parts.iter().enumerate() {
-            let part = Part::new(file_upload.id, i as i64);
-            std::fs::write(path.join(part.file_name()), content).unwrap();
-            insert_test_manifest_part(&settings, &part);
+            std::fs::write(path.join(FilePart::name(i)), content).unwrap();
         }
 
         let mut connection = pool.get().unwrap();

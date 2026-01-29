@@ -36,14 +36,27 @@ impl FileUpload {
     }
 
     /// Create and retrieve the directory for the file upload
-    pub fn directory(&self, settings: &Settings) -> Result<PathBuf, std::io::Error> {
+    fn directory(&self, settings: &Settings) -> Result<PathBuf, std::io::Error> {
         let destination_directory = settings.upload.directory.clone();
         let destination_directory = Path::new(destination_directory.as_str())
             .join(self.id.to_string());
 
-        if let Err(err) = std::fs::create_dir_all(&destination_directory) {
-            return Err(err)
-        }
+        Ok(destination_directory)
+    }
+
+    /// Get the directory for the file content. This directory is used to store the file content
+    /// which can be file parts or single file contents.
+    pub fn content_directory(&self, settings: &Settings) -> Result<PathBuf, std::io::Error> {
+        let destination_directory = self.directory(settings)?;
+        let destination_directory = destination_directory.join("content");
+
+        Ok(destination_directory)
+    }
+
+    /// Get the directory for the file checksum. This directory is used to store the file checksums.
+    pub fn sum_directory(&self, settings: &Settings) -> Result<PathBuf, std::io::Error> {
+        let destination_directory = self.directory(settings)?;
+        let destination_directory = destination_directory.join("sum");
 
         Ok(destination_directory)
     }

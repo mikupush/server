@@ -49,7 +49,7 @@ where
             }
         };
 
-        let directory = file_upload.directory(&self.settings)?;
+        let directory = file_upload.content_directory(&self.settings)?;
         let path = Path::new(&directory).join(file_upload.clone().name);
 
         Ok(FileInfo::from_file_upload(&file_upload, path))
