@@ -27,8 +27,6 @@ use tokio::io::AsyncRead;
 use tracing::debug;
 use uuid::Uuid;
 
-pub const CONTENT_PART_SIZE_LIMIT: u64 = 10 * 1024 * 1024;
-
 #[derive(Debug, Clone)]
 pub struct FileUploader<FR, OSW, CSA>
 where
@@ -65,11 +63,7 @@ where
         let destination_path = destination_path.join(file_upload.name);
         let destination_path = destination_path.to_string_lossy().to_string();
 
-        let bytes_written = if self.settings.upload.is_limited() {
-            self.writer.write(reader, destination_path, self.settings.upload.max_size).await?
-        } else {
-            self.writer.write(reader, destination_path, None).await?
-        };
+        let bytes_written = self.write_content(reader, destination_path).await?;
 
         if self.limiter.check_file_size(bytes_written) == false {
             debug!("file size limit exceeded");
@@ -98,17 +92,26 @@ where
         let destination_path = destination_path.join(FilePart::name(index as usize));
         let destination_path = destination_path.to_string_lossy().to_string();
 
-        // write chunk with 10MB limit
-        let bytes_wrote = self.writer.write(reader, destination_path.clone(), Some(CONTENT_PART_SIZE_LIMIT)).await?;
+        let bytes_written = self.write_content(reader, destination_path).await?;
 
         debug!("checking all parts not exceed file size limit");
-        let total_bytes = self.size_accumulator.accumulate(id, bytes_wrote);
+        let total_bytes = self.size_accumulator.accumulate(id, bytes_written);
 
         if self.limiter.check_file_size(total_bytes) == false {
             return Err(FileUploadError::MaxFileSizeExceeded);
         }
 
         Ok(())
+    }
+
+    async fn write_content(&self, reader: impl AsyncRead + Unpin, destination_path: String) -> Result<u64, ObjectStorageWriteError> {
+        let bytes_written = if self.settings.upload.is_limited() {
+            self.writer.write(reader, destination_path, self.settings.upload.max_size).await?
+        } else {
+            self.writer.write(reader, destination_path, None).await?
+        };
+
+        Ok(bytes_written)
     }
 
     async fn save_upload(&self, file_upload: FileUpload) -> Result<(), FileUploadError> {
