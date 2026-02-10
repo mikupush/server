@@ -24,6 +24,7 @@ mod object_storage_writer;
 mod object_storage_remover;
 mod object_storage_reader;
 mod file_chunk_size;
+mod clock;
 
 pub use file_deleter::*;
 pub use file_info::*;
@@ -32,3 +33,4 @@ pub use file_register::*;
 pub use file_size_limiter::*;
 pub use file_uploader::*;
 pub use object_storage_remover::*;
+pub use clock::*;

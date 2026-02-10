@@ -203,6 +203,10 @@ upload:
   # Can be a relative or absolute path.
   # Default: data
   directory: data
+  # Expiration time for uploaded files in days.
+  # If not set, files do not expire.
+  # Example: 7 for 7 days
+  expires_in_days: 7
 ```
 #### Environment variables
 ```text
@@ -210,6 +214,8 @@ upload:
 MIKU_PUSH_UPLOAD_MAX_SIZE=5000000000
 # Relative or absolute path; default is "data"
 MIKU_PUSH_UPLOAD_DIRECTORY=data
+# Number of days before the file expires
+MIKU_PUSH_UPLOAD_EXPIRES_IN_DAYS=7
 ```
 
 For a complete, commented template, see `config.example.yaml`. If a key is missing in `config.yaml` and there is no environment variable set, the application falls back to the documented default values.

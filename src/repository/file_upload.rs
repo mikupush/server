@@ -225,7 +225,8 @@ mod tests {
             mime_type: "image/jpeg".to_string(),
             size: 1024,
             uploaded_at: Utc::now().naive_utc(),
-            chunked: false
+            chunked: false,
+            expires_at: None
         }
     }
 

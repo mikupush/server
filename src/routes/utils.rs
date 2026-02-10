@@ -60,7 +60,8 @@ pub mod tests {
             mime_type: "image/jpeg".to_string(),
             size: 200792,
             uploaded_at: Utc::now().naive_utc(),
-            chunked: false
+            chunked: false,
+            expires_at: None
         };
 
         let settings = Settings::default();
@@ -89,7 +90,8 @@ pub mod tests {
             mime_type: "text/plain".to_string(),
             size: 11,
             uploaded_at: Utc::now().naive_utc(),
-            chunked: true
+            chunked: true,
+            expires_at: None
         };
 
         let path = file_upload.content_directory(&settings).unwrap();
@@ -116,7 +118,8 @@ pub mod tests {
             mime_type: "image/jpeg".to_string(),
             size: 200792,
             uploaded_at: Utc::now().naive_utc(),
-            chunked: false
+            chunked: false,
+            expires_at: None
         };
 
         let mut connection = pool.get().unwrap();

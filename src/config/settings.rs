@@ -168,6 +168,7 @@ impl Default for Server {
 pub struct Upload {
     pub max_size: Option<u64>,
     pub directory: String,
+    pub expires_in_days: Option<u64>,
 }
 
 impl Upload {
@@ -181,6 +182,9 @@ impl Upload {
                 .or_else(|| env.upload.directory)
                 .or_else(|| log_default_config("upload.directory", Some(default.directory)))
                 .unwrap(),
+            expires_in_days: log_yaml_config("upload.expires_in_days", yaml.upload.expires_in_days)
+                .or_else(|| env.upload.expires_in_days)
+                .or_else(|| log_default_config("upload.expires_in_days", default.expires_in_days)),
         }
     }
 
@@ -190,6 +194,7 @@ impl Upload {
         Self {
             max_size: Some(limit),
             directory: default.directory,
+            expires_in_days: default.expires_in_days,
         }
     }
 
@@ -203,6 +208,7 @@ impl Default for Upload {
         Self {
             max_size: None,
             directory: "data".to_string(),
+            expires_in_days: None,
         }
     }
 }

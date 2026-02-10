@@ -55,9 +55,9 @@ pub async fn post_file(
 
     time_tracing.trace();
     match register_result {
-        Ok(_) => {
+        Ok(file_upload) => {
             debug!("returning status code 200 for registered file {}", request.id);
-            Ok(HttpResponse::Ok().finish())
+            Ok(HttpResponse::Ok().json(file_upload))
         },
         Err(err) => Ok(handle_register_file_failure(request, err))
     }
