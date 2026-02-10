@@ -1,0 +1,57 @@
+use crate::config::Settings;
+use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
+use crate::services::object_storage_remover::ObjectStorageRemover;
+use crate::services::FileDeleter;
+use std::thread;
+use std::time::Duration;
+use tracing::{debug, error, info};
+
+pub fn start_cleanup_expired_files(settings: Settings) {
+    if settings.upload.expires_in_days.is_none() {
+        return;
+    }
+
+    info!("launching file cleanup job every hour");
+
+    thread::spawn(move || {
+        debug!("expired file cleanup job started");
+
+        loop {
+            let repository = PostgresFileUploadRepository::get_with_settings(settings.clone());
+            let deleter = FileDeleter::get_with_settings(settings.clone());
+
+            cleanup_expired_files(repository, deleter);
+            thread::sleep(Duration::from_secs(3600));
+        }
+    });
+}
+
+pub fn cleanup_expired_files<FR, OSR>(repository: FR, deleter: FileDeleter<FR, OSR>)
+where
+    FR: FileUploadRepository + Clone,
+    OSR: ObjectStorageRemover + Clone,
+{
+    info!("starting cleanup of expired files");
+    let expired_files = match repository.find_expired() {
+        Ok(expired_files) => expired_files,
+        Err(e) => {
+            error!("failed to fetch expired files: {:?}", e);
+            return;
+        }
+    };
+
+    if expired_files.is_empty() {
+        info!("no expired files found");
+        return;
+    }
+
+    info!("found {} expired files to delete", expired_files.len());
+    for file in expired_files {
+        match deleter.delete(file.id) {
+            Ok(_) => debug!("deleted expired file: {}", file.id),
+            Err(e) => error!("failed to delete expired file {}: {:?}", file.id, e),
+        }
+    }
+
+    info!("finished cleanup of expired files");
+}

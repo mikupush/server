@@ -64,6 +64,9 @@ async fn main() -> std::io::Result<()> {
     // database connection pool
     let pool = setup_database_connection(&settings);
 
+    // launch scheduled jobs
+    jobs::start_cleanup_expired_files(settings.clone());
+
     // services
     let file_upload_repository = repository::PostgresFileUploadRepository::new(pool.clone());
     let finder = services::FileInfoFinder::new(file_upload_repository.clone(), settings.clone());

@@ -21,7 +21,7 @@ mod file_deleter;
 mod file_reader;
 mod file_info;
 mod object_storage_writer;
-mod object_storage_remover;
+pub(crate) mod object_storage_remover;
 mod object_storage_reader;
 mod file_chunk_size;
 mod clock;
