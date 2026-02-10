@@ -24,6 +24,10 @@ paths:
       responses:
         200:
           description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUpload'
         409:
           description: File registration exists
           content:
@@ -303,6 +307,42 @@ components:
           type: integer
           format: int64
           example: 3145728
+    FileUpload:
+      required:
+        - id
+        - name
+        - mime_type
+        - size
+        - uploaded_at
+        - chunked
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: acdb1260-d4de-4aab-a3a9-02665ae25771
+        name:
+          type: string
+          example: dogs.jpeg
+        mime_type:
+          type: string
+          example: image/jpeg
+        size:
+          type: integer
+          format: int64
+          example: 3145728
+        uploaded_at:
+          type: string
+          format: date-time
+          example: "2021-09-29T12:00:00Z"
+        chunked:
+          type: boolean
+          example: false
+        expires_at:
+          type: string
+          format: date-time
+          example: "2021-09-29T12:00:00Z"
+          nullable: true
     FileInfo:
       required:
         - id
@@ -335,6 +375,11 @@ components:
           enum:
             - WaitingForUpload
             - Uploaded
+        expires_at:
+          type: string
+          format: date-time
+          example: "2021-09-29T12:00:00Z"
+          nullable: true
     HealthStatus:
       required:
         - status
