@@ -66,7 +66,6 @@ mod tests {
     use crate::config::Settings;
     use crate::database::setup_database_connection;
     use crate::errors::{file_delete_codes, route_error_codes};
-    use crate::model::{FileInfo, FileStatus};
     use crate::routes::utils::tests::{create_test_file_upload, register_test_file};
     use crate::routes::{get_file_info, ErrorResponse};
     use crate::services::FileInfoFinder;
@@ -74,6 +73,7 @@ mod tests {
     use actix_web::{test, web, App};
     use serial_test::serial;
     use uuid::Uuid;
+    use crate::model::{FileInfo, FileStatus};
 
     #[actix_web::test]
     async fn test_get_file_info_200_ok() {

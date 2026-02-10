@@ -18,23 +18,21 @@ use crate::config::Settings;
 use chrono::NaiveDateTime;
 use diesel::{AsChangeset, Insertable, Queryable};
 use std::path::{Path, PathBuf};
+use serde::Serialize;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
 pub struct FileUpload {
     pub id: Uuid,
     pub name: String,
     pub mime_type: String,
     pub size: i64,
     pub uploaded_at: NaiveDateTime,
-    pub chunked: bool
+    pub chunked: bool,
+    pub expires_at: Option<NaiveDateTime>,
 }
 
 impl FileUpload {
-    pub fn new(id: Uuid, name: String, mime_type: String, size: i64, uploaded_at: NaiveDateTime) -> Self {
-        Self { id, name, mime_type, size, uploaded_at, chunked: false }
-    }
-
     /// Create and retrieve the directory for the file upload
     fn directory(&self, settings: &Settings) -> Result<PathBuf, std::io::Error> {
         let destination_directory = settings.upload.directory.clone();
@@ -71,7 +69,8 @@ pub struct FileUploadModel {
     pub mime_type: String,
     pub size: i64,
     pub uploaded_at: NaiveDateTime,
-    pub chunked: bool
+    pub chunked: bool,
+    pub expires_at: Option<NaiveDateTime>,
 }
 
 impl From<FileUploadModel> for FileUpload {
@@ -83,6 +82,7 @@ impl From<FileUploadModel> for FileUpload {
             size: model.size,
             uploaded_at: model.uploaded_at,
             chunked: model.chunked,
+            expires_at: model.expires_at,
         }
     }
 }
@@ -96,6 +96,7 @@ impl From<FileUpload> for FileUploadModel {
             size: domain.size,
             uploaded_at: domain.uploaded_at,
             chunked: domain.chunked,
+            expires_at: domain.expires_at,
         }
     }
 }
@@ -113,7 +114,8 @@ mod tests {
                 mime_type: "text/plain".to_string(),
                 size: 10,
                 uploaded_at: chrono::Utc::now().naive_utc(),
-                chunked: false
+                chunked: false,
+                expires_at: None,
             }
         }
     }

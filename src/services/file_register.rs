@@ -18,38 +18,50 @@ use crate::config::Settings;
 use crate::model::FileUpload;
 use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::routes::FileCreate;
-use crate::services::{FileSizeLimiter, FileUploadError};
-use chrono::Utc;
+use crate::services::{FileSizeLimiter, FileUploadError, SystemClock};
+use chrono::Duration;
+use crate::services::clock::Clock;
 
 #[derive(Debug, Clone)]
-pub struct FileRegister<FR>
+pub struct FileRegister<FR, C>
 where
     FR: FileUploadRepository + Clone,
+    C: Clock + Clone
 {
     repository: FR,
-    limiter: FileSizeLimiter
+    limiter: FileSizeLimiter,
+    settings: Settings,
+    clock: C,
 }
 
-impl<FR> FileRegister<FR>
+impl<FR, C> FileRegister<FR, C>
 where
     FR: FileUploadRepository + Clone,
+    C: Clock + Clone
 {
-    pub fn new(repository: FR, limiter: FileSizeLimiter) -> Self {
-        Self { repository, limiter }
+    pub fn new(repository: FR, limiter: FileSizeLimiter, settings: Settings, clock: C) -> Self {
+        Self { repository, limiter, settings, clock }
     }
 
-    pub fn register_file(&self, file_create: FileCreate) -> Result<(), FileUploadError> {
+    pub fn register_file(&self, file_create: FileCreate) -> Result<FileUpload, FileUploadError> {
         if self.limiter.check_file_size(file_create.size as u64) == false {
             return Err(FileUploadError::MaxFileSizeExceeded)
         }
+
+        let now = self.clock.now();
+        let expires_at = match self.settings.upload.expires_in_seconds {
+            Some(expires_in) => now.checked_add_signed(Duration::seconds(expires_in as i64)),
+            None => None
+        };
 
         let file_upload = FileUpload {
             id: file_create.id,
             name: file_create.name,
             mime_type: file_create.mime_type,
             size: file_create.size,
-            uploaded_at: Utc::now().naive_utc(),
-            chunked: false
+            uploaded_at: now,
+            chunked: false,
+            expires_at
         };
 
         let existing = self.repository.find_by_id(file_create.id)?;
@@ -58,17 +70,19 @@ where
             return Err(FileUploadError::Exists)
         }
 
-        self.repository.save(file_upload)?;
+        self.repository.save(file_upload.clone())?;
 
-        Ok(())
+        Ok(file_upload)
     }
 }
 
-impl FileRegister<PostgresFileUploadRepository> {
+impl FileRegister<PostgresFileUploadRepository, SystemClock> {
     pub fn get_with_settings(settings: Settings) -> Self {
         Self::new(
             PostgresFileUploadRepository::get_with_settings(settings.clone()),
-            FileSizeLimiter::new(settings)
+            FileSizeLimiter::new(settings.clone()),
+            settings,
+            SystemClock,
         )
     }
 }
@@ -78,22 +92,44 @@ mod tests {
     use crate::model::FileUpload;
     use crate::repository::InMemoryFileUploadRepository;
     use crate::routes::FileCreate;
-    use crate::services::{FileRegister, FileSizeLimiter, FileUploadError};
+    use crate::services::{FakeClock, FileRegister, FileSizeLimiter, FileUploadError};
     use std::collections::HashMap;
+    use chrono::{Duration, NaiveDateTime};
     use uuid::Uuid;
+    use crate::config::Settings;
 
-    impl FileRegister<InMemoryFileUploadRepository> {
+    fn test_date_time() -> NaiveDateTime {
+        NaiveDateTime::from_timestamp(1676224000, 0)
+    }
+
+    impl FileRegister<InMemoryFileUploadRepository, FakeClock> {
         pub fn create() -> Self {
             Self::new(
                 Self::create_repository(),
-                FileSizeLimiter::create()
+                FileSizeLimiter::create(),
+                Settings::default(),
+                FakeClock(test_date_time())
             )
         }
 
         pub fn create_limited() -> Self {
             Self::new(
                 Self::create_repository(),
-                FileSizeLimiter::create_limited()
+                FileSizeLimiter::create_limited(),
+                Settings::default(),
+                FakeClock(test_date_time())
+            )
+        }
+
+        pub fn create_with_expiration() -> Self {
+            let mut settings = Settings::default();
+            settings.upload.expires_in_seconds = Some(86400);
+
+            Self::new(
+                Self::create_repository(),
+                FileSizeLimiter::create_limited(),
+                settings,
+                FakeClock(test_date_time())
             )
         }
 
@@ -117,8 +153,20 @@ mod tests {
             size: 100
         };
 
+        let file_create_clone = file_create.clone();
+        let file_upload = FileUpload {
+            id,
+            name: file_create_clone.name,
+            mime_type: file_create_clone.mime_type,
+            size: file_create_clone.size,
+            uploaded_at: test_date_time(),
+            chunked: false,
+            expires_at: None
+        };
+
         let result = register.register_file(file_create);
         assert!(result.is_ok());
+        assert_eq!(file_upload, result.unwrap());
     }
 
     #[test]
@@ -151,5 +199,32 @@ mod tests {
         let result = register.register_file(file_create);
         assert!(result.is_err());
         assert_eq!(FileUploadError::MaxFileSizeExceeded, result.unwrap_err());
+    }
+
+    #[test]
+    fn test_register_file_with_expires_in_seconds() {
+        let register = FileRegister::create_with_expiration();
+        let id = Uuid::new_v4();
+        let file_create = FileCreate {
+            id,
+            name: String::from("test.txt"),
+            mime_type: String::from("text/plain"),
+            size: 100
+        };
+
+        let file_create_clone = file_create.clone();
+        let file_upload = FileUpload {
+            id,
+            name: file_create_clone.name,
+            mime_type: file_create_clone.mime_type,
+            size: file_create_clone.size,
+            uploaded_at: test_date_time(),
+            chunked: false,
+            expires_at: test_date_time().checked_add_signed(Duration::seconds(86400))
+        };
+
+        let result = register.register_file(file_create);
+        assert!(result.is_ok());
+        assert_eq!(file_upload, result.unwrap());
     }
 }

@@ -10,5 +10,6 @@ diesel::table! {
         size -> Int8,
         uploaded_at -> Timestamp,
         chunked -> Bool,
+        expires_at -> Nullable<Timestamp>,
     }
 }

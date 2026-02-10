@@ -20,7 +20,7 @@ use crate::model::FileUpload;
 use crate::model::FileUploadModel as FileUploadModel;
 use crate::schema::file_uploads;
 use diesel::result::Error as DieselError;
-use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
+use diesel::{OptionalExtension, QueryDsl, RunQueryDsl, ExpressionMethods};
 use r2d2::Error as PoolError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -47,6 +47,7 @@ impl From<DieselError> for FileUploadRepositoryError {
 
 pub trait FileUploadRepository {
     fn find_by_id(&self, file_upload_id: Uuid) -> Result<Option<FileUpload>, FileUploadRepositoryError>;
+    fn find_expired(&self) -> Result<Vec<FileUpload>, FileUploadRepositoryError>;
     fn delete(&self, file_upload_id: Uuid) -> Result<(), FileUploadRepositoryError>;
     fn save(&self, file_upload: FileUpload) -> Result<(), FileUploadRepositoryError>;
 }
@@ -66,6 +67,16 @@ impl FileUploadRepository for InMemoryFileUploadRepository {
     fn find_by_id(&self, file_upload_id: Uuid) -> Result<Option<FileUpload>, FileUploadRepositoryError> {
         let items = self.file_uploads.lock().unwrap();
         Ok(items.get(&file_upload_id).cloned())
+    }
+
+    fn find_expired(&self) -> Result<Vec<FileUpload>, FileUploadRepositoryError> {
+        let items = self.file_uploads.lock().unwrap();
+        let now = chrono::Utc::now().naive_utc();
+        let expired = items.values()
+            .filter(|f| f.expires_at.is_some() && f.expires_at.unwrap() < now)
+            .cloned()
+            .collect();
+        Ok(expired)
     }
 
     fn delete(&self, file_upload_id: Uuid) -> Result<(), FileUploadRepositoryError> {
@@ -106,6 +117,20 @@ impl FileUploadRepository for PostgresFileUploadRepository {
             .optional()?;
 
         let mapped = record.map(FileUpload::from);
+        trace_time.trace();
+        Ok(mapped)
+    }
+
+    fn find_expired(&self) -> Result<Vec<FileUpload>, FileUploadRepositoryError> {
+        let trace_time = ElapsedTimeTracing::new("postgres_find_expired_files");
+        let mut connection = self.db_pool.get()?;
+        let now = chrono::Utc::now().naive_utc();
+        
+        let records: Vec<FileUploadModel> = file_uploads::table
+            .filter(file_uploads::expires_at.lt(now))
+            .load(&mut connection)?;
+
+        let mapped = records.into_iter().map(FileUpload::from).collect();
         trace_time.trace();
         Ok(mapped)
     }
@@ -225,7 +250,8 @@ mod tests {
             mime_type: "image/jpeg".to_string(),
             size: 1024,
             uploaded_at: Utc::now().naive_utc(),
-            chunked: false
+            chunked: false,
+            expires_at: None
         }
     }
 
