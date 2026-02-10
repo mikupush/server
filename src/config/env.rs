@@ -104,7 +104,7 @@ impl Default for EnvServer {
 pub struct EnvUpload {
     pub max_size: Option<u64>,
     pub directory: Option<String>,
-    pub expires_in_days: Option<u64>,
+    pub expires_in_seconds: Option<u64>,
     pub expiration_cleanup_interval_seconds: Option<u64>,
 }
 
@@ -114,7 +114,7 @@ impl EnvUpload {
             max_size: env("MIKU_PUSH_UPLOAD_MAX_SIZE")
                 .map(|value| value.parse().expect("upload max size must be a number")),
             directory: env("MIKU_PUSH_UPLOAD_DIRECTORY"),
-            expires_in_days: env("MIKU_PUSH_UPLOAD_EXPIRES_IN_DAYS")
+            expires_in_seconds: env("MIKU_PUSH_UPLOAD_EXPIRES_IN_SECONDS")
                 .map(|value| value.parse().expect("upload expiration must be a number")),
             expiration_cleanup_interval_seconds: env("MIKU_PUSH_UPLOAD_EXPIRATION_CLEANUP_INTERVAL")
                 .map(|value| value.parse().expect("upload expiration cleanup interval must be a number")),
@@ -124,7 +124,7 @@ impl EnvUpload {
 
 impl Default for EnvUpload {
     fn default() -> Self {
-        Self { max_size: None, directory: None, expires_in_days: None, expiration_cleanup_interval_seconds: None }
+        Self { max_size: None, directory: None, expires_in_seconds: None, expiration_cleanup_interval_seconds: None }
     }
 }
 

@@ -124,13 +124,13 @@
           "default": "data",
           "examples": ["data", "./data", "/var/lib/mikupush"]
         },
-        "expires_in_days": {
-          "description": "Expiration time for uploaded files in days. If not set, files do not expire. Alternatively, you can use MIKU_PUSH_UPLOAD_EXPIRES_IN_DAYS to override this value.",
+        "expires_in_seconds": {
+          "description": "Expiration time for uploaded files in seconds. If not set, files do not expire. Alternatively, you can use MIKU_PUSH_UPLOAD_EXPIRES_IN_SECONDS to override this value.",
           "oneOf": [
             { "type": "integer", "minimum": 1 },
             { "type": "null" }
           ],
-          "examples": [7]
+          "examples": [604800]
         },
         "expiration_cleanup_interval_seconds": {
           "type": "integer",
@@ -147,7 +147,7 @@
       "server": { "host": "0.0.0.0", "port": 8080 },
       "log": { "level": "info", "output": "console", "file": "server.log", "directory": "/var/log/io.mikupush.server", "json": false },
       "database": { "host": "localhost", "port": 5432, "database": "postgres", "user": "postgres", "password": "postgres" },
-      "upload": { "max_size": 5000000000, "directory": "data", "expires_in_days": 7, "expiration_cleanup_interval_seconds": 3600 }
+      "upload": { "max_size": 5000000000, "directory": "data", "expires_in_seconds": 604800, "expiration_cleanup_interval_seconds": 3600 }
     }
   ]
 }

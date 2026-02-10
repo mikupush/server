@@ -7,7 +7,7 @@ use std::time::Duration;
 use tracing::{debug, error, info};
 
 pub fn start_cleanup_expired_files(settings: Settings) {
-    if settings.upload.expires_in_days.is_none() {
+    if settings.upload.expires_in_seconds.is_none() {
         return;
     }
 

@@ -19,7 +19,7 @@ use crate::model::FileUpload;
 use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::routes::FileCreate;
 use crate::services::{FileSizeLimiter, FileUploadError, SystemClock};
-use chrono::Days;
+use chrono::Duration;
 use crate::services::clock::Clock;
 
 #[derive(Debug, Clone)]
@@ -49,8 +49,8 @@ where
         }
 
         let now = self.clock.now();
-        let expires_at = match self.settings.upload.expires_in_days {
-            Some(expires_in) => now.checked_add_days(Days::new(expires_in)),
+        let expires_at = match self.settings.upload.expires_in_seconds {
+            Some(expires_in) => now.checked_add_signed(Duration::seconds(expires_in as i64)),
             None => None
         };
 
@@ -94,7 +94,7 @@ mod tests {
     use crate::routes::FileCreate;
     use crate::services::{FakeClock, FileRegister, FileSizeLimiter, FileUploadError};
     use std::collections::HashMap;
-    use chrono::{Days, NaiveDateTime, Utc};
+    use chrono::{Duration, NaiveDateTime};
     use uuid::Uuid;
     use crate::config::Settings;
 
@@ -123,7 +123,7 @@ mod tests {
 
         pub fn create_with_expiration() -> Self {
             let mut settings = Settings::default();
-            settings.upload.expires_in_days = Some(1);
+            settings.upload.expires_in_seconds = Some(86400);
 
             Self::new(
                 Self::create_repository(),
@@ -202,7 +202,7 @@ mod tests {
     }
 
     #[test]
-    fn test_register_file_with_expires_in_days() {
+    fn test_register_file_with_expires_in_seconds() {
         let register = FileRegister::create_with_expiration();
         let id = Uuid::new_v4();
         let file_create = FileCreate {
@@ -220,7 +220,7 @@ mod tests {
             size: file_create_clone.size,
             uploaded_at: test_date_time(),
             chunked: false,
-            expires_at: test_date_time().checked_add_days(Days::new(1))
+            expires_at: test_date_time().checked_add_signed(Duration::seconds(86400))
         };
 
         let result = register.register_file(file_create);

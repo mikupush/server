@@ -203,10 +203,10 @@ upload:
   # Can be a relative or absolute path.
   # Default: data
   directory: data
-  # Expiration time for uploaded files in days.
+  # Expiration time for uploaded files in seconds.
   # If not set, files do not expire.
-  # Example: 7 for 7 days
-  expires_in_days: 7
+  # Example: 604800 for 7 days
+  expires_in_seconds: 604800
   # Interval in seconds to check and delete expired files.
   # Default: 3600 (1 hour)
   expiration_cleanup_interval_seconds: 3600
@@ -217,8 +217,8 @@ upload:
 MIKU_PUSH_UPLOAD_MAX_SIZE=5000000000
 # Relative or absolute path; default is "data"
 MIKU_PUSH_UPLOAD_DIRECTORY=data
-# Number of days before the file expires
-MIKU_PUSH_UPLOAD_EXPIRES_IN_DAYS=7
+# Number of seconds before the file expires
+MIKU_PUSH_UPLOAD_EXPIRES_IN_SECONDS=604800
 # Interval in seconds to check for expired files; default is 3600
 MIKU_PUSH_UPLOAD_EXPIRATION_CLEANUP_INTERVAL=3600
 ```
