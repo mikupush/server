@@ -80,11 +80,12 @@ pub struct YamlUpload {
     pub max_size: Option<u64>,
     pub directory: Option<String>,
     pub expires_in_days: Option<u64>,
+    pub expiration_cleanup_interval_seconds: Option<u64>,
 }
 
 impl Default for YamlUpload {
     fn default() -> Self {
-        Self { max_size: None, directory: None, expires_in_days: None }
+        Self { max_size: None, directory: None, expires_in_days: None, expiration_cleanup_interval_seconds: None }
     }
 }
 

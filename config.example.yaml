@@ -84,3 +84,7 @@ upload:
   # Alternatively, you can use MIKU_PUSH_UPLOAD_EXPIRES_IN_DAYS environment variable to override this value.
   # Example: 7 for 7 days
   expires_in_days: 7
+  # Interval in seconds to check and delete expired files.
+  # Alternatively, you can use MIKU_PUSH_UPLOAD_EXPIRATION_CLEANUP_INTERVAL environment variable to override this value.
+  # Default value: 3600 (1 hour)
+  expiration_cleanup_interval_seconds: 3600

@@ -207,6 +207,9 @@ upload:
   # If not set, files do not expire.
   # Example: 7 for 7 days
   expires_in_days: 7
+  # Interval in seconds to check and delete expired files.
+  # Default: 3600 (1 hour)
+  expiration_cleanup_interval_seconds: 3600
 ```
 #### Environment variables
 ```text
@@ -216,6 +219,8 @@ MIKU_PUSH_UPLOAD_MAX_SIZE=5000000000
 MIKU_PUSH_UPLOAD_DIRECTORY=data
 # Number of days before the file expires
 MIKU_PUSH_UPLOAD_EXPIRES_IN_DAYS=7
+# Interval in seconds to check for expired files; default is 3600
+MIKU_PUSH_UPLOAD_EXPIRATION_CLEANUP_INTERVAL=3600
 ```
 
 For a complete, commented template, see `config.example.yaml`. If a key is missing in `config.yaml` and there is no environment variable set, the application falls back to the documented default values.

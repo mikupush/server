@@ -169,6 +169,7 @@ pub struct Upload {
     pub max_size: Option<u64>,
     pub directory: String,
     pub expires_in_days: Option<u64>,
+    pub expiration_cleanup_interval_seconds: u64,
 }
 
 impl Upload {
@@ -185,6 +186,10 @@ impl Upload {
             expires_in_days: log_yaml_config("upload.expires_in_days", yaml.upload.expires_in_days)
                 .or_else(|| env.upload.expires_in_days)
                 .or_else(|| log_default_config("upload.expires_in_days", default.expires_in_days)),
+            expiration_cleanup_interval_seconds: log_yaml_config("upload.expiration_cleanup_interval_seconds", yaml.upload.expiration_cleanup_interval_seconds)
+                .or_else(|| env.upload.expiration_cleanup_interval_seconds)
+                .or_else(|| log_default_config("upload.expiration_cleanup_interval_seconds", Some(default.expiration_cleanup_interval_seconds)))
+                .unwrap(),
         }
     }
 
@@ -195,6 +200,7 @@ impl Upload {
             max_size: Some(limit),
             directory: default.directory,
             expires_in_days: default.expires_in_days,
+            expiration_cleanup_interval_seconds: default.expiration_cleanup_interval_seconds,
         }
     }
 
@@ -209,6 +215,7 @@ impl Default for Upload {
             max_size: None,
             directory: "data".to_string(),
             expires_in_days: None,
+            expiration_cleanup_interval_seconds: 3600,
         }
     }
 }
