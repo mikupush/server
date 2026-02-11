@@ -125,6 +125,7 @@ pub struct Server {
     pub host: String,
     pub port: u16,
     pub static_directory: String,
+    pub static_base_path: String,
     pub templates_directory: String,
 }
 
@@ -144,6 +145,10 @@ impl Server {
                 .or_else(|| log_yaml_config("server.static_directory", yaml.server.static_directory))
                 .or_else(|| log_default_config("server.static_directory", Some(default.static_directory)))
                 .unwrap(),
+            static_base_path: env.server.static_base_path
+                .or_else(|| log_yaml_config("server.static_base_path", yaml.server.static_base_path))
+                .or_else(|| log_default_config("server.static_base_path", Some(default.static_base_path)))
+                .unwrap(),
             templates_directory: env.server.templates_directory
                 .or_else(|| log_yaml_config("server.templates_directory", yaml.server.templates_directory))
                 .or_else(|| log_default_config("server.templates_directory", Some(default.templates_directory)))
@@ -157,7 +162,8 @@ impl Default for Server {
         Self {
             host: "0.0.0.0".to_string(),
             port: 8080,
-            static_directory: "dist".to_string(),
+            static_directory: "dist/assets".to_string(),
+            static_base_path: "/assets".to_string(),
             templates_directory: "dist".to_string(),
         }
     }
@@ -332,14 +338,17 @@ mod tests {
         };
         env.server.host = Some("env-host".to_string());
         env.server.port = Some(9090);
+        env.server.static_base_path = Some("/env-assets".to_string());
 
         let mut yaml = YamlSettings::default();
         yaml.server.host = Some("yaml-host".to_string());
         yaml.server.port = Some(8080);
+        yaml.server.static_base_path = Some("/yaml-assets".to_string());
 
         let server = Server::from(yaml.clone(), env.clone());
         assert_eq!(server.host, "env-host");
         assert_eq!(server.port, 9090);
+        assert_eq!(server.static_base_path, "/env-assets");
 
         // 2. Yaml > Default (Env is None)
         let env_empty = EnvSettings {
@@ -352,12 +361,14 @@ mod tests {
         let server = Server::from(yaml.clone(), env_empty.clone());
         assert_eq!(server.host, "yaml-host");
         assert_eq!(server.port, 8080);
+        assert_eq!(server.static_base_path, "/yaml-assets");
 
         // 3. Default (Env and Yaml are None)
         let yaml_empty = YamlSettings::default();
         let server = Server::from(yaml_empty, env_empty);
         assert_eq!(server.host, "0.0.0.0");
         assert_eq!(server.port, 8080);
+        assert_eq!(server.static_base_path, "/assets");
     }
 
     #[test]

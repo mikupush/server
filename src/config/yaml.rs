@@ -77,6 +77,8 @@ pub struct YamlServer {
     #[serde(default)]
     pub static_directory: Option<String>,
     #[serde(default)]
+    pub static_base_path: Option<String>,
+    #[serde(default)]
     pub templates_directory: Option<String>,
 }
 
@@ -86,6 +88,7 @@ impl Default for YamlServer {
             host: None,
             port: None,
             static_directory: None,
+            static_base_path: None,
             templates_directory: None
         }
     }

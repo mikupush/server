@@ -107,6 +107,9 @@ server:
   # Can be a relative or absolute path.
   # Default: static (relative to the executable)
   static_directory: static
+  # URL base path for serving static files.
+  # Default: /assets
+  static_base_path: /assets
   # Directory with HTML templates used by the app (e.g., health pages).
   # Can be a relative or absolute path.
   # Default: templates (relative to the executable)
@@ -123,6 +126,8 @@ MIKU_PUSH_SERVER_HOST=0.0.0.0
 MIKU_PUSH_SERVER_PORT=8080
 # Static files directory (relative or absolute). Default: static
 MIKU_PUSH_SERVER_STATIC_DIR=static
+# URL base path for serving static files. Default: /assets
+MIKU_PUSH_SERVER_STATIC_BASE_PATH=/assets
 # Templates directory (relative or absolute). Default: templates
 MIKU_PUSH_SERVER_TEMPLATES_DIR=templates
 ```

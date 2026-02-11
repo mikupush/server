@@ -90,6 +90,7 @@ pub struct EnvServer {
     pub host: Option<String>,
     pub port: Option<u16>,
     pub static_directory: Option<String>,
+    pub static_base_path: Option<String>,
     pub templates_directory: Option<String>,
 }
 
@@ -100,6 +101,7 @@ impl EnvServer {
             port: env("MIKU_PUSH_SERVER_PORT")
                 .map(|value| value.parse().expect("Server port must be a number")),
             static_directory: env("MIKU_PUSH_SERVER_STATIC_DIR"),
+            static_base_path: env("MIKU_PUSH_SERVER_STATIC_BASE_PATH"),
             templates_directory: env("MIKU_PUSH_SERVER_TEMPLATES_DIR"),
         }
     }
@@ -111,6 +113,7 @@ impl Default for EnvServer {
             host: None,
             port: None,
             static_directory: None,
+            static_base_path: None,
             templates_directory: None
         }
     }
