@@ -78,7 +78,7 @@ fn respond_ok(json: bool, settings: &Settings) -> HttpResponse {
 
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body(read_template(settings, "health-ok.html"))
+        .body(read_template(settings, "pages/health/ok.html"))
 }
 
 fn respond_error(json: bool, settings: &Settings) -> HttpResponse {
@@ -88,7 +88,7 @@ fn respond_error(json: bool, settings: &Settings) -> HttpResponse {
 
     HttpResponse::InternalServerError()
         .content_type("text/html; charset=utf-8")
-        .body(read_template(settings, "health-error.html"))
+        .body(read_template(settings, "pages/health/error.html"))
 }
 
 #[cfg(test)]
