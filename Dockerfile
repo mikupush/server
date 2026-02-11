@@ -6,6 +6,14 @@ COPY . .
 
 RUN cargo build --release
 
+FROM node:22.18.0 AS build-web
+
+WORKDIR /builder
+
+COPY . .
+
+RUN npm install && npm run build
+
 FROM debian:bookworm-slim
 
 WORKDIR /srv
@@ -22,8 +30,7 @@ ENV RUST_BACKTRACE=0
 ENV RUST_LOG=info
 
 COPY --from=build /builder/target/release/mikupush-server .
-COPY --from=build /builder/static static
-COPY --from=build /builder/templates templates
+COPY --from=build-web /builder/dist dist
 RUN chmod +x /srv/mikupush-server
 
 ENTRYPOINT ["/srv/mikupush-server"]
