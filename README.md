@@ -105,15 +105,15 @@ server:
   port: 8080
   # Directory with static assets served at /static.
   # Can be a relative or absolute path.
-  # Default: static (relative to the executable)
-  static_directory: static
+  # Default: dist/assets (relative to the executable)
+  static_directory: dist/assets
   # URL base path for serving static files.
   # Default: /assets
   static_base_path: /assets
   # Directory with HTML templates used by the app (e.g., health pages).
   # Can be a relative or absolute path.
-  # Default: templates (relative to the executable)
-  templates_directory: templates
+  # Default: dist (relative to the executable)
+  templates_directory: dist
 ```
 
 Notes:
