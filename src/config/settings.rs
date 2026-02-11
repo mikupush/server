@@ -157,8 +157,8 @@ impl Default for Server {
         Self {
             host: "0.0.0.0".to_string(),
             port: 8080,
-            static_directory: "static".to_string(),
-            templates_directory: "templates".to_string(),
+            static_directory: "dist".to_string(),
+            templates_directory: "dist".to_string(),
         }
     }
 

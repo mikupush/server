@@ -5,6 +5,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
+    "dev": "vite",
+    "build": "vite build",
     "show:package-licenses": "license-checker --json",
     "make:third-party-licenses": "ts-node scripts/third-party-licences.ts",
     "license-header": "ts-node scripts/license.ts"
@@ -21,11 +23,19 @@
   },
   "homepage": "https://github.com/mikupush/server#readme",
   "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
     "glob": "^11.0.3",
     "handlebars": "^4.7.8",
     "ignore": "^7.0.5",
     "license-checker": "^25.0.1",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  },
+  "dependencies": {
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   }
 }

@@ -28,14 +28,14 @@
         "static_directory": {
           "type": "string",
           "description": "Server static files directory. Alternatively, you can use MIKU_PUSH_SERVER_STATIC_DIR to override this value.",
-          "default": "static",
-          "examples": ["static", "/usr/share/io.mikupush.server/static"]
+          "default": "dist",
+          "examples": ["dist", "/usr/share/io.mikupush.server/dist"]
         },
         "templates_directory": {
           "type": "string",
           "description": "Server templates directory. Alternatively, you can use MIKU_PUSH_SERVER_TEMPLATES_DIR to override this value.",
-          "default": "templates",
-          "examples": ["templates", "/usr/share/io.mikupush.server/templates"]
+          "default": "dist",
+          "examples": ["dist", "/usr/share/io.mikupush.server/dist"]
         }
       }
     },
