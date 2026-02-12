@@ -1,0 +1,12 @@
+@font-face {
+    font-family: 'MS PGothic';
+    font-style: normal;
+    font-weight: 400;
+    src: url('@/assets/fonts/ms-pgothic-regular.ttf') format('truetype');
+}
+
+body {
+    font-family: 'MS PGothic', sans-serif;
+    font-size: 12pt;
+    white-space: pre-wrap;
+}

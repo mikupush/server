@@ -1,43 +1,3 @@
-<!--
-Miku Push! Server is the backend behind Miku Push!
-Copyright (C) 2025  Miku Push! Team
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU Affero General Public License for more details.
-
-You should have received a copy of the GNU Affero General Public License
-along with this program.  If not, see <https://www.gnu.org/licenses/>.
--->
-
-<html lang="en">
-<head>
-  <title>Miku Push! | Health check</title>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <link rel="icon" href="../../assets/favicon.ico" type="image/x-icon">
-  <style>
-    @font-face {
-      font-family: 'MS PGothic';
-      font-style: normal;
-      font-weight: 400;
-      src: url('../../assets/fonts/ms-pgothic-regular.ttf') format('truetype');
-    }
-
-    body {
-      font-family: 'MS PGothic', sans-serif;
-      font-size: 12pt;
-      white-space: pre-wrap;
-    }
-  </style>
-</head>
-<body>
 　　　　　　　　　　 人
 　　　　　　　　ノ⌒　丿
 　　　　　＿／　　 ::（
@@ -64,5 +24,3 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 　　　　　　　　　　　　　　　　 ',: : : : : : : :/├‐┤|─ '"|　　 l: : : : : : : :l
 　　　　　　　　　　　　　　　　　ヽ: : : : ／　.l:::::::| l:::::::::::l　　 ',: : : : : : :,'
 　　　　　　　　　　　　　　　　　　 ＼:/　 　 l:::::::l |::::::::::l　　　ヽ:: : : : /
-</body>
-</html>

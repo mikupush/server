@@ -38,6 +38,7 @@ use clap::Parser;
 use config::Settings;
 use std::path::PathBuf;
 use std::time::Duration;
+use actix_web::middleware::DefaultHeaders;
 
 #[derive(Debug, Parser)]
 #[command(
@@ -79,10 +80,13 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(settings_clone.clone()))
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(finder.clone()))
-            .service(fs::Files::new(
-                settings_clone.server.static_base_path.clone().as_str(),
-                settings_clone.server.static_directory.clone()
-            ))
+            .service(
+                web::scope(&settings.server.static_base_path)
+                    .wrap(DefaultHeaders::new().add(("Cache-Control", "public, max-age=31536000")))
+                    .service(fs::Files::new("/", settings.server.static_directory.clone())
+                        .use_etag(true)
+                        .use_last_modified(true))
+            )
             .service(routes::post_file)
             .service(routes::delete_file)
             .service(routes::post_upload_file)
