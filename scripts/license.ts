@@ -76,16 +76,17 @@ const typeScriptSourcePatterns = [
   'web/**/*.tsx',
   'web/**/*.ts',
   'web/**/*.css',
+  'web/**/*.astro'
 ]
 
 const excludePatterns = [
   'src/schema.rs',
-  'web/components/ui'
+  'web/components/ui/*.tsx'
 ]
 
 const ignoredFiles = ignore().add(excludePatterns)
 const rustRegex = /^\/\/ Miku Push! Server is the backend behind Miku Push!/
-const typescriptRegex = /^\/\*\*\n \* Miku Push! Server is the backend behind Miku Push!/
+const typescriptRegex = /^(---\n)?\/\*\*\n \* Miku Push! Server is the backend behind Miku Push!/
 const htmlRegex = /^<!--\nMiku Push! Server is the backend behind Miku Push!/
 
 const rootDir = process.cwd()
@@ -125,7 +126,20 @@ function addLicense(sourceFiles: string[], licenseHeader: string, regex: RegExp)
     }
 
     const absolutePath = path.resolve(rootDir, sourceFile)
-    fs.writeFileSync(absolutePath, `${trimmedHeader}\n\n${sourceCode}`, 'utf-8')
+    if (sourceFile.endsWith('.astro')) {
+      let content = sourceCode.replace(/^---/g, '')
+
+      if (!sourceCode.startsWith('---')) {
+        content = `---\n${trimmedHeader}\n---\n\n${content}`
+      } else {
+        content = `---\n${trimmedHeader}\n\n${content}`
+      }
+
+      fs.writeFileSync(absolutePath, content, 'utf-8')
+    } else {
+      fs.writeFileSync(absolutePath, `${trimmedHeader}\n\n${sourceCode}`, 'utf-8')
+    }
+
     console.log('license header added on ', sourceFile)
   }
 }
