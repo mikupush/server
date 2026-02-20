@@ -20,6 +20,7 @@
 import '@/styles/global.css'
 import favicon from '@/assets/favicon.ico'
 import Header from '@/components/Header.astro'
+import Footer from "@/components/Footer.astro";
 
 const locale = Astro.currentLocale ?? 'en'
 ---
@@ -35,10 +36,11 @@ const locale = Astro.currentLocale ?? 'en'
     applyTheme(getCurrentTheme())
   </script>
 </head>
-<body>
+<body class="flex flex-col h-dvh">
   <Header />
-  <main>
+  <main class="flex flex-col flex-1">
     <slot />
   </main>
+  <Footer />
 </body>
 </html>

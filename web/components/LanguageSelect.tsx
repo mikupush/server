@@ -33,7 +33,7 @@ export function LanguageSelect() {
   return (
     <Select value={i18n.language}>
       <SelectTrigger
-        className="border-0 shadow-transparent hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50 gap-3"
+        className="border-0 dark:bg-transparent shadow-none hover:bg-muted hover:text-accent-foreground dark:hover:bg-muted/50 gap-3"
         aria-label={t('select_language')}
       >
         <Languages className="h-4"/>

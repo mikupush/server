@@ -1,3 +1,4 @@
+---
 /**
  * Miku Push! Server is the backend behind Miku Push!
  * Copyright (C) 2025  Miku Push! Team
@@ -16,21 +17,28 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import {Button} from "@/components/ui/button";
-import React, {type HTMLAttributeAnchorTarget} from "react";
 
-interface LinkButtonProps {
-  href: string
-  target?: HTMLAttributeAnchorTarget
-  rel?: string
-  className?: string
-  children?: React.ReactNode
-}
+import NavLinks from "@/components/NavLinks.astro";
+import { t } from "i18next";
+---
+<footer>
+  <div class="mx-auto max-w-6xl px-6 py-10 flex flex-col items-center gap-6">
+    <div>
+      <p id="copyright" class="text-sm text-center mb-2">{t('footer_made')}</p>
+      <p class="text-sm text-center">{t('hatsune_miku_copyright')}</p>
+      <p class="text-sm text-center">{t('not_affiliated')}</p>
+    </div>
 
-export default function LinkButton({href, target, rel, className, children}: LinkButtonProps) {
-  return (
-    <Button asChild variant="ghost" size="lg">
-      <a href={href} target={target} rel={rel} className={className}>{children}</a>
-    </Button>
-  )
-}
+    <div class="hidden md:block">
+      <NavLinks/>
+    </div>
+  </div>
+</footer>
+<script>
+  const copyright = document.querySelector('#copyright')
+  const now = new Date();
+
+  if (copyright) {
+    copyright.innerHTML = copyright.textContent.replace('2025', now.getFullYear().toString())
+  }
+</script>
