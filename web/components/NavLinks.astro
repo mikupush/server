@@ -2,32 +2,35 @@
 /**
  * Miku Push! Server is the backend behind Miku Push!
  * Copyright (C) 2025  Miku Push! Team
- *
+ * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * 
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- *
+ * 
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import '@/styles/global.css'
-import Counter from '@/components/Counter'
+
+import LinkButton from "@/components/LinkButton.tsx";
+import {SquareArrowOutUpRight} from "lucide-react";
+import { t } from 'i18next'
 ---
-<html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <link rel="icon" type="image/x-icon" href="/assets/favicon.ico"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Miku Push!</title>
-</head>
-<body>
-  <Counter client:load />
-</body>
-</html>
+
+<!-- <LinkButton href="#docs">{t('docs')}</LinkButton> -->
+<LinkButton href="/#downloads">{t('download')}</LinkButton>
+<LinkButton
+  href="https://github.com/mikupush"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="flex items-center gap-1"
+>
+  {t('github')}
+  <SquareArrowOutUpRight className="w-4 h-4"/>
+</LinkButton>

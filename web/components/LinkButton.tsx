@@ -1,4 +1,3 @@
----
 /**
  * Miku Push! Server is the backend behind Miku Push!
  * Copyright (C) 2025  Miku Push! Team
@@ -17,18 +16,21 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import favicon from '@/assets/favicon.ico'
+import {Button} from "@/components/ui/button";
+import React, {type HTMLAttributeAnchorTarget} from "react";
 
-const locale = Astro.currentLocale ?? 'en'
----
-<html lang={locale}>
-<head>
-  <meta charset="UTF-8"/>
-  <link rel="icon" type="image/x-icon" href={favicon} />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Miku Push!</title>
-</head>
-<body>
-  <slot />
-</body>
-</html>
+interface LinkButtonProps {
+  href: string
+  target?: HTMLAttributeAnchorTarget
+  rel?: string
+  className?: string
+  children?: React.ReactNode
+}
+
+export default function LinkButton({href, target, rel, className, children}: LinkButtonProps) {
+  return (
+    <Button asChild variant="ghost">
+      <a href={href} target={target} rel={rel} className={className}>{children}</a>
+    </Button>
+  )
+}

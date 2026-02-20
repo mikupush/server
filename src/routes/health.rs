@@ -16,12 +16,12 @@
 
 use crate::config::Settings;
 use crate::database::DbPool;
-use crate::routes::utils::read_template;
 use actix_web::http::header::HeaderValue;
 use actix_web::{get, web, HttpRequest, HttpResponse};
 use diesel::{sql_query, RunQueryDsl};
 use serde_json::json;
 use tracing::{debug, warn};
+use crate::template::TemplateRenderer;
 use crate::tracing::ElapsedTimeTracing;
 
 const ANY_CONTENT_TYPE: &'static str = "*/*";
@@ -42,11 +42,11 @@ pub async fn health(
 
     if let Err(_) = check_db_connection(&pool).await {
         time_tracing.trace();
-        return respond_error(json, &settings);
+        return respond_error(json, &settings, &request);
     }
 
     time_tracing.trace();
-    respond_ok(json, &settings)
+    respond_ok(json, &settings, &request)
 }
 
 async fn check_db_connection(pool: &DbPool) -> Result<(), Box<dyn std::error::Error>> {
@@ -71,24 +71,30 @@ async fn check_db_connection(pool: &DbPool) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
-fn respond_ok(json: bool, settings: &Settings) -> HttpResponse {
+fn respond_ok(json: bool, settings: &Settings, request: &HttpRequest) -> HttpResponse {
     if json {
         return HttpResponse::Ok().json(json!({ "status": "up" }))
     }
 
+    let template = TemplateRenderer::new(settings, request);
+    let html = template.render("health/ok.html");
+
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
-        .body(read_template(settings, "health/ok.html"))
+        .body(html)
 }
 
-fn respond_error(json: bool, settings: &Settings) -> HttpResponse {
+fn respond_error(json: bool, settings: &Settings, request: &HttpRequest) -> HttpResponse {
     if json {
         return HttpResponse::InternalServerError().json(json!({ "status": "down" }))
     }
 
+    let template = TemplateRenderer::new(settings, request);
+    let html = template.render("health/error.html");
+
     HttpResponse::InternalServerError()
         .content_type("text/html; charset=utf-8")
-        .body(read_template(settings, "health/error.html"))
+        .body(html)
 }
 
 #[cfg(test)]

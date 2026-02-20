@@ -1,4 +1,3 @@
----
 /**
  * Miku Push! Server is the backend behind Miku Push!
  * Copyright (C) 2025  Miku Push! Team
@@ -17,18 +16,23 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import favicon from '@/assets/favicon.ico'
+import {Button} from "@/components/ui/button.tsx";
+import {useState} from "react";
+import {DARK_THEME, getCurrentTheme, toggleDarkTheme} from "@/lib/theme.ts";
+import {Sun, Moon} from "lucide-react";
+import {useTranslation} from "react-i18next";
 
-const locale = Astro.currentLocale ?? 'en'
----
-<html lang={locale}>
-<head>
-  <meta charset="UTF-8"/>
-  <link rel="icon" type="image/x-icon" href={favicon} />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Miku Push!</title>
-</head>
-<body>
-  <slot />
-</body>
-</html>
+export default function ThemeSwitch() {
+  const { t } = useTranslation();
+  const [theme, setTheme] = useState(getCurrentTheme());
+
+  return (
+    <Button
+      variant="ghost"
+      onClick={() => setTheme(toggleDarkTheme())}
+      aria-label={theme === DARK_THEME ? t('set_light_theme') : t('set_dark_theme')}
+    >
+      {theme === DARK_THEME ? <Sun /> : <Moon />}
+    </Button>
+  )
+}

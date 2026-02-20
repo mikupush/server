@@ -30,6 +30,7 @@ mod repository;
 mod model;
 mod tracing;
 mod jobs;
+mod template;
 
 use crate::database::setup_database_connection;
 use crate::logging::configure_logging;

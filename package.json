@@ -5,7 +5,7 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "astro",
+    "dev": "astro dev",
     "build": "astro build",
     "show:package-licenses": "license-checker --json",
     "make:third-party-licenses": "ts-node scripts/third-party-licences.ts",
@@ -40,10 +40,12 @@
     "astro": "^5.17.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "i18next": "^25.8.10",
     "lucide-react": "^0.563.0",
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-i18next": "^16.5.4",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18"
   }

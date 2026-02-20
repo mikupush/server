@@ -14,38 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::config::Settings;
-use tracing::warn;
-
-pub fn read_template(settings: &Settings, template: &str) -> String {
-    let template_dir = settings.server.templates_directory.clone();
-    let path = std::path::Path::new(&template_dir).join(template);
-
-    if !path.exists() {
-        warn!("template file {} does not exist", path.display());
-        return "".to_string();
-    }
-
-    match std::fs::read_to_string(&path) {
-        Ok(content) => content,
-        Err(err) => {
-            warn!("failed to read template file {}: {}", path.display(), err);
-            "".to_string()
-        }
-    }
-}
-
 #[cfg(test)]
 pub mod tests {
     use crate::config::Settings;
     use crate::database::DbPool;
-    use crate::model::{FilePart, FileUploadModel as FileUploadModel};
     use crate::model::FileUpload;
+    use crate::model::{FilePart, FileUploadModel as FileUploadModel};
     use crate::schema::file_uploads;
     use actix_web::dev::ServiceResponse;
     use chrono::Utc;
     use diesel::RunQueryDsl;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
     use std::sync::Mutex;
     use uuid::Uuid;
 

@@ -16,51 +16,84 @@
 
 use crate::config::Settings;
 use crate::errors::{route_error_helpers, FileReadError};
-use crate::repository::PostgresFileUploadRepository;
 use crate::routes::ErrorResponse;
-use crate::services::{FileReader, FileStreamWrapper, SingleFileReader};
-use actix_web::{get, web, HttpResponse, Result};
+use crate::services::{FileReader, SingleFileReader};
+use crate::template::TemplateRenderer;
+use crate::tracing::ElapsedTimeTracing;
+use actix_http::header::QualityItem;
+use actix_web::http::header::Accept;
+use actix_web::{get, mime, web, HttpRequest, HttpResponse};
 use tracing::debug;
 use uuid::Uuid;
-use crate::tracing::ElapsedTimeTracing;
 
 #[get("/u/{id}")]
 pub async fn get_download(
     settings: web::Data<Settings>,
     id: web::Path<String>,
-) -> Result<HttpResponse> {
+    accept: Option<web::Header<Accept>>,
+    request: HttpRequest
+) -> HttpResponse {
     let time_tracing = ElapsedTimeTracing::new("get_download");
-    let file_reader = FileReader::get_with_settings(settings.get_ref().clone());
+
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
-        return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
+        return route_error_helpers::invalid_uuid("id", id.to_string())
     };
 
-    let result = file_reader.read(id).await;
+    let accept = accept
+        .map(|value| value.0)
+        .unwrap_or(Accept::star());
+
+    let response = respond_by_accept_header(&id, &settings, &accept, &request).await;
     time_tracing.trace();
 
-    match result {
-        Ok(stream_wrapper) => Ok(handle_get_download_ok(stream_wrapper)),
-        Err(err) => Ok(handle_get_download_error(err))
+    response
+}
+
+async fn respond_by_accept_header(
+    id: &Uuid,
+    settings: &Settings,
+    accept: &Accept,
+    request: &HttpRequest,
+) -> HttpResponse {
+    if accept.contains(&QualityItem::max(mime::TEXT_HTML)) {
+        respond_download_page(id, settings, request).await
+    } else {
+        respond_raw_content(id, settings).await
     }
 }
 
-fn handle_get_download_ok(stream_wrapper: FileStreamWrapper) -> HttpResponse {
+async fn respond_download_page(id: &Uuid, settings: &Settings, request: &HttpRequest) -> HttpResponse {
+    let template_renderer = TemplateRenderer::new(settings, request);
+    let html = template_renderer.render_localized("download.html");
+
     HttpResponse::Ok()
-        .content_type(stream_wrapper.details.mime_type.clone())
-        .insert_header(("Content-Length", stream_wrapper.details.size.to_string()))
-        .insert_header(("Content-Disposition", format!("inline; filename=\"{}\"", stream_wrapper.details.name)))
-        .insert_header(("Content-Type", stream_wrapper.details.mime_type.to_string()))
-        .streaming(stream_wrapper.stream)
+        .content_type("text/html; charset=utf-8")
+        .body(html)
 }
 
-fn handle_get_download_error(err: FileReadError) -> HttpResponse {
-    let mut response_builder = match err {
-        FileReadError::NotExists { .. } => HttpResponse::NotFound(),
-        _ => HttpResponse::InternalServerError()
-    };
+async fn respond_raw_content(id: &Uuid, settings: &Settings) -> HttpResponse {
+    let file_reader = FileReader::get_with_settings(settings.clone());
+    let result = file_reader.read(*id).await;
 
-    response_builder.json(ErrorResponse::from(err))
+    match result {
+        Ok(stream_wrapper) => {
+            HttpResponse::Ok()
+                .content_type(stream_wrapper.details.mime_type.clone())
+                .insert_header(("Content-Length", stream_wrapper.details.size.to_string()))
+                .insert_header(("Content-Disposition", format!("inline; filename=\"{}\"", stream_wrapper.details.name)))
+                .insert_header(("Content-Type", stream_wrapper.details.mime_type.to_string()))
+                .streaming(stream_wrapper.stream)
+        },
+        Err(err) => {
+            let mut response_builder = match err {
+                FileReadError::NotExists { .. } => HttpResponse::NotFound(),
+                _ => HttpResponse::InternalServerError()
+            };
+
+            response_builder.json(ErrorResponse::from(err))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -179,5 +212,29 @@ mod tests {
 
         let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
         assert_eq!(response_body.code, route_error_codes::INVALID_PATH_PARAMETER_CODE);
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_200_html_ok() {
+        let settings = Settings::load(None);
+        let pool = setup_database_connection(&settings);
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
+                .service(get_download)
+        ).await;
+
+        let (_, file_upload) = create_test_file_upload(pool.clone());
+        let request = test::TestRequest::default()
+            .uri(format!("/u/{}", file_upload.id.clone()).as_str())
+            .method(Method::GET)
+            .insert_header(("Accept", "text/html"))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let content_type = header_value("Content-Type", &response);
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(content_type, "text/html; charset=utf-8");
     }
 }
