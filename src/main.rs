@@ -31,10 +31,11 @@ mod model;
 mod tracing;
 mod jobs;
 mod template;
+mod ui;
 
 use crate::database::setup_database_connection;
 use crate::logging::configure_logging;
-use crate::routes::json_error_handler;
+use crate::routes::{json_error_handler, StaticAssets};
 use clap::Parser;
 use config::Settings;
 use std::path::PathBuf;
@@ -69,6 +70,12 @@ async fn main() -> std::io::Result<()> {
     // launch scheduled jobs
     jobs::start_cleanup_expired_files(settings.clone());
 
+    // static assets discovery
+    let static_assets = StaticAssets::discover(
+        &settings.server.static_directory,
+        &settings.server.static_base_path,
+    );
+
     // services
     let file_upload_repository = repository::PostgresFileUploadRepository::new(pool.clone());
     let finder = services::FileInfoFinder::new(file_upload_repository.clone(), settings.clone());
@@ -81,6 +88,7 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(settings_clone.clone()))
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(finder.clone()))
+            .app_data(web::Data::new(static_assets.clone()))
             .service(
                 web::scope(&settings.server.static_base_path)
                     .wrap(DefaultHeaders::new().add(("Cache-Control", "public, max-age=31536000")))
@@ -88,6 +96,7 @@ async fn main() -> std::io::Result<()> {
                         .use_etag(true)
                         .use_last_modified(true))
             )
+            .service(routes::get_home)
             .service(routes::post_file)
             .service(routes::delete_file)
             .service(routes::post_upload_file)

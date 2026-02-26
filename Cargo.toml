@@ -35,3 +35,4 @@ rusqlite = { version = "0.37.0", features = ["bundled"] }
 async-stream = "0.3.6"
 async-trait = "0.1.89"
 accept-language = "3.1.0"
+leptos = { version = "0.7", features = ["ssr"] }
