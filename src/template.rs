@@ -17,7 +17,7 @@
 use crate::config::Settings;
 use accept_language::intersection;
 use actix_web::HttpRequest;
-use tracing::warn;
+use tracing::{debug, warn};
 
 const DEFAULT_LANGUAGE: &str = "en";
 const AVAILABLE_LANGUAGES: &[&str] = &["en", "es"];
@@ -25,6 +25,7 @@ const AVAILABLE_LANGUAGES: &[&str] = &["en", "es"];
 pub struct TemplateRenderer {
     settings: Settings,
     language: String,
+    head: Vec<String>
 }
 
 impl TemplateRenderer {
@@ -45,10 +46,27 @@ impl TemplateRenderer {
         Self {
             settings: settings.clone(),
             language: String::from(language),
+            head: Vec::new()
         }
     }
 
-    pub fn render(&self, template: &str) -> String {
+    pub fn add_to_head(&mut self, html: String) {
+        self.head.push(html);
+    }
+
+    pub async fn render(&self, template: &str) -> String {
+        if self.settings.debug.enable {
+            self.render_from_dev_server(template).await
+        } else {
+            self.render_from_file(template).await
+        }
+    }
+
+    pub async fn render_localized(&self, template: &str) -> String {
+        self.render(format!("{}/{}", self.language, template).as_str()).await
+    }
+
+    async fn render_from_file(&self, template: &str) -> String {
         let template_dir = self.settings.server.templates_directory.clone();
         let path = std::path::Path::new(&template_dir).join(template);
 
@@ -57,8 +75,10 @@ impl TemplateRenderer {
             return "".to_string();
         }
 
-        match std::fs::read_to_string(&path) {
-            Ok(content) => content,
+        match tokio::fs::read_to_string(&path).await {
+            Ok(content) => {
+                self.inject_to_head(content)
+            },
             Err(err) => {
                 warn!("failed to read template file {}: {}", path.display(), err);
                 "".to_string()
@@ -66,7 +86,26 @@ impl TemplateRenderer {
         }
     }
 
-    pub fn render_localized(&self, template: &str) -> String {
-        self.render(format!("{}/{}", self.language, template).as_str())
+    async fn render_from_dev_server(&self, template: &str) -> String {
+        let base_url = self.settings.debug.astro_dev_server.clone();
+        let base_url = base_url.trim_end_matches('/');
+        let url = format!("{}/{}", base_url, template);
+        debug!("rendering template {} from astro dev server: {}", template, url);
+        let response = reqwest::get(&url).await.unwrap();
+
+        match response.text().await {
+            Ok(content) => {
+                self.inject_to_head(content)
+            },
+            Err(err) => {
+                warn!("failed to read template from astro dev server {}: {}", url, err);
+                "".to_string()
+            }
+        }
+    }
+
+    fn inject_to_head(&self, template_content: String) -> String {
+        let head_elements = self.head.join("\n");
+        template_content.replace("</head>", format!("{}</head>", head_elements).as_str())
     }
 }

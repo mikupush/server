@@ -50,7 +50,7 @@ impl FileSizeLimiter {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::config::{DataBase, LoggingConfig, Server, Upload};
+    use crate::config::{DataBase, Debug, LoggingConfig, Server, Upload};
 
     impl FileSizeLimiter {
         pub fn create() -> Self {
@@ -62,7 +62,8 @@ pub mod tests {
                 Server::default(),
                 LoggingConfig::default(),
                 DataBase::default(),
-                Upload::create_with_limit(100)
+                Upload::create_with_limit(100),
+                Debug::default()
             );
 
             FileSizeLimiter::new(settings)
@@ -73,7 +74,8 @@ pub mod tests {
                 Server::default(),
                 LoggingConfig::default(),
                 DataBase::default(),
-                Upload::default()
+                Upload::default(),
+                Debug::default()
             );
 
             FileSizeLimiter::new(settings)

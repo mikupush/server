@@ -22,7 +22,6 @@ import ThemeSwitch from "@/components/ThemeSwitch.tsx";
 import NavLinks from "@/components/NavLinks.astro";
 import {LanguageSelect} from "@/components/LanguageSelect.tsx";
 import MobileMenu from "@/components/MobileMenu.astro";
-import logo from '@/assets/logo.svg?url'
 import HeaderLogo from "@/components/HeaderLogo.astro";
 import { t } from 'i18next'
 ---
@@ -35,8 +34,8 @@ import { t } from 'i18next'
 
     <nav class="hidden md:flex items-center gap-3">
       <NavLinks />
-      <ThemeSwitch client:load />
-      <LanguageSelect client:load />
+      <ThemeSwitch client:only="react" />
+      <LanguageSelect client:only="react" />
     </nav>
 
     <MobileMenu />

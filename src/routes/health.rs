@@ -42,11 +42,11 @@ pub async fn health(
 
     if let Err(_) = check_db_connection(&pool).await {
         time_tracing.trace();
-        return respond_error(json, &settings, &request);
+        return respond_error(json, &settings, &request).await;
     }
 
     time_tracing.trace();
-    respond_ok(json, &settings, &request)
+    respond_ok(json, &settings, &request).await
 }
 
 async fn check_db_connection(pool: &DbPool) -> Result<(), Box<dyn std::error::Error>> {
@@ -71,26 +71,26 @@ async fn check_db_connection(pool: &DbPool) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
-fn respond_ok(json: bool, settings: &Settings, request: &HttpRequest) -> HttpResponse {
+async fn respond_ok(json: bool, settings: &Settings, request: &HttpRequest) -> HttpResponse {
     if json {
         return HttpResponse::Ok().json(json!({ "status": "up" }))
     }
 
     let template = TemplateRenderer::new(settings, request);
-    let html = template.render("health/ok.html");
+    let html = template.render("health/ok.html").await;
 
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")
         .body(html)
 }
 
-fn respond_error(json: bool, settings: &Settings, request: &HttpRequest) -> HttpResponse {
+async fn respond_error(json: bool, settings: &Settings, request: &HttpRequest) -> HttpResponse {
     if json {
         return HttpResponse::InternalServerError().json(json!({ "status": "down" }))
     }
 
     let template = TemplateRenderer::new(settings, request);
-    let html = template.render("health/error.html");
+    let html = template.render("health/error.html").await;
 
     HttpResponse::InternalServerError()
         .content_type("text/html; charset=utf-8")

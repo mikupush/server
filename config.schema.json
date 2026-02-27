@@ -146,6 +146,24 @@
           "examples": [3600, 7200]
         }
       }
+    },
+    "debug": {
+      "type": "object",
+      "title": "Debug configuration",
+      "additionalProperties": false,
+      "properties": {
+        "enable": {
+          "type": "boolean",
+          "description": "Enable debug mode. When enabled, the server will serve the UI from the Astro development server instead of using local static files. Alternatively, you can use MIKU_PUSH_DEBUG_ENABLE to override this value.",
+          "default": false
+        },
+        "astro_dev_server": {
+          "type": "string",
+          "description": "Astro development server URL. Used when debug.enable is true to proxy or redirect UI requests. Alternatively, you can use MIKU_PUSH_DEBUG_ASTRO_DEV_SERVER to override this value.",
+          "default": "http://localhost:4321/",
+          "examples": ["http://localhost:4321/"]
+        }
+      }
     }
   },
   "examples": [
@@ -153,7 +171,8 @@
       "server": { "host": "0.0.0.0", "port": 8080 },
       "log": { "level": "info", "output": "console", "file": "server.log", "directory": "/var/log/io.mikupush.server", "json": false },
       "database": { "host": "localhost", "port": 5432, "database": "postgres", "user": "postgres", "password": "postgres" },
-      "upload": { "max_size": 5000000000, "directory": "data", "expires_in_seconds": 604800, "expiration_cleanup_interval_seconds": 3600 }
+      "upload": { "max_size": 5000000000, "directory": "data", "expires_in_seconds": 604800, "expiration_cleanup_interval_seconds": 3600 },
+      "debug": { "enable": false, "astro_dev_server": "http://localhost:4321/" }
     }
   ]
 }

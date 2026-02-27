@@ -18,7 +18,16 @@ export default defineConfig({
     assets: 'assets',
     format: 'file'
   },
+  server: {
+    cors: true,
+  },
   vite: {
+    server: {
+      proxy: {
+        '/u': 'http://localhost:8080',
+        '/api': 'http://localhost:8080'
+      }
+    },
     resolve: {
       alias: {
         '@': path.resolve('./web')

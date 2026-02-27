@@ -227,11 +227,43 @@ impl Default for Upload {
 }
 
 #[derive(Debug, Clone)]
+pub struct Debug {
+    pub enable: bool,
+    pub astro_dev_server: String,
+}
+
+impl Debug {
+    pub fn from(yaml: YamlSettings, env: EnvSettings) -> Self {
+        let default = Self::default();
+        Self {
+            enable: env.debug.enable
+                .or_else(|| log_yaml_config("debug.enable", yaml.debug.enable))
+                .or_else(|| log_default_config("debug.enable", Some(default.enable)))
+                .unwrap(),
+            astro_dev_server: env.debug.astro_dev_server
+                .or_else(|| log_yaml_config("debug.astro_dev_server", yaml.debug.astro_dev_server))
+                .or_else(|| log_default_config("debug.astro_dev_server", Some(default.astro_dev_server)))
+                .unwrap(),
+        }
+    }
+}
+
+impl Default for Debug {
+    fn default() -> Self {
+        Self {
+            enable: false,
+            astro_dev_server: "http://localhost:4321/".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Settings {
     pub server: Server,
     pub log: LoggingConfig,
     pub database: DataBase,
-    pub upload: Upload
+    pub upload: Upload,
+    pub debug: Debug,
 }
 
 fn log_yaml_config<T>(key: &str, value: Option<T>) -> Option<T>
@@ -257,8 +289,8 @@ where
 }
 
 impl Settings {
-    pub fn new(server: Server, log: LoggingConfig, database: DataBase, upload: Upload) -> Self {
-        Self { server, log, database, upload }
+    pub fn new(server: Server, log: LoggingConfig, database: DataBase, upload: Upload, debug: Debug) -> Self {
+        Self { server, log, database, upload, debug }
     }
 
     pub fn from(yaml: YamlSettings, env: EnvSettings) -> Self {
@@ -266,7 +298,8 @@ impl Settings {
             server: Server::from(yaml.clone(), env.clone()),
             log: LoggingConfig::from(yaml.clone(), env.clone()),
             database: DataBase::from(yaml.clone(), env.clone()),
-            upload: Upload::from(yaml, env),
+            upload: Upload::from(yaml.clone(), env.clone()),
+            debug: Debug::from(yaml, env),
         }
     }
 
@@ -317,6 +350,7 @@ impl Default for Settings {
             log: LoggingConfig::default(),
             database: DataBase::default(),
             upload: Upload::default(),
+            debug: Debug::default(),
         }
     }
 }
@@ -324,8 +358,8 @@ impl Default for Settings {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::env::{EnvDataBase, EnvLoggingConfig, EnvServer, EnvUpload};
-    use crate::config::yaml::{YamlDataBase, YamlLoggingConfig, YamlServer, YamlUpload};
+    use crate::config::env::{EnvDataBase, EnvDebug, EnvLoggingConfig, EnvServer, EnvUpload};
+    use crate::config::yaml::YamlSettings;
 
     #[test]
     fn test_server_config_precedence() {
@@ -335,6 +369,7 @@ mod tests {
             log: EnvLoggingConfig::default(),
             database: EnvDataBase::default(),
             upload: EnvUpload::default(),
+            debug: EnvDebug::default(),
         };
         env.server.host = Some("env-host".to_string());
         env.server.port = Some(9090);
@@ -356,6 +391,7 @@ mod tests {
             log: EnvLoggingConfig::default(),
             database: EnvDataBase::default(),
             upload: EnvUpload::default(),
+            debug: EnvDebug::default(),
         };
 
         let server = Server::from(yaml.clone(), env_empty.clone());
@@ -378,6 +414,7 @@ mod tests {
             log: EnvLoggingConfig::default(),
             database: EnvDataBase::default(),
             upload: EnvUpload::default(),
+            debug: EnvDebug::default(),
         };
         env.database.host = Some("env-db-host".to_string());
         
@@ -394,6 +431,7 @@ mod tests {
             log: EnvLoggingConfig::default(),
             database: EnvDataBase::default(),
             upload: EnvUpload::default(),
+            debug: EnvDebug::default(),
         };
         let db = DataBase::from(yaml.clone(), env_empty.clone());
         assert_eq!(db.host, "yaml-db-host");
@@ -411,6 +449,7 @@ mod tests {
             log: EnvLoggingConfig::default(),
             database: EnvDataBase::default(),
             upload: EnvUpload::default(),
+            debug: EnvDebug::default(),
         };
         env.log.file_prefix = Some("env-prefix".to_string());
         env.log.json = Some(true);
@@ -430,6 +469,7 @@ mod tests {
             log: EnvLoggingConfig::default(),
             database: EnvDataBase::default(),
             upload: EnvUpload::default(),
+            debug: EnvDebug::default(),
         };
         let log = LoggingConfig::from(yaml.clone(), env_empty.clone());
         assert_eq!(log.file_prefix, "yaml-prefix");
@@ -449,6 +489,7 @@ mod tests {
             log: EnvLoggingConfig::default(),
             database: EnvDataBase::default(),
             upload: EnvUpload::default(),
+            debug: EnvDebug::default(),
         };
         env.upload.directory = Some("env-data".to_string());
         env.upload.max_size = Some(100);
@@ -468,6 +509,7 @@ mod tests {
             log: EnvLoggingConfig::default(),
             database: EnvDataBase::default(),
             upload: EnvUpload::default(),
+            debug: EnvDebug::default(),
         };
         let upload = Upload::from(yaml.clone(), env_empty.clone());
         assert_eq!(upload.directory, "yaml-data");
@@ -478,5 +520,45 @@ mod tests {
         let upload = Upload::from(yaml_empty, env_empty);
         assert_eq!(upload.directory, "data");
         assert_eq!(upload.max_size, None);
+    }
+
+    #[test]
+    fn test_debug_config_precedence() {
+        let mut env = EnvSettings {
+            server: EnvServer::default(),
+            log: EnvLoggingConfig::default(),
+            database: EnvDataBase::default(),
+            upload: EnvUpload::default(),
+            debug: EnvDebug::default(),
+        };
+        env.debug.enable = Some(true);
+        env.debug.astro_dev_server = Some("http://env-astro".to_string());
+
+        let mut yaml = YamlSettings::default();
+        yaml.debug.enable = Some(false);
+        yaml.debug.astro_dev_server = Some("http://yaml-astro".to_string());
+
+        // Env > Yaml
+        let debug = Debug::from(yaml.clone(), env.clone());
+        assert_eq!(debug.enable, true);
+        assert_eq!(debug.astro_dev_server, "http://env-astro");
+
+        // Yaml > Default
+        let env_empty = EnvSettings {
+            server: EnvServer::default(),
+            log: EnvLoggingConfig::default(),
+            database: EnvDataBase::default(),
+            upload: EnvUpload::default(),
+            debug: EnvDebug::default(),
+        };
+        let debug = Debug::from(yaml.clone(), env_empty.clone());
+        assert_eq!(debug.enable, false);
+        assert_eq!(debug.astro_dev_server, "http://yaml-astro");
+
+        // Default
+        let yaml_empty = YamlSettings::default();
+        let debug = Debug::from(yaml_empty, env_empty);
+        assert_eq!(debug.enable, false);
+        assert_eq!(debug.astro_dev_server, "http://localhost:4321/");
     }
 }

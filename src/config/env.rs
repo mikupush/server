@@ -17,7 +17,6 @@
 use crate::config::LoggingLevel;
 use std::collections::{HashMap, VecDeque};
 use std::sync::LazyLock;
-use futures::future::Lazy;
 
 #[derive(Debug, Clone)]
 pub struct EnvDataBase {
@@ -148,11 +147,37 @@ impl Default for EnvUpload {
 }
 
 #[derive(Debug, Clone)]
+pub struct EnvDebug {
+    pub enable: Option<bool>,
+    pub astro_dev_server: Option<String>,
+}
+
+impl EnvDebug {
+    pub fn load() -> Self {
+        Self {
+            enable: env("MIKU_PUSH_DEBUG_ENABLE")
+                .map(|value| value.to_lowercase() == "true" || value == "1"),
+            astro_dev_server: env("MIKU_PUSH_DEBUG_ASTRO_DEV_SERVER"),
+        }
+    }
+}
+
+impl Default for EnvDebug {
+    fn default() -> Self {
+        Self {
+            enable: None,
+            astro_dev_server: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct EnvSettings {
     pub server: EnvServer,
     pub log: EnvLoggingConfig,
     pub database: EnvDataBase,
-    pub upload: EnvUpload
+    pub upload: EnvUpload,
+    pub debug: EnvDebug,
 }
 
 impl EnvSettings {
@@ -161,7 +186,8 @@ impl EnvSettings {
             server: EnvServer::load(),
             log: EnvLoggingConfig::load(),
             database: EnvDataBase::load(),
-            upload: EnvUpload::load()
+            upload: EnvUpload::load(),
+            debug: EnvDebug::load(),
         }
     }
 }

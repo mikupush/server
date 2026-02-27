@@ -109,6 +109,23 @@ impl Default for YamlUpload {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct YamlDebug {
+    #[serde(default)]
+    pub enable: Option<bool>,
+    #[serde(default)]
+    pub astro_dev_server: Option<String>,
+}
+
+impl Default for YamlDebug {
+    fn default() -> Self {
+        Self {
+            enable: None,
+            astro_dev_server: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct YamlSettings {
     #[serde(default)]
     pub server: YamlServer,
@@ -117,7 +134,9 @@ pub struct YamlSettings {
     #[serde(default)]
     pub database: YamlDataBase,
     #[serde(default)]
-    pub upload: YamlUpload
+    pub upload: YamlUpload,
+    #[serde(default)]
+    pub debug: YamlDebug,
 }
 
 impl YamlSettings {
@@ -150,7 +169,8 @@ impl Default for YamlSettings {
             server: YamlServer::default(),
             log: YamlLoggingConfig::default(),
             database: YamlDataBase::default(),
-            upload: YamlUpload::default()
+            upload: YamlUpload::default(),
+            debug: YamlDebug::default(),
         }
     }
 }

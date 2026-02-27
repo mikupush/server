@@ -23,6 +23,7 @@ use crate::tracing::ElapsedTimeTracing;
 use actix_http::header::QualityItem;
 use actix_web::http::header::Accept;
 use actix_web::{get, mime, web, HttpRequest, HttpResponse};
+use serde_json::json;
 use tracing::debug;
 use uuid::Uuid;
 
@@ -64,8 +65,12 @@ async fn respond_by_accept_header(
 }
 
 async fn respond_download_page(id: &Uuid, settings: &Settings, request: &HttpRequest) -> HttpResponse {
-    let template_renderer = TemplateRenderer::new(settings, request);
-    let html = template_renderer.render_localized("download.html");
+    let mut template_renderer = TemplateRenderer::new(settings, request);
+    template_renderer.add_to_head(format!(
+        "<script id=\"upload-metadata\" type=\"application/json\">{}</script>",
+        json!({"id": id.to_string()})
+    ));
+    let html = template_renderer.render_localized("download.html").await;
 
     HttpResponse::Ok()
         .content_type("text/html; charset=utf-8")

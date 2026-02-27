@@ -228,4 +228,27 @@ MIKU_PUSH_UPLOAD_EXPIRES_IN_SECONDS=604800
 MIKU_PUSH_UPLOAD_EXPIRATION_CLEANUP_INTERVAL=3600
 ```
 
+### Debug
+
+#### YAML
+```yaml
+debug:
+  # Enable debug mode.
+  # When enabled, the server will attempt to serve the UI from the Astro development server
+  # instead of using the local static files and templates.
+  # Default: false
+  enable: false
+  # Astro development server URL.
+  # This is the URL where the Astro development server is running during development.
+  # It is used when debug.enable is true to proxy or redirect UI requests to Astro.
+  # Default: http://localhost:4321/
+  astro_dev_server: http://localhost:4321/
+```
+
+#### Environment variables
+```text
+MIKU_PUSH_DEBUG_ENABLE=false
+MIKU_PUSH_DEBUG_ASTRO_DEV_SERVER=http://localhost:4321/
+```
+
 For a complete, commented template, see `config.example.yaml`. If a key is missing in `config.yaml` and there is no environment variable set, the application falls back to the documented default values.

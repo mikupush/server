@@ -92,3 +92,18 @@ upload:
   # Alternatively, you can use MIKU_PUSH_UPLOAD_EXPIRATION_CLEANUP_INTERVAL environment variable to override this value.
   # Default value: 3600 (1 hour)
   expiration_cleanup_interval_seconds: 3600
+
+# Debug configuration
+debug:
+  # Enable debug mode.
+  # When enabled, the server will attempt to serve the UI from the Astro development server
+  # instead of using the local static files and templates.
+  # Alternatively, you can use MIKU_PUSH_DEBUG_ENABLE environment variable to override this value.
+  # Default value: false
+  enable: false
+  # Astro development server URL.
+  # This is the URL where the Astro development server is running during development.
+  # It is used when debug.enable is true to proxy or redirect UI requests to Astro.
+  # Alternatively, you can use MIKU_PUSH_DEBUG_ASTRO_DEV_SERVER environment variable to override this value.
+  # Default value: http://localhost:4321/
+  astro_dev_server: http://localhost:4321/
