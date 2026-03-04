@@ -11,5 +11,19 @@
   "open_menu": "Open Menu",
   "close_menu": "Close Menu",
   "hatsune_miku_copyright": "The mascot of Miku Push! is Hatsune Miku, a character created by Crypton Future Media, INC. © Crypton Future Media, INC. 2007.",
-  "not_affiliated": "This project is not affiliated with or endorsed by Crypton Future Media, INC."
+  "not_affiliated": "This project is not affiliated with or endorsed by Crypton Future Media, INC.",
+  "video": "Video",
+  "image": "Image",
+  "audio": "Audio",
+  "file": "File",
+  "compressed": "Compressed file",
+  "pdf": "PDF Document",
+  "spreadsheet": "Spreadsheet",
+  "presentation": "Presentation",
+  "source_code": "Source code",
+  "document": "Document",
+  "text": "Text file",
+  "file_not_found": "The requested file was not found.",
+  "invalid_file_id": "The provided file ID is invalid.",
+  "system_error": "An internal system error occurred. Please try again later."
 }

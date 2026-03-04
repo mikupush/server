@@ -18,7 +18,7 @@
 
 import {Button} from "@/components/ui/button.tsx";
 import {useState} from "react";
-import {DARK_THEME, getCurrentTheme, toggleDarkTheme} from "@/lib/theme.ts";
+import {DARK_THEME, getCurrentTheme, toggleDarkTheme} from "@/theme.ts";
 import {Sun, Moon} from "lucide-react";
 import {useTranslation} from "react-i18next";
 

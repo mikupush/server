@@ -25,6 +25,7 @@ import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button.tsx';
 import { Separator } from "@/components/ui/separator.tsx";
 import { File, Download } from 'lucide-react'
+import FileDownload from '@/components/FileDownload';
 
 export function getStaticPaths() {
   return languagePaths();
@@ -34,23 +35,6 @@ await i18n.changeLanguage(Astro.currentLocale)
 ---
 <PageLayout>
   <section class="flex-1 place-content-center m-auto w-full max-w-lg px-3">
-    <Card>
-      <CardHeader className="flex items-center flex-col sm:flex-row">
-        <div class="rounded-md flex size-20 p-1 items-center justify-center sm:mr-3 bg-muted">
-          <File className="size-10" />
-        </div>
-        <div class="mt-3 sm:mt-0">
-          <h1 class="text-2xl line-clamp-1">My awesome file.jpg</h1>
-          <p class="text-lg line-clamp-1">Image · 2MB</p>
-        </div>
-      </CardHeader>
-      <Separator />
-      <CardFooter className="justify-center">
-        <Button className="w-full sm:w-sm h-12 text-lg">
-          <Download className="size-5" />
-          {t('download_file')}
-        </Button>
-      </CardFooter>
-    </Card>
+    <FileDownload client:load />
   </section>
 </PageLayout>
