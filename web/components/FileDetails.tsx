@@ -68,13 +68,13 @@ export default function FileDetails({ details }: FileDetailsProps) {
   }
 
   return (
-    <div>
-      <div className="rounded-md flex size-20 p-1 items-center justify-center sm:mr-3 bg-muted">
+    <div className="flex flex-col sm:flex-row">
+      <div className="rounded-md flex size-20 p-1 items-center justify-center sm:mr-3 bg-muted mx-auto sm:mx-0">
         <TypeIcon mimeType={details.mime_type} className="size-10"/>
       </div>
-      <div className="mt-3 sm:mt-0">
-        <h1 className="text-2xl line-clamp-1">{details.name}</h1>
-        <p className="text-lg line-clamp-1">{typeDescription(details.mime_type)} · {formatSize(details.size)}</p>
+      <div className="flex flex-col justify-between mt-3 py-1 sm:mt-0">
+        <h1 className="text-2xl line-clamp-1 text-center sm:text-left">{details.name}</h1>
+        <p className="text-lg line-clamp-1 text-center sm:text-left">{typeDescription(details.mime_type)} · {formatSize(details.size)}</p>
       </div>
     </div>
   )

@@ -33,13 +33,15 @@ export default function FileDownload() {
   }
 
   const View = () => (
-    <>
+    <div className="flex flex-col items-center">
       <FileDetails details={details!} />
-      <Button className="w-full sm:w-sm h-12 text-lg">
-        <Download className="size-5" />
-        {t('download_file')}
+      <Button asChild className="mt-6 p-6 text-lg">
+        <a href={`/u/${details.id}`} download>
+          <Download className="size-5" />
+          {t('download_file')}
+        </a>
       </Button>
-    </>
+    </div>
   )
 
   const Loading = () => (
