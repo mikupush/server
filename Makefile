@@ -1,11 +1,20 @@
-.PHONY: build-linux build-linux-release
+.PHONY: web \
+	server-debug \
+	server-release \
+	linux-debug \
+	linux-release
 
-build-linux:
-	cargo build \
-	&& scripts/deb-package.sh debug \
-	&& scripts/tar-package.sh debug
+web:
+	npm run build
 
-build-linux-release:
-	cargo build --release \
-	&& scripts/deb-package.sh release \
-    && scripts/tar-package.sh release
+server-debug:
+	cargo build
+
+server-release:
+	cargo build
+
+linux-debug: web server-debug
+	scripts/deb-package.sh debug && scripts/tar-package.sh debug
+
+linux-release: web server-release
+	scripts/deb-package.sh release && scripts/tar-package.sh release

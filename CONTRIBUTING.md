@@ -55,16 +55,16 @@ And ensure you have the `.env` file, if you want to have a different file for te
 cargo test
 ```
 
-## Scripts
+## Scripts and Web frontend
 
-To run scripts, you have to install all node dependencies.
+To run scripts and build Web frontend, you have to install all node dependencies.
 
 ```sh
 npm install
 ```
 
 > ℹ️ **NOTE**
-> If you want to install a dependency, you must install it as dev dependency.
+> If you want to install a dependency for a script, you must install it as dev dependency.
 > 
 > For example if you want to install `glob` you must run:
 >
@@ -72,5 +72,17 @@ npm install
 > npm install --save-dev glob
 > ```
 
-Then you can run scripts that are listed in `package.json`. If it is not in `package.json` you can run it 
+Then you can run vite dev server for debug the Web frontend.
+
+```sh
+npm run dev
+```
+
+Or build the Web frontend for production.
+
+```sh
+npm run build
+```
+
+Or run a script in `package.json`. If it is not in `package.json` you can run it 
 from the `scripts` directory. Not all scripts are written in TypeScript.

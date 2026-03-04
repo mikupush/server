@@ -1,7 +1,22 @@
+// Miku Push! Server is the backend behind Miku Push!
+// Copyright (C) 2025  Miku Push! Team
+// 
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+// 
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 use crate::config::LoggingLevel;
 use std::collections::{HashMap, VecDeque};
 use std::sync::LazyLock;
-use futures::future::Lazy;
 
 #[derive(Debug, Clone)]
 pub struct EnvDataBase {
@@ -74,6 +89,7 @@ pub struct EnvServer {
     pub host: Option<String>,
     pub port: Option<u16>,
     pub static_directory: Option<String>,
+    pub static_base_path: Option<String>,
     pub templates_directory: Option<String>,
 }
 
@@ -84,6 +100,7 @@ impl EnvServer {
             port: env("MIKU_PUSH_SERVER_PORT")
                 .map(|value| value.parse().expect("Server port must be a number")),
             static_directory: env("MIKU_PUSH_SERVER_STATIC_DIR"),
+            static_base_path: env("MIKU_PUSH_SERVER_STATIC_BASE_PATH"),
             templates_directory: env("MIKU_PUSH_SERVER_TEMPLATES_DIR"),
         }
     }
@@ -95,6 +112,7 @@ impl Default for EnvServer {
             host: None,
             port: None,
             static_directory: None,
+            static_base_path: None,
             templates_directory: None
         }
     }
@@ -129,11 +147,37 @@ impl Default for EnvUpload {
 }
 
 #[derive(Debug, Clone)]
+pub struct EnvDebug {
+    pub enable: Option<bool>,
+    pub astro_dev_server: Option<String>,
+}
+
+impl EnvDebug {
+    pub fn load() -> Self {
+        Self {
+            enable: env("MIKU_PUSH_DEBUG_ENABLE")
+                .map(|value| value.to_lowercase() == "true" || value == "1"),
+            astro_dev_server: env("MIKU_PUSH_DEBUG_ASTRO_DEV_SERVER"),
+        }
+    }
+}
+
+impl Default for EnvDebug {
+    fn default() -> Self {
+        Self {
+            enable: None,
+            astro_dev_server: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct EnvSettings {
     pub server: EnvServer,
     pub log: EnvLoggingConfig,
     pub database: EnvDataBase,
-    pub upload: EnvUpload
+    pub upload: EnvUpload,
+    pub debug: EnvDebug,
 }
 
 impl EnvSettings {
@@ -142,7 +186,8 @@ impl EnvSettings {
             server: EnvServer::load(),
             log: EnvLoggingConfig::load(),
             database: EnvDataBase::load(),
-            upload: EnvUpload::load()
+            upload: EnvUpload::load(),
+            debug: EnvDebug::load(),
         }
     }
 }

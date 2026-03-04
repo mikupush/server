@@ -16,3 +16,6 @@ docker-compose.*.yml
 node_modules
 .cache
 .DS_Store
+dist
+GEMINI.md
+.astro

@@ -1,0 +1,40 @@
+---
+/**
+ * Miku Push! Server is the backend behind Miku Push!
+ * Copyright (C) 2025  Miku Push! Team
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+import Counter from '@/components/Counter.tsx'
+import PageLayout from '@/layout/page.astro'
+import { languagePaths } from "@/i18n/i18n.ts"
+import i18n, { t } from "i18next";
+import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button.tsx';
+import { Separator } from "@/components/ui/separator.tsx";
+import { File, Download } from 'lucide-react'
+import FileDownload from '@/components/FileDownload';
+
+export function getStaticPaths() {
+  return languagePaths();
+}
+
+await i18n.changeLanguage(Astro.currentLocale)
+---
+<PageLayout>
+  <section class="flex-1 place-content-center m-auto w-full max-w-lg px-3">
+    <FileDownload client:load />
+  </section>
+</PageLayout>

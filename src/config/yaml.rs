@@ -1,3 +1,19 @@
+// Miku Push! Server is the backend behind Miku Push!
+// Copyright (C) 2025  Miku Push! Team
+// 
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+// 
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 use crate::config::LoggingLevel;
 use serde::Deserialize;
 use std::fs::File;
@@ -61,6 +77,8 @@ pub struct YamlServer {
     #[serde(default)]
     pub static_directory: Option<String>,
     #[serde(default)]
+    pub static_base_path: Option<String>,
+    #[serde(default)]
     pub templates_directory: Option<String>,
 }
 
@@ -70,6 +88,7 @@ impl Default for YamlServer {
             host: None,
             port: None,
             static_directory: None,
+            static_base_path: None,
             templates_directory: None
         }
     }
@@ -90,6 +109,23 @@ impl Default for YamlUpload {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct YamlDebug {
+    #[serde(default)]
+    pub enable: Option<bool>,
+    #[serde(default)]
+    pub astro_dev_server: Option<String>,
+}
+
+impl Default for YamlDebug {
+    fn default() -> Self {
+        Self {
+            enable: None,
+            astro_dev_server: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct YamlSettings {
     #[serde(default)]
     pub server: YamlServer,
@@ -98,7 +134,9 @@ pub struct YamlSettings {
     #[serde(default)]
     pub database: YamlDataBase,
     #[serde(default)]
-    pub upload: YamlUpload
+    pub upload: YamlUpload,
+    #[serde(default)]
+    pub debug: YamlDebug,
 }
 
 impl YamlSettings {
@@ -131,7 +169,8 @@ impl Default for YamlSettings {
             server: YamlServer::default(),
             log: YamlLoggingConfig::default(),
             database: YamlDataBase::default(),
-            upload: YamlUpload::default()
+            upload: YamlUpload::default(),
+            debug: YamlDebug::default(),
         }
     }
 }

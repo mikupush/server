@@ -63,91 +63,116 @@ const licenseHeaderTypescript = `
 `
 
 const rustSourcePatterns = [
-    'src/**/*.rs',
-    'lib/**/*.rs'
+  'src/**/*.rs',
+  'lib/**/*.rs'
 ]
 
 const htmlSourcePatterns = [
-    'templates/**/*.html',
+  'templates/**/*.html',
+  'web/**/*.html',
+]
+
+const typeScriptSourcePatterns = [
+  'web/**/*.tsx',
+  'web/**/*.ts',
+  'web/**/*.css',
+  'web/**/*.astro'
 ]
 
 const excludePatterns = [
-    'src/schema.rs'
+  'src/schema.rs',
+  'web/components/ui/*.tsx'
 ]
 
 const ignoredFiles = ignore().add(excludePatterns)
 const rustRegex = /^\/\/ Miku Push! Server is the backend behind Miku Push!/
-const typescriptRegex = /^\/\*\*\n \* Miku Push! Server is the backend behind Miku Push!/
+const typescriptRegex = /^(---\n)?\/\*\*\n \* Miku Push! Server is the backend behind Miku Push!/
 const htmlRegex = /^<!--\nMiku Push! Server is the backend behind Miku Push!/
 
 const rootDir = process.cwd()
 
 function collectFiles(patterns: string[]): string[] {
-    const files = new Set<string>()
+  const files = new Set<string>()
 
-    patterns.forEach((pattern) => {
-        const matches = globSync(pattern, {
-            cwd: rootDir,
-            nodir: true
-        })
-
-        matches
-            .filter(match => !ignoredFiles.ignores(match))
-            .forEach((match) => files.add(match))
+  patterns.forEach((pattern) => {
+    const matches = globSync(pattern, {
+      cwd: rootDir,
+      nodir: true
     })
 
-    return Array.from(files).sort()
+    matches
+      .filter(match => !ignoredFiles.ignores(match))
+      .forEach((match) => files.add(match))
+  })
+
+  return Array.from(files).sort()
 }
 
 function getSourceCode(filePath: string): string {
-    const absolutePath = path.resolve(rootDir, filePath)
-    const content = fs.readFileSync(absolutePath, 'utf-8')
-    return content.trim()
+  const absolutePath = path.resolve(rootDir, filePath)
+  const content = fs.readFileSync(absolutePath, 'utf-8')
+  return content.trim()
 }
 
 function addLicense(sourceFiles: string[], licenseHeader: string, regex: RegExp): void {
-    const trimmedHeader = licenseHeader.trim()
+  const trimmedHeader = licenseHeader.trim()
 
-    for (const sourceFile of sourceFiles) {
-        const sourceCode = getSourceCode(sourceFile)
+  for (const sourceFile of sourceFiles) {
+    const sourceCode = getSourceCode(sourceFile)
 
-        if (regex.test(sourceCode)) {
-            console.log(`file ${sourceFile} already has license header`)
-            continue
-        }
-
-        const absolutePath = path.resolve(rootDir, sourceFile)
-        fs.writeFileSync(absolutePath, `${trimmedHeader}\n\n${sourceCode}`, 'utf-8')
-        console.log('license header added on ', sourceFile)
+    if (regex.test(sourceCode)) {
+      console.log(`file ${sourceFile} already has license header`)
+      continue
     }
+
+    const absolutePath = path.resolve(rootDir, sourceFile)
+    if (sourceFile.endsWith('.astro')) {
+      let content = sourceCode.replace(/^---/g, '')
+
+      if (!sourceCode.startsWith('---')) {
+        content = `---\n${trimmedHeader}\n---\n\n${content}`
+      } else {
+        content = `---\n${trimmedHeader}\n\n${content}`
+      }
+
+      fs.writeFileSync(absolutePath, content, 'utf-8')
+    } else {
+      fs.writeFileSync(absolutePath, `${trimmedHeader}\n\n${sourceCode}`, 'utf-8')
+    }
+
+    console.log('license header added on ', sourceFile)
+  }
 }
 
 function removeLicense(sourceFiles: string[], licenseHeader: string): void {
-    const trimmedHeader = licenseHeader.trim()
+  const trimmedHeader = licenseHeader.trim()
 
-    for (const sourceFile of sourceFiles) {
-        const sourceCode = getSourceCode(sourceFile)
-        const absolutePath = path.resolve(rootDir, sourceFile)
-        const updatedSource = sourceCode.replace(trimmedHeader, '').trim()
-        fs.writeFileSync(absolutePath, updatedSource, 'utf-8')
-        console.log('license header removed on ', sourceFile)
-    }
+  for (const sourceFile of sourceFiles) {
+    const sourceCode = getSourceCode(sourceFile)
+    const absolutePath = path.resolve(rootDir, sourceFile)
+    const updatedSource = sourceCode.replace(trimmedHeader, '').trim()
+    fs.writeFileSync(absolutePath, updatedSource, 'utf-8')
+    console.log('license header removed on ', sourceFile)
+  }
 }
 
 const rustSourceFiles = collectFiles(rustSourcePatterns)
 const htmlSourceFiles = collectFiles(htmlSourcePatterns)
+const typeScriptSourceFiles = collectFiles(typeScriptSourcePatterns)
 
 const args = process.argv.slice(2)
 const shouldRemove = args.includes('--remove')
 
 if (shouldRemove) {
-    console.log('removing license header from source code')
-    removeLicense(rustSourceFiles, licenseHeaderRust)
-    removeLicense(htmlSourceFiles, licenseHeaderHtml)
-    console.log('removed license header from source code')
+  console.log('removing license header from source code')
+  removeLicense(rustSourceFiles, licenseHeaderRust)
+  removeLicense(htmlSourceFiles, licenseHeaderHtml)
+  removeLicense(typeScriptSourceFiles, licenseHeaderTypescript)
+  console.log('removed license header from source code')
 } else {
-    console.log('adding license header to source code')
-    addLicense(rustSourceFiles, licenseHeaderRust, rustRegex)
-    addLicense(htmlSourceFiles, licenseHeaderHtml, htmlRegex)
-    console.log('added license header to all source code')
+  console.log('adding license header to source code')
+  addLicense(rustSourceFiles, licenseHeaderRust, rustRegex)
+  addLicense(htmlSourceFiles, licenseHeaderHtml, htmlRegex)
+  addLicense(typeScriptSourceFiles, licenseHeaderTypescript, typescriptRegex)
+  console.log('added license header to all source code')
 }

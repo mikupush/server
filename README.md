@@ -105,12 +105,15 @@ server:
   port: 8080
   # Directory with static assets served at /static.
   # Can be a relative or absolute path.
-  # Default: static (relative to the executable)
-  static_directory: static
+  # Default: dist/assets (relative to the executable)
+  static_directory: dist/assets
+  # URL base path for serving static files.
+  # Default: /assets
+  static_base_path: /assets
   # Directory with HTML templates used by the app (e.g., health pages).
   # Can be a relative or absolute path.
-  # Default: templates (relative to the executable)
-  templates_directory: templates
+  # Default: dist (relative to the executable)
+  templates_directory: dist
 ```
 
 Notes:
@@ -123,6 +126,8 @@ MIKU_PUSH_SERVER_HOST=0.0.0.0
 MIKU_PUSH_SERVER_PORT=8080
 # Static files directory (relative or absolute). Default: static
 MIKU_PUSH_SERVER_STATIC_DIR=static
+# URL base path for serving static files. Default: /assets
+MIKU_PUSH_SERVER_STATIC_BASE_PATH=/assets
 # Templates directory (relative or absolute). Default: templates
 MIKU_PUSH_SERVER_TEMPLATES_DIR=templates
 ```
@@ -221,6 +226,29 @@ MIKU_PUSH_UPLOAD_DIRECTORY=data
 MIKU_PUSH_UPLOAD_EXPIRES_IN_SECONDS=604800
 # Interval in seconds to check for expired files; default is 3600
 MIKU_PUSH_UPLOAD_EXPIRATION_CLEANUP_INTERVAL=3600
+```
+
+### Debug
+
+#### YAML
+```yaml
+debug:
+  # Enable debug mode.
+  # When enabled, the server will attempt to serve the UI from the Astro development server
+  # instead of using the local static files and templates.
+  # Default: false
+  enable: false
+  # Astro development server URL.
+  # This is the URL where the Astro development server is running during development.
+  # It is used when debug.enable is true to proxy or redirect UI requests to Astro.
+  # Default: http://localhost:4321/
+  astro_dev_server: http://localhost:4321/
+```
+
+#### Environment variables
+```text
+MIKU_PUSH_DEBUG_ENABLE=false
+MIKU_PUSH_DEBUG_ASTRO_DEV_SERVER=http://localhost:4321/
 ```
 
 For a complete, commented template, see `config.example.yaml`. If a key is missing in `config.yaml` and there is no environment variable set, the application falls back to the documented default values.

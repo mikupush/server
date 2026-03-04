@@ -1,0 +1,63 @@
+---
+/**
+ * Miku Push! Server is the backend behind Miku Push!
+ * Copyright (C) 2025  Miku Push! Team
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ * 
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+
+import {Button} from "@/components/ui/button.tsx";
+import {Menu, X} from "lucide-react";
+import NavLinks from "@/components/NavLinks.astro";
+import ThemeSwitch from "@/components/ThemeSwitch.tsx";
+import {LanguageSelect} from "@/components/LanguageSelect.tsx";
+import { t } from 'i18next'
+---
+<div class="md:hidden">
+  <Button id="open-menu" variant="ghost" size="icon-lg" aria-label={t('open_menu')}>
+    <Menu className="size-6" />
+  </Button>
+</div>
+<div id="mobile-menu" class="hidden fixed top-0 right-0 w-full h-full bg-primary text-primary-foreground z-20 flex-col">
+  <div class="flex items-center justify-between p-6">
+    <div class="flex items-center">
+      <ThemeSwitch client:only="react" />
+      <LanguageSelect client:only="react" />
+    </div>
+    <Button id="close-menu" aria-label={t('close_menu')} variant="ghost" size="icon-lg">
+      <X className="size-6" />
+    </Button>
+  </div>
+  <div class="flex flex-col flex-1 items-center justify-center p-4 space-y-5">
+    <NavLinks />
+  </div>
+</div>
+<script>
+  document.getElementById('open-menu').addEventListener('click', () => {
+    document.querySelector('header')?.classList.toggle('sticky', false)
+    document.getElementById('mobile-menu').style.display = 'flex'
+  })
+
+  function closeMenu() {
+    document.querySelector('header')?.classList.toggle('sticky', true);
+    document.getElementById('mobile-menu').style.display = 'none'
+  }
+
+  document.getElementById('close-menu').addEventListener('click', closeMenu)
+
+  document.querySelectorAll('#mobile-menu a').forEach(anchor => {
+    anchor.addEventListener('click', closeMenu);
+  })
+</script>

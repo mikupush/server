@@ -12,8 +12,8 @@ README.md
 docker-compose.yml
 docker-compose.*.yml
 node_modules
-package.json
-package-lock.json
 .cache
 .env
 .env.example
+dist
+.astro
