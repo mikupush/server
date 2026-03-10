@@ -65,13 +65,13 @@ where
             expires_at
         };
 
-        let existing = self.repository.find_by_id(file_create.id)?;
+        let existing = self.repository.find_by_id(&file_create.id)?;
 
         if existing.is_some() {
             return Err(FileUploadError::Exists)
         }
 
-        self.repository.save(file_upload.clone())?;
+        self.repository.save(&file_upload.clone())?;
 
         Ok(file_upload)
     }

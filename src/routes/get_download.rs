@@ -14,15 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use actix_http::header::{Header, QualityItem};
 use crate::config::Settings;
-use crate::errors::{route_error_helpers, FileReadError};
+use crate::errors::{route_error_helpers, Error, FileInfoError, FileReadError};
 use crate::routes::ErrorResponse;
-use crate::services::{FileReader, SingleFileReader};
+use crate::services::{FileInfoFinder, FileReader, SingleFileReader};
 use crate::template::TemplateRenderer;
 use crate::tracing::ElapsedTimeTracing;
-use actix_http::header::{QualityItem, USER_AGENT};
-use actix_web::http::header::Accept;
+use actix_http::StatusCode;
 use actix_web::{get, mime, web, HttpRequest, HttpResponse};
+use actix_web::http::header::{Accept, USER_AGENT, ACCEPT};
+use log::warn;
 use serde_json::json;
 use tracing::debug;
 use uuid::Uuid;
@@ -31,75 +33,150 @@ use uuid::Uuid;
 pub async fn get_download(
     settings: web::Data<Settings>,
     id: web::Path<String>,
-    accept: Option<web::Header<Accept>>,
     request: HttpRequest
 ) -> HttpResponse {
     let time_tracing = ElapsedTimeTracing::new("get_download");
-
+    let finder = FileInfoFinder::get_with_settings(&settings);
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
         return route_error_helpers::invalid_uuid("id", id.to_string())
     };
 
-    let user_agent = request.headers()
-        .get(USER_AGENT)
-        .and_then(|user_agent| user_agent.to_str().ok())
-        .unwrap_or("");
-
-    let accept = accept
-        .map(|value| value.0)
-        .unwrap_or(Accept::star());
-    // TODO: aislar solo a contenido multimedia
-    // TODO: cachear query a postgres (15s)
-    // TODO: llamar al servicio de FileInfo para saber que tipo es
-    let should_show_download_page =
-        !user_agent.contains("Discordbot")
-        && accept.contains(&QualityItem::max(mime::TEXT_HTML));
-
-    let response = if should_show_download_page {
-        respond_download_page(&id, &settings, &request).await
-    } else {
-        respond_raw_content(&id, &settings).await
+    let error_responder = ErrorResponder::new(&settings, &request);
+    let file_upload = match finder.find(&id) {
+        Ok(file_upload) => file_upload,
+        Err(err) => return match err {
+            FileInfoError::NotExists { .. } => error_responder.respond(err, StatusCode::NOT_FOUND).await,
+            _ => error_responder.respond(err, StatusCode::INTERNAL_SERVER_ERROR).await
+        }
     };
 
+    let success_responder = Responder::new(&id, &file_upload.mime_type, &settings, &request);
+    let response = success_responder.respond().await;
     time_tracing.trace();
+
     response
 }
 
-async fn respond_download_page(id: &Uuid, settings: &Settings, request: &HttpRequest) -> HttpResponse {
-    let mut template_renderer = TemplateRenderer::new(settings, request);
-    template_renderer.add_to_head(format!(
-        "<script id=\"upload-metadata\" type=\"application/json\">{}</script>",
-        json!({"id": id.to_string()})
-    ));
-    let html = template_renderer.render_localized("download.html").await;
-
-    HttpResponse::Ok()
-        .content_type("text/html; charset=utf-8")
-        .body(html)
+struct Responder {
+    request: HttpRequest,
+    settings: Settings,
+    id: Uuid,
+    mime_type: String,
 }
 
-async fn respond_raw_content(id: &Uuid, settings: &Settings) -> HttpResponse {
-    let file_reader = FileReader::get_with_settings(settings);
-    let result = file_reader.read(*id).await;
-
-    match result {
-        Ok(stream_wrapper) => {
-            HttpResponse::Ok()
-                .content_type(stream_wrapper.details.mime_type.clone())
-                .insert_header(("Content-Length", stream_wrapper.details.size.to_string()))
-                .insert_header(("Content-Disposition", format!("inline; filename=\"{}\"", stream_wrapper.details.name)))
-                .insert_header(("Content-Type", stream_wrapper.details.mime_type.to_string()))
-                .streaming(stream_wrapper.stream)
-        },
-        Err(err) => {
-            let mut response_builder = match err {
-                FileReadError::NotExists { .. } => HttpResponse::NotFound(),
-                _ => HttpResponse::InternalServerError()
-            };
-
-            response_builder.json(ErrorResponse::from(err))
+impl Responder {
+    pub fn new(
+        id: &Uuid,
+        mime_type: &String,
+        settings: &Settings,
+        request: &HttpRequest
+    ) -> Self {
+        Self {
+            id: id.clone(),
+            mime_type: mime_type.clone(),
+            settings: settings.clone(),
+            request: request.clone()
         }
+    }
+
+    pub fn accept_html(request: &HttpRequest) -> bool {
+        let accept = Accept::parse(request).ok()
+            .unwrap_or(Accept::star());
+
+        accept.contains(&QualityItem::max(mime::TEXT_HTML))
+    }
+
+    fn is_robot_request(&self) -> bool {
+        let user_agent = self.request.headers()
+            .get(USER_AGENT)
+            .and_then(|user_agent| user_agent.to_str().ok())
+            .unwrap_or("");
+
+        user_agent.contains("Discordbot")
+    }
+
+    fn is_crawlable(&self) -> bool {
+        self.mime_type.starts_with("video/")
+        || self.mime_type.starts_with("audio/")
+        || self.mime_type.starts_with("image/")
+    }
+
+    pub async fn respond(&self) -> HttpResponse {
+        if self.is_robot_request() && self.is_crawlable() {
+            return self.raw().await
+        }
+
+        if Responder::accept_html(&self.request) {
+            self.html().await
+        } else {
+            self.raw().await
+        }
+    }
+
+    async fn html(&self) -> HttpResponse {
+        let mut template_renderer = TemplateRenderer::new(&self.settings, &self.request);
+        template_renderer.add_to_head(format!(
+            "<script id=\"upload-metadata\" type=\"application/json\">{}</script>",
+            json!({"id": self.id.to_string()})
+        ));
+        let html = template_renderer.render_localized("download.html").await;
+
+        HttpResponse::Ok()
+            .content_type("text/html; charset=utf-8")
+            .body(html)
+    }
+
+    async fn raw(&self) -> HttpResponse {
+        let file_reader = FileReader::get_with_settings(&self.settings);
+        let stream_wrapper = match file_reader.read(self.id).await {
+            Ok(stream_wrapper) => stream_wrapper,
+            Err(err) => {
+                warn!("unable to respond with file contents: {}", err);
+                return HttpResponse::InternalServerError().finish();
+            }
+        };
+
+        HttpResponse::Ok()
+            .content_type(stream_wrapper.details.mime_type.clone())
+            .insert_header(("Content-Length", stream_wrapper.details.size.to_string()))
+            .insert_header(("Content-Disposition", format!("inline; filename=\"{}\"", stream_wrapper.details.name)))
+            .insert_header(("Content-Type", stream_wrapper.details.mime_type.to_string()))
+            .streaming(stream_wrapper.stream)
+    }
+}
+
+struct ErrorResponder {
+    request: HttpRequest,
+    settings: Settings
+}
+
+impl ErrorResponder {
+    pub fn new(settings: &Settings, request: &HttpRequest) -> Self {
+        Self { settings: settings.clone(), request: request.clone() }
+    }
+
+    async fn respond(&self, err: impl Error, status: StatusCode) -> HttpResponse {
+        if Responder::accept_html(&self.request) {
+            self.html(status).await
+        } else {
+            ErrorResponder::json(err, status)
+        }
+    }
+
+    async fn html(&self, status: StatusCode) -> HttpResponse {
+        let template = TemplateRenderer::new(&self.settings, &self.request);
+        let html = match status {
+            StatusCode::NOT_FOUND => template.render_localized("download_not_found.html"),
+            _ => template.render_localized("error.html")
+        };
+
+        HttpResponse::build(status).body(html.await)
+    }
+
+    fn json(err: impl Error, status: StatusCode) -> HttpResponse {
+        let mut response = HttpResponse::build(status);
+        response.json(ErrorResponse::from(err))
     }
 }
 

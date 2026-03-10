@@ -19,7 +19,7 @@ use crate::repository::FileUploadRepositoryError;
 use std::fmt::Display;
 use uuid::Uuid;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum FileInfoError {
     NotExists { id: Uuid },
     IO { message: String },

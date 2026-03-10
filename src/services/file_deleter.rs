@@ -49,7 +49,7 @@ where
 
     pub fn delete(&self, id: Uuid) -> Result<(), FileDeleteError> {
         debug!("deleting file with id: {}", id.to_string());
-        let file_upload = match self.repository.find_by_id(id)? {
+        let file_upload = match self.repository.find_by_id(&id)? {
             Some(file_upload) => file_upload,
             None => {
                 debug!("file with id {} does not exist on the database", id.to_string());
@@ -66,7 +66,7 @@ where
         }
 
         debug!("deleting file from the database: {}", id.to_string());
-        self.repository.delete(id)?;
+        self.repository.delete(&id)?;
 
         Ok(())
     }
@@ -125,7 +125,7 @@ mod tests {
         let result = deleter.delete(id);
 
         assert!(result.is_ok());
-        let stored = deleter.repository.find_by_id(id).unwrap();
+        let stored = deleter.repository.find_by_id(&id).unwrap();
         assert!(stored.is_none(), "file upload should be removed from repository");
         cleanup_directory(&deleter.settings.upload.directory, id);
     }
@@ -142,7 +142,7 @@ mod tests {
         assert!(matches!(result.unwrap_err(), FileDeleteError::NotExists { id } if id == missing_id));
 
         let existing_id = Uuid::parse_str("5769aa43-2380-49be-aafb-e9dd4bd4564f").unwrap();
-        assert!(deleter.repository.find_by_id(existing_id).unwrap().is_some(), "existing file should stay untouched");
+        assert!(deleter.repository.find_by_id(&existing_id).unwrap().is_some(), "existing file should stay untouched");
     }
 
     #[test]
@@ -156,7 +156,7 @@ mod tests {
         let result = deleter.delete(id);
 
         assert!(result.is_ok(), "removal should continue when storage object is missing");
-        assert!(repository.find_by_id(id).unwrap().is_none(), "record should still be deleted from repository");
+        assert!(repository.find_by_id(&id).unwrap().is_none(), "record should still be deleted from repository");
         cleanup_directory(&settings.upload.directory, id);
     }
 
@@ -171,7 +171,7 @@ mod tests {
         let result = deleter.delete(id);
 
         assert!(matches!(result, Err(FileDeleteError::IO { .. })));
-        assert!(repository.find_by_id(id).unwrap().is_some(), "record should remain when storage removal fails");
+        assert!(repository.find_by_id(&id).unwrap().is_some(), "record should remain when storage removal fails");
         cleanup_directory(&settings.upload.directory, id);
     }
 

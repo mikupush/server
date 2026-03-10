@@ -123,7 +123,7 @@ where
 
     async fn save_upload(&self, file_upload: FileUpload) -> Result<(), FileUploadError> {
         let repository = self.repository.clone();
-        tokio::task::spawn_blocking(move || repository.save(file_upload)).await
+        tokio::task::spawn_blocking(move || repository.save(&file_upload)).await
             .map_err(|e| FileUploadError::IO { message: e.to_string() })??;
 
         Ok(())
@@ -131,7 +131,7 @@ where
 
     async fn find_upload_by_id(&self, id: Uuid) -> Result<FileUpload, FileUploadError> {
         let repository = self.repository.clone();
-        let file_upload = tokio::task::spawn_blocking(move || repository.find_by_id(id)).await
+        let file_upload = tokio::task::spawn_blocking(move || repository.find_by_id(&id)).await
             .map_err(|e| FileUploadError::IO { message: e.to_string() })??;
 
         if let None = file_upload {

@@ -40,13 +40,13 @@ where
         Self { repository, settings: settings.clone() }
     }
 
-    pub fn find(&self, id: Uuid) -> Result<FileInfo, FileInfoError> {
+    pub fn find(&self, id: &Uuid) -> Result<FileInfo, FileInfoError> {
         debug!("retrieving file info for file with id: {}", id.to_string());
         let file_upload = match self.repository.find_by_id(id)? {
             Some(file_upload) => file_upload,
             None => {
                 debug!("file with id {} does not exist on the database", id.to_string());
-                return Err(FileInfoError::NotExists { id });
+                return Err(FileInfoError::NotExists { id: id.clone() });
             }
         };
 

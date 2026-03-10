@@ -17,6 +17,10 @@
 use crate::errors::Error;
 use crate::repository::FileUploadRepositoryError;
 use std::fmt::Display;
+use actix_http::body::BoxBody;
+use actix_http::StatusCode;
+use actix_web::{HttpResponse, ResponseError};
+use bytes::Bytes;
 use uuid::Uuid;
 
 #[derive(Debug)]
@@ -47,6 +51,19 @@ impl Error for FileReadError {
             Self::DB { message } => message.clone(),
             Self::IO { message } => message.clone(),
         }
+    }
+}
+
+impl ResponseError for FileReadError {
+    fn status_code(&self) -> StatusCode {
+        match self {
+            Self::NotExists { .. } => StatusCode::NOT_FOUND,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+
+    fn error_response(&self) -> HttpResponse<BoxBody> {
+        HttpResponse::with_body(self.status_code(), BoxBody::new(self.message()))
     }
 }
 

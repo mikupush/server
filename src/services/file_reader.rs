@@ -55,7 +55,7 @@ where
 
     pub async fn read(&self, id: Uuid) -> Result<FileStreamWrapper, FileReadError> {
         let repository = self.repository.clone();
-        let file_upload_result = tokio::task::spawn_blocking(move || repository.find_by_id(id)).await
+        let file_upload_result = tokio::task::spawn_blocking(move || repository.find_by_id(&id)).await
             .map_err(|err| FileReadError::IO { message: err.to_string() })?;
         let file_upload = match file_upload_result? {
             Some(file_upload) => file_upload,

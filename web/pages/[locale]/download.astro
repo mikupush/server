@@ -17,14 +17,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import Counter from '@/components/Counter.tsx'
 import PageLayout from '@/layout/page.astro'
 import { languagePaths } from "@/i18n/i18n.ts"
-import i18n, { t } from "i18next";
-import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button.tsx';
-import { Separator } from "@/components/ui/separator.tsx";
-import { File, Download } from 'lucide-react'
+import i18n from "i18next";
 import FileDownload from '@/components/FileDownload';
 
 export function getStaticPaths() {

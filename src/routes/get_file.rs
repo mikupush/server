@@ -38,7 +38,7 @@ pub async fn get_file_info(
         return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
     };
 
-    let find_result = match web::block(move || finder.find(id)).await {
+    let find_result = match web::block(move || finder.find(&id)).await {
         Ok(result) => result,
         Err(err) => {
             let response: ErrorResponse = err.into();
