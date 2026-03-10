@@ -31,7 +31,7 @@ pub async fn delete_file(
     id: web::Path<String>
 ) -> Result<HttpResponse> {
     let time_tracing = ElapsedTimeTracing::new("delete_file");
-    let deleter = FileDeleter::get_with_settings(settings.get_ref().clone());
+    let deleter = FileDeleter::get_with_settings(&settings);
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
         return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))

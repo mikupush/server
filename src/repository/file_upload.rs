@@ -24,7 +24,9 @@ use diesel::{OptionalExtension, QueryDsl, RunQueryDsl, ExpressionMethods};
 use r2d2::Error as PoolError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use core::time::Duration;
 use uuid::Uuid;
+use crate::cache::{Cache, MokaCache};
 use crate::tracing::ElapsedTimeTracing;
 
 #[derive(Debug)]
@@ -93,23 +95,42 @@ impl FileUploadRepository for InMemoryFileUploadRepository {
 }
 
 #[derive(Debug, Clone)]
-pub struct PostgresFileUploadRepository {
-    db_pool: DbPool
+pub struct PostgresFileUploadRepository<C>
+where
+    C: Cache + Clone
+{
+    db_pool: DbPool,
+    cache: C
 }
 
-impl PostgresFileUploadRepository {
-    pub fn new(db_pool: DbPool) -> Self {
-        Self { db_pool }
-    }
-
-    pub fn get_with_settings(settings: Settings) -> Self {
-        Self::new(get_database_connection(settings))
+impl<C> PostgresFileUploadRepository<C>
+where
+    C: Cache + Clone
+{
+    pub fn new(db_pool: DbPool, cache: C) -> Self {
+        Self { db_pool, cache }
     }
 }
 
-impl FileUploadRepository for PostgresFileUploadRepository {
+impl PostgresFileUploadRepository<MokaCache> {
+    pub fn get_with_settings(settings: &Settings) -> Self {
+        Self::new(get_database_connection(settings), MokaCache::new())
+    }
+}
+
+impl<C> FileUploadRepository for PostgresFileUploadRepository<C>
+where
+    C: Cache + Clone
+{
     fn find_by_id(&self, file_upload_id: Uuid) -> Result<Option<FileUpload>, FileUploadRepositoryError> {
         let trace_time = ElapsedTimeTracing::new("postgres_find_file_by_id");
+        let cache_key = format!("mikupush:postgres:file_upload_id:{}", file_upload_id);
+        let cached: Option<FileUpload> = self.cache.get(cache_key.as_str());
+        if let Some(cached) = cached {
+            trace_time.trace();
+            return Ok(Some(cached));
+        }
+
         let mut connection = self.db_pool.get()?;
         let record: Option<FileUploadModel> = file_uploads::table
             .find(file_upload_id)
@@ -117,6 +138,10 @@ impl FileUploadRepository for PostgresFileUploadRepository {
             .optional()?;
 
         let mapped = record.map(FileUpload::from);
+        if let Some(item) = &mapped {
+            self.cache.set(cache_key.as_str(), item, Some(Duration::from_secs(15)));
+        }
+
         trace_time.trace();
         Ok(mapped)
     }
@@ -168,12 +193,19 @@ mod tests {
     use crate::database::setup_database_connection;
     use chrono::Utc;
     use serial_test::serial;
+    use crate::cache::NoOpCache;
+
+    impl PostgresFileUploadRepository<NoOpCache> {
+        pub fn with_pool(pool: DbPool) -> Self {
+            Self::new(pool.clone(), NoOpCache)
+        }
+    }
 
     #[test]
     #[serial]
     fn test_find_by_id() {
         let pool = setup_database_connection(&Settings::load(None));
-        let repository = PostgresFileUploadRepository::new(pool.clone());
+        let repository = PostgresFileUploadRepository::with_pool(pool.clone());
         let file_upload = insert_file_upload(&pool);
 
         let stored = repository.find_by_id(file_upload.id).unwrap();
@@ -189,7 +221,7 @@ mod tests {
     #[serial]
     fn test_find_by_id_not_found() {
         let pool = setup_database_connection(&Settings::load(None));
-        let repository = PostgresFileUploadRepository::new(pool.clone());
+        let repository = PostgresFileUploadRepository::with_pool(pool.clone());
 
         let result = repository.find_by_id(Uuid::new_v4()).unwrap();
 
@@ -200,7 +232,7 @@ mod tests {
     #[serial]
     fn test_delete_file_upload() {
         let pool = setup_database_connection(&Settings::load(None));
-        let repository = PostgresFileUploadRepository::new(pool.clone());
+        let repository = PostgresFileUploadRepository::with_pool(pool.clone());
         let file_upload = insert_file_upload(&pool);
 
         repository.delete(file_upload.id).unwrap();
@@ -213,7 +245,7 @@ mod tests {
     #[serial]
     fn test_save_insert_file_upload() {
         let pool = setup_database_connection(&Settings::load(None));
-        let repository = PostgresFileUploadRepository::new(pool.clone());
+        let repository = PostgresFileUploadRepository::with_pool(pool.clone());
         let file_upload: FileUpload = create_file_upload().into();
 
         repository.save(file_upload.clone()).unwrap();
@@ -227,7 +259,7 @@ mod tests {
     #[serial]
     fn test_save_update_file_upload() {
         let pool = setup_database_connection(&Settings::load(None));
-        let repository = PostgresFileUploadRepository::new(pool.clone());
+        let repository = PostgresFileUploadRepository::with_pool(pool.clone());
         let mut file_upload: FileUpload = create_file_upload().into();
 
         repository.save(file_upload.clone()).unwrap();

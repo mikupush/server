@@ -20,6 +20,7 @@ use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::routes::FileCreate;
 use crate::services::{FileSizeLimiter, FileUploadError, SystemClock};
 use chrono::Duration;
+use crate::cache::MokaCache;
 use crate::services::clock::Clock;
 
 #[derive(Debug, Clone)]
@@ -39,8 +40,8 @@ where
     FR: FileUploadRepository + Clone,
     C: Clock + Clone
 {
-    pub fn new(repository: FR, limiter: FileSizeLimiter, settings: Settings, clock: C) -> Self {
-        Self { repository, limiter, settings, clock }
+    pub fn new(repository: FR, limiter: FileSizeLimiter, settings: &Settings, clock: C) -> Self {
+        Self { repository, limiter, settings: settings.clone(), clock }
     }
 
     pub fn register_file(&self, file_create: FileCreate) -> Result<FileUpload, FileUploadError> {
@@ -76,11 +77,11 @@ where
     }
 }
 
-impl FileRegister<PostgresFileUploadRepository, SystemClock> {
-    pub fn get_with_settings(settings: Settings) -> Self {
+impl FileRegister<PostgresFileUploadRepository<MokaCache>, SystemClock> {
+    pub fn get_with_settings(settings: &Settings) -> Self {
         Self::new(
-            PostgresFileUploadRepository::get_with_settings(settings.clone()),
-            FileSizeLimiter::new(settings.clone()),
+            PostgresFileUploadRepository::get_with_settings(&settings),
+            FileSizeLimiter::new(settings),
             settings,
             SystemClock,
         )
@@ -107,7 +108,7 @@ mod tests {
             Self::new(
                 Self::create_repository(),
                 FileSizeLimiter::create(),
-                Settings::default(),
+                &Settings::default(),
                 FakeClock(test_date_time())
             )
         }
@@ -116,7 +117,7 @@ mod tests {
             Self::new(
                 Self::create_repository(),
                 FileSizeLimiter::create_limited(),
-                Settings::default(),
+                &Settings::default(),
                 FakeClock(test_date_time())
             )
         }
@@ -128,7 +129,7 @@ mod tests {
             Self::new(
                 Self::create_repository(),
                 FileSizeLimiter::create_limited(),
-                settings,
+                &settings,
                 FakeClock(test_date_time())
             )
         }

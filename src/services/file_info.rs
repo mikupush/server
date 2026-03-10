@@ -17,10 +17,11 @@
 use crate::config::Settings;
 use crate::errors::FileInfoError;
 use crate::model::FileInfo;
-use crate::repository::FileUploadRepository;
+use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
 use std::path::Path;
 use tracing::debug;
 use uuid::Uuid;
+use crate::cache::{Cache, MokaCache};
 
 #[derive(Debug, Clone)]
 pub struct FileInfoFinder<FR>
@@ -35,8 +36,8 @@ impl<FR> FileInfoFinder<FR>
 where
     FR: FileUploadRepository + Clone,
 {
-    pub fn new(repository: FR, settings: Settings) -> Self {
-        Self { repository, settings }
+    pub fn new(repository: FR, settings: &Settings) -> Self {
+        Self { repository, settings: settings.clone() }
     }
 
     pub fn find(&self, id: Uuid) -> Result<FileInfo, FileInfoError> {
@@ -56,16 +57,23 @@ where
     }
 }
 
+impl FileInfoFinder<PostgresFileUploadRepository<MokaCache>> {
+    pub fn get_with_settings(settings: &Settings) -> Self {
+        Self::new(PostgresFileUploadRepository::get_with_settings(settings), settings)
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::cache::NoOpCache;
     use super::*;
     use crate::config::Settings;
     use crate::database::DbPool;
     use crate::repository::PostgresFileUploadRepository;
 
-    impl FileInfoFinder<PostgresFileUploadRepository> {
+    impl FileInfoFinder<PostgresFileUploadRepository<NoOpCache>> {
         pub fn test(pool: DbPool) -> Self {
-            Self::new(PostgresFileUploadRepository::new(pool), Settings::default())
+            Self::new(PostgresFileUploadRepository::with_pool(pool), &Settings::default())
         }
     }
 }

@@ -27,6 +27,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::Stream;
 use uuid::Uuid;
+use crate::cache::MokaCache;
 
 #[derive(Debug, Clone)]
 pub struct FileReader<FR, OBR>
@@ -44,8 +45,12 @@ where
     FR: FileUploadRepository + Clone + Send + 'static,
     OBR: ObjectStorageReader + Clone + Send,
 {
-    pub fn new(repository: FR, reader: OBR, settings: Settings) -> Self {
-        Self { repository, reader, settings }
+    pub fn new(repository: FR, reader: OBR, settings: &Settings) -> Self {
+        Self {
+            repository,
+            reader,
+            settings: settings.clone()
+        }
     }
 
     pub async fn read(&self, id: Uuid) -> Result<FileStreamWrapper, FileReadError> {
@@ -77,10 +82,10 @@ where
     }
 }
 
-impl FileReader<PostgresFileUploadRepository, FileSystemObjectStorageReader> {
-    pub fn get_with_settings(settings: Settings) -> Self {
+impl FileReader<PostgresFileUploadRepository<MokaCache>, FileSystemObjectStorageReader> {
+    pub fn get_with_settings(settings: &Settings) -> Self {
         Self::new(
-            PostgresFileUploadRepository::get_with_settings(settings.clone()),
+            PostgresFileUploadRepository::get_with_settings(&settings),
             FileSystemObjectStorageReader::new(),
             settings
         )

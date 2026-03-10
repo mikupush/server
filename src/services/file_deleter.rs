@@ -21,6 +21,7 @@ use crate::services::object_storage_remover::{FileSystemObjectStorageRemover, Ob
 use std::path::Path;
 use tracing::debug;
 use uuid::Uuid;
+use crate::cache::MokaCache;
 
 #[derive(Debug, Clone)]
 pub struct FileDeleter<FR, OSR>
@@ -38,8 +39,12 @@ where
     FR: FileUploadRepository + Clone,
     OSR: ObjectStorageRemover + Clone,
 {
-    pub fn new(repository: FR, object_storage_remover: OSR, settings: Settings) -> Self {
-        Self { repository, remover: object_storage_remover, settings }
+    pub fn new(repository: FR, object_storage_remover: OSR, settings: &Settings) -> Self {
+        Self {
+            repository,
+            remover: object_storage_remover,
+            settings: settings.clone()
+        }
     }
 
     pub fn delete(&self, id: Uuid) -> Result<(), FileDeleteError> {
@@ -67,10 +72,10 @@ where
     }
 }
 
-impl FileDeleter<PostgresFileUploadRepository, FileSystemObjectStorageRemover> {
-    pub fn get_with_settings(settings: Settings) -> Self {
+impl FileDeleter<PostgresFileUploadRepository<MokaCache>, FileSystemObjectStorageRemover> {
+    pub fn get_with_settings(settings: &Settings) -> Self {
         Self::new(
-            PostgresFileUploadRepository::get_with_settings(settings.clone()),
+            PostgresFileUploadRepository::get_with_settings(settings),
             FileSystemObjectStorageRemover::new(),
             settings
         )
@@ -95,7 +100,7 @@ mod tests {
             Self::new(
                 Self::create_repository(),
                 FakeObjectStorageRemover::new(),
-                Settings::default()
+                &Settings::default()
             )
         }
 
@@ -145,7 +150,7 @@ mod tests {
     fn test_delete_ignores_missing_storage_object() {
         let repository = FileDeleter::<InMemoryFileUploadRepository, FakeObjectStorageRemover>::create_repository();
         let settings = Settings::default();
-        let deleter = FileDeleter::new(repository.clone(), NotFoundObjectStorageRemover, settings.clone());
+        let deleter = FileDeleter::new(repository.clone(), NotFoundObjectStorageRemover, &settings);
         let id = Uuid::parse_str("5769aa43-2380-49be-aafb-e9dd4bd4564f").unwrap();
 
         let result = deleter.delete(id);
@@ -160,7 +165,7 @@ mod tests {
     fn test_delete_returns_error_on_storage_failure() {
         let repository = FileDeleter::<InMemoryFileUploadRepository, FakeObjectStorageRemover>::create_repository();
         let settings = Settings::default();
-        let deleter = FileDeleter::new(repository.clone(), FailingObjectStorageRemover, settings.clone());
+        let deleter = FileDeleter::new(repository.clone(), FailingObjectStorageRemover, &settings);
         let id = Uuid::parse_str("5769aa43-2380-49be-aafb-e9dd4bd4564f").unwrap();
 
         let result = deleter.delete(id);

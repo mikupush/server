@@ -35,8 +35,7 @@ pub async fn post_upload_file(
     payload: Payload
 ) -> Result<HttpResponse> {
     let time_tracing = ElapsedTimeTracing::new("post_upload_file");
-    let settings = settings.get_ref().clone();
-    let file_uploader = FileUploader::get_with_settings(settings);
+    let file_uploader = FileUploader::get_with_settings(&settings);
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
         time_tracing.trace();
@@ -63,9 +62,7 @@ pub async fn post_upload_part(
 ) -> Result<HttpResponse> {
     let time_tracing = ElapsedTimeTracing::new("post_upload_part");
     let (id, index) = path.into_inner();
-    let settings = settings.get_ref().clone();
-
-    let file_uploader = FileUploader::get_with_settings(settings);
+    let file_uploader = FileUploader::get_with_settings(&settings);
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
         time_tracing.trace();

@@ -18,10 +18,10 @@ use crate::config::Settings;
 use chrono::NaiveDateTime;
 use diesel::{AsChangeset, Insertable, Queryable};
 use std::path::{Path, PathBuf};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct FileUpload {
     pub id: Uuid,
     pub name: String,

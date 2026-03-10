@@ -40,7 +40,7 @@ pub async fn post_file(
 ) -> Result<HttpResponse> {
     let time_tracing = ElapsedTimeTracing::new("post_file");
     let settings = settings.get_ref().clone();
-    let file_register = FileRegister::get_with_settings(settings);
+    let file_register = FileRegister::get_with_settings(&settings);
     let request = request.into_inner();
 
     let request_clone = request.clone();

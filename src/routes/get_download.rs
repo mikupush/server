@@ -20,7 +20,7 @@ use crate::routes::ErrorResponse;
 use crate::services::{FileReader, SingleFileReader};
 use crate::template::TemplateRenderer;
 use crate::tracing::ElapsedTimeTracing;
-use actix_http::header::QualityItem;
+use actix_http::header::{QualityItem, USER_AGENT};
 use actix_web::http::header::Accept;
 use actix_web::{get, mime, web, HttpRequest, HttpResponse};
 use serde_json::json;
@@ -41,27 +41,29 @@ pub async fn get_download(
         return route_error_helpers::invalid_uuid("id", id.to_string())
     };
 
+    let user_agent = request.headers()
+        .get(USER_AGENT)
+        .and_then(|user_agent| user_agent.to_str().ok())
+        .unwrap_or("");
+
     let accept = accept
         .map(|value| value.0)
         .unwrap_or(Accept::star());
+    // TODO: aislar solo a contenido multimedia
+    // TODO: cachear query a postgres (15s)
+    // TODO: llamar al servicio de FileInfo para saber que tipo es
+    let should_show_download_page =
+        !user_agent.contains("Discordbot")
+        && accept.contains(&QualityItem::max(mime::TEXT_HTML));
 
-    let response = respond_by_accept_header(&id, &settings, &accept, &request).await;
-    time_tracing.trace();
-
-    response
-}
-
-async fn respond_by_accept_header(
-    id: &Uuid,
-    settings: &Settings,
-    accept: &Accept,
-    request: &HttpRequest,
-) -> HttpResponse {
-    if accept.contains(&QualityItem::max(mime::TEXT_HTML)) {
-        respond_download_page(id, settings, request).await
+    let response = if should_show_download_page {
+        respond_download_page(&id, &settings, &request).await
     } else {
-        respond_raw_content(id, settings).await
-    }
+        respond_raw_content(&id, &settings).await
+    };
+
+    time_tracing.trace();
+    response
 }
 
 async fn respond_download_page(id: &Uuid, settings: &Settings, request: &HttpRequest) -> HttpResponse {
@@ -78,7 +80,7 @@ async fn respond_download_page(id: &Uuid, settings: &Settings, request: &HttpReq
 }
 
 async fn respond_raw_content(id: &Uuid, settings: &Settings) -> HttpResponse {
-    let file_reader = FileReader::get_with_settings(settings.clone());
+    let file_reader = FileReader::get_with_settings(settings);
     let result = file_reader.read(*id).await;
 
     match result {
@@ -241,5 +243,30 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(content_type, "text/html; charset=utf-8");
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_200_raw_ok_when_discord() {
+        let settings = Settings::load(None);
+        let pool = setup_database_connection(&settings);
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
+                .service(get_download)
+        ).await;
+
+        let (_, file_upload) = create_test_file_upload(pool.clone());
+        let request = test::TestRequest::default()
+            .uri(format!("/u/{}", file_upload.id.clone()).as_str())
+            .method(Method::GET)
+            .insert_header(("Accept", "text/html"))
+            .insert_header(("User-Agent", "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)"))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let content_type = header_value("Content-Type", &response);
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(content_type, file_upload.mime_type);
     }
 }

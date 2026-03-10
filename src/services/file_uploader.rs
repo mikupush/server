@@ -26,6 +26,7 @@ use std::fmt::{format, Display};
 use tokio::io::AsyncRead;
 use tracing::debug;
 use uuid::Uuid;
+use crate::cache::MokaCache;
 
 #[derive(Debug, Clone)]
 pub struct FileUploader<FR, OSW, CSA>
@@ -50,11 +51,17 @@ where
     pub fn new(
         repository: FR,
         writer: OSW,
-        settings: Settings,
+        settings: &Settings,
         limiter: FileSizeLimiter,
         size_accumulator: CSA
     ) -> Self {
-        Self { repository, settings, limiter, writer, size_accumulator }
+        Self {
+            repository,
+            settings: settings.clone(),
+            limiter,
+            writer,
+            size_accumulator
+        }
     }
 
     pub async fn upload_file(&self, id: Uuid, reader: impl AsyncRead + Unpin) -> Result<(), FileUploadError> {
@@ -137,16 +144,16 @@ where
 }
 
 impl FileUploader<
-    PostgresFileUploadRepository,
+    PostgresFileUploadRepository<MokaCache>,
     FileSystemObjectStorageWriter,
     InMemoryChunkedUploadSizeAccumulator
 > {
-    pub fn get_with_settings(settings: Settings) -> Self {
+    pub fn get_with_settings(settings: &Settings) -> Self {
         Self::new(
-            PostgresFileUploadRepository::get_with_settings(settings.clone()),
+            PostgresFileUploadRepository::get_with_settings(settings),
             FileSystemObjectStorageWriter::new(),
-            settings.clone(),
-            FileSizeLimiter::new(settings.clone()),
+            settings,
+            FileSizeLimiter::new(settings),
             InMemoryChunkedUploadSizeAccumulator::new()
         )
     }

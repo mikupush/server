@@ -22,13 +22,15 @@ use actix_web::error::Result;
 use actix_web::{get, web, HttpResponse};
 use tracing::debug;
 use uuid::Uuid;
+use crate::config::Settings;
 use crate::tracing::ElapsedTimeTracing;
 
 #[get("/api/file/{id}")]
 pub async fn get_file_info(
-    finder: web::Data<FileInfoFinder<PostgresFileUploadRepository>>,
+    settings: web::Data<Settings>,
     id: web::Path<String>
 ) -> Result<HttpResponse> {
+    let finder = FileInfoFinder::get_with_settings(&settings);
     let time_tracing = ElapsedTimeTracing::new("get_file_info");
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
@@ -77,10 +79,11 @@ mod tests {
 
     #[actix_web::test]
     async fn test_get_file_info_200_ok() {
-        let pool = setup_database_connection(&Settings::load(None));
+        let settings = Settings::load(None);
+        let pool = setup_database_connection(&settings);
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileInfoFinder::test(pool.clone())))
+                .app_data(web::Data::new(settings))
                 .service(get_file_info)
         ).await;
 
@@ -105,12 +108,12 @@ mod tests {
 
     #[actix_web::test]
     async fn test_get_file_info_200_ok_not_uploaded_file() {
-        let settings = create_settings();
+        let settings = Settings::load(None);
         let pool = setup_database_connection(&settings);
 
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileInfoFinder::test(pool.clone())))
+                .app_data(web::Data::new(settings))
                 .service(get_file_info)
         ).await;
 
@@ -135,12 +138,10 @@ mod tests {
 
     #[actix_web::test]
     async fn test_get_file_info_404_not_found() {
-        let settings = create_settings();
-        let pool = setup_database_connection(&settings);
-
+        let settings = Settings::load(None);
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileInfoFinder::test(pool.clone())))
+                .app_data(web::Data::new(settings))
                 .service(get_file_info)
         ).await;
 
@@ -161,12 +162,10 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_get_file_info_400_bad_request_invalid_id() {
-        let settings = create_settings();
-        let pool = setup_database_connection(&settings);
-
+        let settings = Settings::load(None);
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(FileInfoFinder::test(pool.clone())))
+                .app_data(web::Data::new(settings))
                 .service(get_file_info)
         ).await;
 
@@ -183,9 +182,5 @@ mod tests {
 
         let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
         assert_eq!(response_body.code, route_error_codes::INVALID_PATH_PARAMETER_CODE);
-    }
-
-    fn create_settings() -> Settings {
-        Settings::load(None)
     }
 }
