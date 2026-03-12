@@ -63,7 +63,7 @@ export default function FileDownload() {
     return (
       <div className="flex flex-col items-center">
         <TriangleAlert className="text-red-500" size={100} />
-        <p className="text-2xl mt-3">{getErrorMessage(error)}</p>
+        <p className="text-2xl mt-3 px-5 text-center">{getErrorMessage(error)}</p>
       </div>
     )
   }
