@@ -19,8 +19,9 @@ use accept_language::intersection;
 use actix_web::HttpRequest;
 use tracing::{debug, warn};
 
+const LANGUAGE_COOKIE: &str = "language";
 const DEFAULT_LANGUAGE: &str = "en";
-const AVAILABLE_LANGUAGES: &[&str] = &["en", "es"];
+const AVAILABLE_LANGUAGES: &[&str] = &["en", "es", "en-US", "es-ES"];
 
 pub struct TemplateRenderer {
     settings: Settings,
@@ -30,22 +31,12 @@ pub struct TemplateRenderer {
 
 impl TemplateRenderer {
     pub fn new(settings: &Settings, request: &HttpRequest) -> Self {
-        let accept_language = request
-            .headers()
-            .get("Accept-Language")
-            .and_then(|h| h.to_str().ok())
-            .unwrap_or("");
-
-        let accepted_languages = intersection(accept_language, &AVAILABLE_LANGUAGES);
-
-        let language = accepted_languages
-            .first()
-            .map(|s| s.as_str())
-            .unwrap_or(DEFAULT_LANGUAGE);
+        let language = extract_language_from_cookie(request)
+            .unwrap_or(extract_language_from_header(request));
 
         Self {
             settings: settings.clone(),
-            language: String::from(language),
+            language,
             head: Vec::new()
         }
     }
@@ -108,4 +99,41 @@ impl TemplateRenderer {
         let head_elements = self.head.join("\n");
         template_content.replace("</head>", format!("{}</head>", head_elements).as_str())
     }
+}
+
+/// extracts the language from Accept-Language header, if language specified
+/// is not available, then return the default language.
+fn extract_language_from_header(request: &HttpRequest) -> String {
+    let accept_language = request
+        .headers()
+        .get("Accept-Language")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("");
+
+    let accepted_languages = intersection(accept_language, &AVAILABLE_LANGUAGES);
+
+    let mut detected_language: Option<String> = None;
+    let language = accepted_languages.first();
+    if let Some(language) = language {
+        detected_language = language.split("-")
+            .collect::<Vec<&str>>()
+            .get(0)
+            .map(|language| language.to_string());
+    }
+
+    if let Some(language) = detected_language {
+        return language;
+    }
+
+    DEFAULT_LANGUAGE.to_string()
+}
+
+/// extracts the language from cookie if it exists.
+fn extract_language_from_cookie(request: &HttpRequest) -> Option<String> {
+    let cookie = request.cookie(LANGUAGE_COOKIE);
+    if let Some(cookie) = cookie {
+        return Some(String::from(cookie.value()));
+    }
+
+    None
 }
