@@ -23,6 +23,7 @@ mod info;
 mod chunk_size;
 mod repository;
 pub mod error;
+mod part;
 
 pub use delete::*;
 pub use info::*;
@@ -31,3 +32,4 @@ pub use register::*;
 pub use size_limit::*;
 pub use upload::*;
 pub use repository::*;
+pub use part::*;

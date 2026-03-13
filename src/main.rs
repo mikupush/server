@@ -25,7 +25,6 @@ mod schema;
 mod serialization;
 mod file;
 mod logging;
-mod model;
 mod tracing;
 mod jobs;
 mod template;

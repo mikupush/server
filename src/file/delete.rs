@@ -86,7 +86,7 @@ impl FileDeleter<PostgresFileUploadRepository<MokaCache>, FileSystemObjectStorag
 mod tests {
     use crate::config::Settings;
     use crate::file::error::FileDeleteError;
-    use crate::model::FileUpload;
+    use crate::file::upload::FileUpload;
     use crate::file::{FileUploadRepository, InMemoryFileUploadRepository};
     use crate::storage::{FakeObjectStorageRemover, ObjectStorageRemoveError, ObjectStorageRemover};
     use crate::file::FileDeleter;

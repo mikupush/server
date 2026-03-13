@@ -75,7 +75,7 @@ mod tests {
     use actix_web::{test, web, App};
     use serial_test::serial;
     use uuid::Uuid;
-    use crate::model::{FileInfo, FileStatus};
+    use crate::file::{FileInfo, FileStatus};
     use crate::routes::error::code;
 
     #[actix_web::test]

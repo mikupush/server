@@ -16,11 +16,10 @@
 
 use crate::config::Settings;
 use crate::database::{get_database_connection, DbPool};
-use crate::model::FileUpload;
-use crate::model::FileUploadModel as FileUploadModel;
+use crate::file::{FileUpload, FileUploadModel};
 use crate::schema::file_uploads;
 use diesel::result::Error as DieselError;
-use diesel::{OptionalExtension, QueryDsl, RunQueryDsl, ExpressionMethods};
+use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use r2d2::Error as PoolError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -194,6 +193,7 @@ mod tests {
     use chrono::Utc;
     use serial_test::serial;
     use crate::cache::NoOpCache;
+    use crate::file::FileUploadModel;
 
     impl PostgresFileUploadRepository<NoOpCache> {
         pub fn with_pool(pool: DbPool) -> Self {

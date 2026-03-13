@@ -18,8 +18,8 @@
 pub mod tests {
     use crate::config::Settings;
     use crate::database::DbPool;
-    use crate::model::FileUpload;
-    use crate::model::{FilePart, FileUploadModel as FileUploadModel};
+    use crate::file::{FileUpload, FileUploadModel};
+    use crate::file::FilePart;
     use crate::schema::file_uploads;
     use actix_web::dev::ServiceResponse;
     use chrono::Utc;

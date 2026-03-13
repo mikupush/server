@@ -67,7 +67,7 @@ mod tests {
     use crate::config::Settings;
     use crate::database::{setup_database_connection, DbPool};
     use crate::file::error::file_delete_codes;
-    use crate::model::FileUploadModel;
+    use crate::file::FileUploadModel;
     use crate::routes::utils::tests::create_test_file_upload;
     use crate::routes::{delete_file, ErrorResponse};
     use crate::schema::file_uploads;

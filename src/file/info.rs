@@ -16,12 +16,48 @@
 
 use crate::config::Settings;
 use crate::file::error::FileInfoError;
-use crate::model::FileInfo;
 use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tracing::debug;
 use uuid::Uuid;
+use serde::{Deserialize, Serialize};
+use chrono::NaiveDateTime;
 use crate::cache::{Cache, MokaCache};
+use crate::file::upload::FileUpload as DomainFileUpload;
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum FileStatus {
+    WaitingForUpload,
+    Uploaded
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileInfo {
+    pub id: Uuid,
+    pub name: String,
+    pub mime_type: String,
+    pub size: i64,
+    pub uploaded_at: NaiveDateTime,
+    pub status: FileStatus,
+    pub expires_at: Option<NaiveDateTime>,
+}
+
+impl FileInfo {
+    pub fn from_file_upload(file_upload: &DomainFileUpload, path: PathBuf) -> Self {
+        Self {
+            id: file_upload.id,
+            name: file_upload.name.clone(),
+            mime_type: file_upload.mime_type.clone(),
+            size: file_upload.size,
+            uploaded_at: file_upload.uploaded_at,
+            status: match path.exists() {
+                true => FileStatus::Uploaded,
+                false => FileStatus::WaitingForUpload,
+            },
+            expires_at: file_upload.expires_at,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct FileInfoFinder<FR>

@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::model::FileUpload;
+use crate::file::upload::FileUpload;
 use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::routes::FileCreate;
 use crate::file::{FileSizeLimiter, FileUploadError};
@@ -90,7 +90,7 @@ impl FileRegister<PostgresFileUploadRepository<MokaCache>, SystemClock> {
 
 #[cfg(test)]
 mod tests {
-    use crate::model::FileUpload;
+    use crate::file::upload::FileUpload;
     use crate::file::InMemoryFileUploadRepository;
     use crate::routes::FileCreate;
     use crate::file::{FileRegister, FileSizeLimiter, FileUploadError};

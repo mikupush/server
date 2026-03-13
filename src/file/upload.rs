@@ -16,23 +16,106 @@
 
 use crate::config::Settings;
 use crate::file::error::Error;
-use crate::model::{FilePart, FileUpload};
-use crate::file::{FileUploadRepository, FileUploadRepositoryError, PostgresFileUploadRepository};
+use crate::file::{FilePart, FileUploadRepository, FileUploadRepositoryError, PostgresFileUploadRepository};
 use crate::file::chunk_size::{ChunkedUploadSizeAccumulator, InMemoryChunkedUploadSizeAccumulator};
 use crate::storage::{
-    FileSystemObjectStorageWriter,
-    ObjectStorageWriteError,
-    ObjectStorageWriter,
     FileSystemObjectStorageRemover,
+    FileSystemObjectStorageWriter,
     ObjectStorageRemoveError,
-    ObjectStorageRemover
+    ObjectStorageRemover,
+    ObjectStorageWriteError,
+    ObjectStorageWriter
 };
 use crate::file::FileSizeLimiter;
 use std::fmt::{format, Display};
+use std::path::{Path, PathBuf};
 use tokio::io::AsyncRead;
 use tracing::debug;
 use uuid::Uuid;
+use chrono::NaiveDateTime;
+use diesel::{AsChangeset, Insertable, Queryable};
+use serde::{Deserialize, Serialize};
 use crate::cache::MokaCache;
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+pub struct FileUpload {
+    pub id: Uuid,
+    pub name: String,
+    pub mime_type: String,
+    pub size: i64,
+    pub uploaded_at: NaiveDateTime,
+    pub chunked: bool,
+    pub expires_at: Option<NaiveDateTime>,
+}
+
+impl FileUpload {
+    /// Create and retrieve the directory for the file upload
+    fn directory(&self, settings: &Settings) -> Result<PathBuf, std::io::Error> {
+        let destination_directory = settings.upload.directory.clone();
+        let destination_directory = Path::new(destination_directory.as_str())
+            .join(self.id.to_string());
+
+        Ok(destination_directory)
+    }
+
+    /// Get the directory for the file content. This directory is used to store the file content
+    /// which can be file parts or single file contents.
+    pub fn content_directory(&self, settings: &Settings) -> Result<PathBuf, std::io::Error> {
+        let destination_directory = self.directory(settings)?;
+        let destination_directory = destination_directory.join("content");
+
+        Ok(destination_directory)
+    }
+
+    /// Get the directory for the file checksum. This directory is used to store the file checksums.
+    pub fn sum_directory(&self, settings: &Settings) -> Result<PathBuf, std::io::Error> {
+        let destination_directory = self.directory(settings)?;
+        let destination_directory = destination_directory.join("sum");
+
+        Ok(destination_directory)
+    }
+}
+
+#[derive(Debug, Clone, Queryable, Insertable, AsChangeset, PartialEq, Eq, Hash)]
+#[diesel(table_name = crate::schema::file_uploads)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
+pub struct FileUploadModel {
+    pub id: Uuid,
+    pub name: String,
+    pub mime_type: String,
+    pub size: i64,
+    pub uploaded_at: NaiveDateTime,
+    pub chunked: bool,
+    pub expires_at: Option<NaiveDateTime>,
+}
+
+impl From<FileUploadModel> for FileUpload {
+    fn from(model: FileUploadModel) -> Self {
+        Self {
+            id: model.id,
+            name: model.name,
+            mime_type: model.mime_type,
+            size: model.size,
+            uploaded_at: model.uploaded_at,
+            chunked: model.chunked,
+            expires_at: model.expires_at,
+        }
+    }
+}
+
+impl From<FileUpload> for FileUploadModel {
+    fn from(domain: FileUpload) -> Self {
+        Self {
+            id: domain.id,
+            name: domain.name,
+            mime_type: domain.mime_type,
+            size: domain.size,
+            uploaded_at: domain.uploaded_at,
+            chunked: domain.chunked,
+            expires_at: domain.expires_at,
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct FileUploader<FR, OSW, CSA>
@@ -277,7 +360,7 @@ pub mod file_upload_codes {
 #[cfg(test)]
 mod tests {
     use crate::config::Settings;
-    use crate::model::FileUpload;
+    use crate::file::upload::FileUpload;
     use crate::file::InMemoryFileUploadRepository;
     use crate::file::chunk_size::InMemoryChunkedUploadSizeAccumulator;
     use crate::storage::FakeObjectStorageWriter;
@@ -286,43 +369,6 @@ mod tests {
     use std::collections::HashMap;
     use tokio_util::io::StreamReader;
     use uuid::Uuid;
-
-    impl FileUploader<
-        InMemoryFileUploadRepository,
-        FakeObjectStorageWriter,
-        InMemoryChunkedUploadSizeAccumulator
-    > {
-        pub fn create() -> Self {
-            Self {
-                repository: Self::create_repository(),
-                writer: FakeObjectStorageWriter,
-                settings: Settings::default(),
-                limiter: FileSizeLimiter::create(),
-                size_accumulator: InMemoryChunkedUploadSizeAccumulator::new()
-            }
-        }
-
-        pub fn create_with_limit() -> Self {
-            Self {
-                repository: Self::create_repository(),
-                writer: FakeObjectStorageWriter,
-                settings: Settings::default(),
-                limiter: FileSizeLimiter::create_limited(),
-                size_accumulator: InMemoryChunkedUploadSizeAccumulator::new()
-            }
-        }
-
-        fn create_repository() -> InMemoryFileUploadRepository {
-            let items = HashMap::from([
-                (
-                    Uuid::parse_str("5769aa43-2380-49be-aafb-e9dd4bd4564f").unwrap(),
-                    FileUpload::create("5769aa43-2380-49be-aafb-e9dd4bd4564f")
-                ),
-            ]);
-
-            InMemoryFileUploadRepository::new(items)
-        }
-    }
 
     #[actix_web::test]
     async fn test_upload_file() {
@@ -419,5 +465,56 @@ mod tests {
 
         assert_eq!(true, result.is_err());
         assert_eq!(FileUploadError::MaxFileSizeExceeded, result.unwrap_err());
+    }
+
+    impl FileUpload {
+        pub fn create(id: &str) -> Self {
+            Self {
+                id: Uuid::parse_str(id).unwrap(),
+                name: "test.txt".to_string(),
+                mime_type: "text/plain".to_string(),
+                size: 10,
+                uploaded_at: chrono::Utc::now().naive_utc(),
+                chunked: false,
+                expires_at: None,
+            }
+        }
+    }
+
+    impl FileUploader<
+        InMemoryFileUploadRepository,
+        FakeObjectStorageWriter,
+        InMemoryChunkedUploadSizeAccumulator
+    > {
+        pub fn create() -> Self {
+            Self {
+                repository: Self::create_repository(),
+                writer: FakeObjectStorageWriter,
+                settings: Settings::default(),
+                limiter: FileSizeLimiter::create(),
+                size_accumulator: InMemoryChunkedUploadSizeAccumulator::new()
+            }
+        }
+
+        pub fn create_with_limit() -> Self {
+            Self {
+                repository: Self::create_repository(),
+                writer: FakeObjectStorageWriter,
+                settings: Settings::default(),
+                limiter: FileSizeLimiter::create_limited(),
+                size_accumulator: InMemoryChunkedUploadSizeAccumulator::new()
+            }
+        }
+
+        fn create_repository() -> InMemoryFileUploadRepository {
+            let items = HashMap::from([
+                (
+                    Uuid::parse_str("5769aa43-2380-49be-aafb-e9dd4bd4564f").unwrap(),
+                    FileUpload::create("5769aa43-2380-49be-aafb-e9dd4bd4564f")
+                ),
+            ]);
+
+            InMemoryFileUploadRepository::new(items)
+        }
     }
 }

@@ -16,7 +16,7 @@
 
 use crate::config::Settings;
 use crate::file::error::FileReadError;
-use crate::model::{FilePart, FileUpload};
+use crate::file::FilePart;
 use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::storage::{FileSystemObjectStorageReader, ObjectStorageReader};
 use bytes::Bytes;
@@ -28,6 +28,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::Stream;
 use uuid::Uuid;
 use crate::cache::MokaCache;
+use crate::file::upload::FileUpload;
 
 #[derive(Debug, Clone)]
 pub struct FileReader<FR, OBR>
