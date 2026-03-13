@@ -22,6 +22,7 @@ mod read;
 mod info;
 mod chunk_size;
 mod repository;
+pub mod error;
 
 pub use delete::*;
 pub use info::*;

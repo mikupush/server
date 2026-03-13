@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::errors::FileDeleteError;
+use crate::file::error::FileDeleteError;
 use crate::file::PostgresFileUploadRepository;
 use crate::routes::ErrorResponse;
 use crate::file::FileDeleter;
@@ -66,7 +66,7 @@ fn handle_delete_file_failure(err: FileDeleteError) -> HttpResponse {
 mod tests {
     use crate::config::Settings;
     use crate::database::{setup_database_connection, DbPool};
-    use crate::errors::file_delete_codes;
+    use crate::file::error::file_delete_codes;
     use crate::model::FileUploadModel;
     use crate::routes::utils::tests::create_test_file_upload;
     use crate::routes::{delete_file, ErrorResponse};

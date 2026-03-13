@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::errors::FileDeleteError;
+use crate::file::error::FileDeleteError;
 use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::storage::{FileSystemObjectStorageRemover, ObjectStorageRemoveError, ObjectStorageRemover};
 use std::path::Path;
@@ -85,7 +85,7 @@ impl FileDeleter<PostgresFileUploadRepository<MokaCache>, FileSystemObjectStorag
 #[cfg(test)]
 mod tests {
     use crate::config::Settings;
-    use crate::errors::FileDeleteError;
+    use crate::file::error::FileDeleteError;
     use crate::model::FileUpload;
     use crate::file::{FileUploadRepository, InMemoryFileUploadRepository};
     use crate::storage::{FakeObjectStorageRemover, ObjectStorageRemoveError, ObjectStorageRemover};

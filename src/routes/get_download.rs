@@ -16,7 +16,7 @@
 
 use actix_http::header::{Header, QualityItem};
 use crate::config::Settings;
-use crate::errors::{Error, FileInfoError, FileReadError};
+use crate::file::error::{Error, FileInfoError, FileReadError};
 use crate::routes::ErrorResponse;
 use crate::file::{FileInfoFinder, FileReader, SingleFileReader};
 use crate::template::TemplateRenderer;
@@ -186,7 +186,7 @@ mod tests {
     use super::*;
     use crate::config::Settings;
     use crate::database::setup_database_connection;
-    use crate::errors::file_read_codes;
+    use crate::file::error::file_read_codes;
     use crate::routes::utils::tests::{create_test_chunked_file_upload, create_test_file_upload, header_value};
     use actix_web::http::{Method, StatusCode};
     use actix_web::{test, App};

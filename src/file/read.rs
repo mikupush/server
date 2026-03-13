@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::errors::FileReadError;
+use crate::file::error::FileReadError;
 use crate::model::{FilePart, FileUpload};
 use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::storage::{FileSystemObjectStorageReader, ObjectStorageReader};

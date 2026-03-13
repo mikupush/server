@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::fmt::{Display, Formatter};
-use crate::errors::Error;
+use crate::file::error::Error;
 use actix_web::error::{BlockingError, JsonPayloadError};
 use actix_web::HttpResponse;
 use serde::{Deserialize, Serialize};

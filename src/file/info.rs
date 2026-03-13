@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::errors::FileInfoError;
+use crate::file::error::FileInfoError;
 use crate::model::FileInfo;
 use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
 use std::path::Path;

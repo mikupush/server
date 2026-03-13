@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::errors::Error;
+use crate::file::error::Error;
 use crate::model::{FilePart, FileUpload};
 use crate::file::{FileUploadRepository, FileUploadRepositoryError, PostgresFileUploadRepository};
 use crate::file::chunk_size::{ChunkedUploadSizeAccumulator, InMemoryChunkedUploadSizeAccumulator};

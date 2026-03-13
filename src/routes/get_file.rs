@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::errors::FileInfoError;
+use crate::file::error::FileInfoError;
 use crate::file::PostgresFileUploadRepository;
 use crate::routes::ErrorResponse;
 use crate::file::FileInfoFinder;
@@ -68,7 +68,7 @@ fn handle_get_file_info_failure(err: FileInfoError) -> HttpResponse {
 mod tests {
     use crate::config::Settings;
     use crate::database::setup_database_connection;
-    use crate::errors::file_delete_codes;
+    use crate::file::error::file_delete_codes;
     use crate::routes::utils::tests::{create_test_file_upload, register_test_file};
     use crate::routes::{get_file_info, ErrorResponse};
     use actix_web::http::{Method, StatusCode};
