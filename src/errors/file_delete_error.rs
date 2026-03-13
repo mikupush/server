@@ -16,7 +16,7 @@
 
 use crate::errors::Error;
 use crate::repository::FileUploadRepositoryError;
-use crate::services::ObjectStorageRemoveError;
+use crate::storage::ObjectStorageRemoveError;
 use std::fmt::Display;
 use uuid::Uuid;
 

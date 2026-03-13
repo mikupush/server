@@ -32,6 +32,8 @@ mod tracing;
 mod jobs;
 mod template;
 mod cache;
+mod file;
+mod storage;
 
 use crate::database::setup_database_connection;
 use crate::logging::configure_logging;

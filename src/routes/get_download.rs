@@ -301,7 +301,9 @@ mod tests {
     #[actix_web::test]
     #[serial]
     async fn test_get_download_200_html_ok() {
-        let settings = Settings::load(None);
+        let mut settings = Settings::load(None);
+        settings.debug.enable = false;
+
         let pool = setup_database_connection(&settings);
         let app = test::init_service(
             App::new()

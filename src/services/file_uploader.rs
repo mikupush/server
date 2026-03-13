@@ -19,8 +19,14 @@ use crate::errors::Error;
 use crate::model::{FilePart, FileUpload};
 use crate::repository::{FileUploadRepository, FileUploadRepositoryError, PostgresFileUploadRepository};
 use crate::services::file_chunk_size::{ChunkedUploadSizeAccumulator, InMemoryChunkedUploadSizeAccumulator};
-use crate::services::object_storage_remover::{FileSystemObjectStorageRemover, ObjectStorageRemoveError, ObjectStorageRemover};
-use crate::services::object_storage_writer::{FileSystemObjectStorageWriter, ObjectStorageWriteError, ObjectStorageWriter};
+use crate::storage::{
+    FileSystemObjectStorageWriter,
+    ObjectStorageWriteError,
+    ObjectStorageWriter,
+    FileSystemObjectStorageRemover,
+    ObjectStorageRemoveError,
+    ObjectStorageRemover
+};
 use crate::services::FileSizeLimiter;
 use std::fmt::{format, Display};
 use tokio::io::AsyncRead;
@@ -274,7 +280,7 @@ mod tests {
     use crate::model::FileUpload;
     use crate::repository::InMemoryFileUploadRepository;
     use crate::services::file_chunk_size::InMemoryChunkedUploadSizeAccumulator;
-    use crate::services::object_storage_writer::FakeObjectStorageWriter;
+    use crate::storage::FakeObjectStorageWriter;
     use crate::services::{FileSizeLimiter, FileUploadError, FileUploader};
     use bytes::Bytes;
     use std::collections::HashMap;
