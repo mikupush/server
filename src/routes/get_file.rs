@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::errors::{route_error_helpers, FileInfoError};
+use crate::errors::FileInfoError;
 use crate::file::PostgresFileUploadRepository;
 use crate::routes::ErrorResponse;
 use crate::file::FileInfoFinder;
@@ -23,6 +23,7 @@ use actix_web::{get, web, HttpResponse};
 use tracing::debug;
 use uuid::Uuid;
 use crate::config::Settings;
+use crate::routes::error::helper;
 use crate::tracing::ElapsedTimeTracing;
 
 #[get("/api/file/{id}")]
@@ -35,7 +36,7 @@ pub async fn get_file_info(
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
         time_tracing.trace();
-        return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
+        return Ok(helper::invalid_uuid("id", id.to_string()))
     };
 
     let find_result = match web::block(move || finder.find(&id)).await {
@@ -67,15 +68,15 @@ fn handle_get_file_info_failure(err: FileInfoError) -> HttpResponse {
 mod tests {
     use crate::config::Settings;
     use crate::database::setup_database_connection;
-    use crate::errors::{file_delete_codes, route_error_codes};
+    use crate::errors::file_delete_codes;
     use crate::routes::utils::tests::{create_test_file_upload, register_test_file};
     use crate::routes::{get_file_info, ErrorResponse};
-    use crate::file::FileInfoFinder;
     use actix_web::http::{Method, StatusCode};
     use actix_web::{test, web, App};
     use serial_test::serial;
     use uuid::Uuid;
     use crate::model::{FileInfo, FileStatus};
+    use crate::routes::error::code;
 
     #[actix_web::test]
     async fn test_get_file_info_200_ok() {
@@ -181,6 +182,6 @@ mod tests {
         assert_eq!(status_code, StatusCode::BAD_REQUEST);
 
         let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
-        assert_eq!(response_body.code, route_error_codes::INVALID_PATH_PARAMETER_CODE);
+        assert_eq!(response_body.code, code::INVALID_PATH_PARAMETER_CODE);
     }
 }

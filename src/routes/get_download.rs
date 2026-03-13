@@ -16,18 +16,19 @@
 
 use actix_http::header::{Header, QualityItem};
 use crate::config::Settings;
-use crate::errors::{route_error_helpers, Error, FileInfoError, FileReadError};
+use crate::errors::{Error, FileInfoError, FileReadError};
 use crate::routes::ErrorResponse;
 use crate::file::{FileInfoFinder, FileReader, SingleFileReader};
 use crate::template::TemplateRenderer;
 use crate::tracing::ElapsedTimeTracing;
 use actix_http::StatusCode;
 use actix_web::{get, mime, web, HttpRequest, HttpResponse};
-use actix_web::http::header::{Accept, USER_AGENT, ACCEPT};
+use actix_web::http::header::{Accept, ACCEPT, USER_AGENT};
 use log::warn;
 use serde_json::json;
 use tracing::debug;
 use uuid::Uuid;
+use crate::routes::error::helper;
 
 #[get("/u/{id}")]
 pub async fn get_download(
@@ -39,7 +40,7 @@ pub async fn get_download(
     let finder = FileInfoFinder::get_with_settings(&settings);
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
-        return route_error_helpers::invalid_uuid("id", id.to_string())
+        return helper::invalid_uuid("id", id.to_string())
     };
 
     let error_responder = ErrorResponder::new(&settings, &request);
@@ -185,11 +186,12 @@ mod tests {
     use super::*;
     use crate::config::Settings;
     use crate::database::setup_database_connection;
-    use crate::errors::{file_read_codes, route_error_codes};
+    use crate::errors::file_read_codes;
     use crate::routes::utils::tests::{create_test_chunked_file_upload, create_test_file_upload, header_value};
     use actix_web::http::{Method, StatusCode};
     use actix_web::{test, App};
     use serial_test::serial;
+    use crate::routes::error::code;
 
     #[actix_web::test]
     #[serial]
@@ -295,7 +297,7 @@ mod tests {
         assert_eq!(status_code, StatusCode::BAD_REQUEST);
 
         let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
-        assert_eq!(response_body.code, route_error_codes::INVALID_PATH_PARAMETER_CODE);
+        assert_eq!(response_body.code, code::INVALID_PATH_PARAMETER_CODE);
     }
 
     #[actix_web::test]

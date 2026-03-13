@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::errors::route_error_helpers;
+use crate::routes::error::helper;
 use crate::file::PostgresFileUploadRepository;
 use crate::routes::error::ErrorResponse;
 use crate::file::{FileUploadError, FileUploader};
@@ -39,7 +39,7 @@ pub async fn post_upload_file(
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
         time_tracing.trace();
-        return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
+        return Ok(helper::invalid_uuid("id", id.to_string()))
     };
 
     let mapper = payload.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
@@ -66,7 +66,7 @@ pub async fn post_upload_part(
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
         time_tracing.trace();
-        return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
+        return Ok(helper::invalid_uuid("id", id.to_string()))
     };
 
     let mapper = payload.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e));
@@ -100,7 +100,7 @@ mod tests {
     use super::*;
     use crate::config::{Settings, Upload};
     use crate::database::setup_database_connection;
-    use crate::errors::route_error_codes;
+    use crate::routes::error::code;
     use crate::routes::utils::tests::register_test_file;
     use crate::file::file_upload_codes;
     use actix_web::http::{Method, StatusCode};
@@ -158,7 +158,7 @@ mod tests {
 
         let response = test::read_body(response).await;
         let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
-        assert_eq!(response.code, route_error_codes::INVALID_PATH_PARAMETER_CODE);
+        assert_eq!(response.code, code::INVALID_PATH_PARAMETER_CODE);
     }
 
     #[actix_web::test]
@@ -267,7 +267,7 @@ mod tests {
 
         let response = test::read_body(response).await;
         let response: ErrorResponse = serde_json::from_slice(&response).unwrap();
-        assert_eq!(response.code, route_error_codes::INVALID_PATH_PARAMETER_CODE);
+        assert_eq!(response.code, code::INVALID_PATH_PARAMETER_CODE);
     }
 
     #[actix_web::test]

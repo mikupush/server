@@ -81,7 +81,7 @@ fn handle_register_file_failure(request: FileCreate, err: FileUploadError) -> Ht
 mod tests {
     use super::*;
     use crate::config::Upload;
-    use crate::errors::route_error_codes;
+    use crate::routes::error::code;
     use crate::routes::json_error_handler;
     use crate::file::file_upload_codes;
     use actix_web::http::{Method, StatusCode};
@@ -214,7 +214,7 @@ mod tests {
         assert_eq!(status_code, StatusCode::BAD_REQUEST);
 
         let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
-        assert_eq!(response_body.code, route_error_codes::INVALID_REQUEST_BODY_CODE);
+        assert_eq!(response_body.code, code::INVALID_REQUEST_BODY_CODE);
     }
 
     fn create_settings_limited() -> Settings {

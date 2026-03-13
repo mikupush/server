@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::errors::{route_error_helpers, FileDeleteError};
+use crate::errors::FileDeleteError;
 use crate::file::PostgresFileUploadRepository;
 use crate::routes::ErrorResponse;
 use crate::file::FileDeleter;
@@ -23,6 +23,7 @@ use actix_web::error::Result;
 use actix_web::{delete, web, HttpResponse};
 use tracing::debug;
 use uuid::Uuid;
+use crate::routes::error::helper;
 use crate::tracing::ElapsedTimeTracing;
 
 #[delete("/api/file/{id}")]
@@ -34,7 +35,7 @@ pub async fn delete_file(
     let deleter = FileDeleter::get_with_settings(&settings);
     let Ok(id) = Uuid::try_from(id.to_string()) else {
         debug!("cant convert id to uuid: {}", id.to_string());
-        return Ok(route_error_helpers::invalid_uuid("id", id.to_string()))
+        return Ok(helper::invalid_uuid("id", id.to_string()))
     };
 
     let result = match web::block(move || deleter.delete(id)).await {
@@ -65,7 +66,7 @@ fn handle_delete_file_failure(err: FileDeleteError) -> HttpResponse {
 mod tests {
     use crate::config::Settings;
     use crate::database::{setup_database_connection, DbPool};
-    use crate::errors::{file_delete_codes, route_error_codes};
+    use crate::errors::file_delete_codes;
     use crate::model::FileUploadModel;
     use crate::routes::utils::tests::create_test_file_upload;
     use crate::routes::{delete_file, ErrorResponse};
@@ -75,6 +76,7 @@ mod tests {
     use diesel::{OptionalExtension, QueryDsl, RunQueryDsl};
     use serial_test::serial;
     use uuid::Uuid;
+    use crate::routes::error::code;
 
     #[actix_web::test]
     async fn test_delete_file_200_ok() {
@@ -143,7 +145,7 @@ mod tests {
         assert_eq!(status_code, StatusCode::BAD_REQUEST);
 
         let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
-        assert_eq!(response_body.code, route_error_codes::INVALID_PATH_PARAMETER_CODE);
+        assert_eq!(response_body.code, code::INVALID_PATH_PARAMETER_CODE);
     }
 
     fn assert_file_upload_deleted_in_database(id: Uuid, pool: DbPool) {

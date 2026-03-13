@@ -17,13 +17,11 @@
 mod file_upload_error;
 mod file_delete_error;
 mod file_read_error;
-mod route_error;
 mod file_info_error;
 
 pub use file_delete_error::*;
 pub use file_info_error::*;
 pub use file_read_error::*;
-pub use route_error::*;
 
 use std::fmt::Display;
 
