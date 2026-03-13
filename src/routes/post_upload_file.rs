@@ -90,6 +90,11 @@ fn handle_post_upload_file_error(err: FileUploadError) -> HttpResponse {
     response_builder.json(ErrorResponse::from(err))
 }
 
+#[post("/api/file/{id}/upload/ack")]
+pub async fn post_upload_ack() -> HttpResponse {
+    HttpResponse::Ok().finish()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

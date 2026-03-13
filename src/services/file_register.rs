@@ -21,7 +21,7 @@ use crate::routes::FileCreate;
 use crate::services::{FileSizeLimiter, FileUploadError, SystemClock};
 use chrono::Duration;
 use crate::cache::MokaCache;
-use crate::services::clock::Clock;
+use crate::clock::Clock;
 
 #[derive(Debug, Clone)]
 pub struct FileRegister<FR, C>

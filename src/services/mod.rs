@@ -21,7 +21,6 @@ mod file_deleter;
 mod file_reader;
 mod file_info;
 mod file_chunk_size;
-mod clock;
 
 pub use file_deleter::*;
 pub use file_info::*;
@@ -29,4 +28,4 @@ pub use file_reader::*;
 pub use file_register::*;
 pub use file_size_limiter::*;
 pub use file_uploader::*;
-pub use clock::*;
+pub use crate::clock::*;
