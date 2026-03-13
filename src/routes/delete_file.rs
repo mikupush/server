@@ -18,7 +18,7 @@ use crate::config::Settings;
 use crate::errors::{route_error_helpers, FileDeleteError};
 use crate::repository::PostgresFileUploadRepository;
 use crate::routes::ErrorResponse;
-use crate::services::FileDeleter;
+use crate::file::FileDeleter;
 use actix_web::error::Result;
 use actix_web::{delete, web, HttpResponse};
 use tracing::debug;

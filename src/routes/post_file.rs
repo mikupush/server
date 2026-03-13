@@ -17,7 +17,7 @@
 use crate::config::Settings;
 use crate::repository::PostgresFileUploadRepository;
 use crate::routes::error::ErrorResponse;
-use crate::services::{FileRegister, FileUploadError};
+use crate::file::{FileRegister, FileUploadError};
 use actix_web::{post, web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
@@ -83,7 +83,7 @@ mod tests {
     use crate::config::Upload;
     use crate::errors::route_error_codes;
     use crate::routes::json_error_handler;
-    use crate::services::file_upload_codes;
+    use crate::file::file_upload_codes;
     use actix_web::http::{Method, StatusCode};
     use actix_web::{http::header::ContentType, test, App};
     use serial_test::serial;

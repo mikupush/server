@@ -89,7 +89,7 @@ mod tests {
     use crate::model::FileUpload;
     use crate::repository::{FileUploadRepository, InMemoryFileUploadRepository};
     use crate::storage::{FakeObjectStorageRemover, ObjectStorageRemoveError, ObjectStorageRemover};
-    use crate::services::FileDeleter;
+    use crate::file::FileDeleter;
     use serial_test::serial;
     use std::collections::HashMap;
     use std::path::Path;

@@ -18,7 +18,7 @@ use actix_http::header::{Header, QualityItem};
 use crate::config::Settings;
 use crate::errors::{route_error_helpers, Error, FileInfoError, FileReadError};
 use crate::routes::ErrorResponse;
-use crate::services::{FileInfoFinder, FileReader, SingleFileReader};
+use crate::file::{FileInfoFinder, FileReader, SingleFileReader};
 use crate::template::TemplateRenderer;
 use crate::tracing::ElapsedTimeTracing;
 use actix_http::StatusCode;

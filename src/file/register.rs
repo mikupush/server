@@ -18,7 +18,7 @@ use crate::config::Settings;
 use crate::model::FileUpload;
 use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::routes::FileCreate;
-use crate::services::{FileSizeLimiter, FileUploadError, SystemClock};
+use crate::file::{FileSizeLimiter, FileUploadError, SystemClock};
 use chrono::Duration;
 use crate::cache::MokaCache;
 use crate::clock::Clock;
@@ -93,7 +93,7 @@ mod tests {
     use crate::model::FileUpload;
     use crate::repository::InMemoryFileUploadRepository;
     use crate::routes::FileCreate;
-    use crate::services::{FakeClock, FileRegister, FileSizeLimiter, FileUploadError};
+    use crate::file::{FakeClock, FileRegister, FileSizeLimiter, FileUploadError};
     use std::collections::HashMap;
     use chrono::{Duration, NaiveDateTime};
     use uuid::Uuid;

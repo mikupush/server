@@ -17,7 +17,7 @@
 use crate::config::Settings;
 use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::storage::ObjectStorageRemover;
-use crate::services::FileDeleter;
+use crate::file::FileDeleter;
 use std::thread;
 use std::time::Duration;
 use tracing::{debug, error, info};

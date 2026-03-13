@@ -17,7 +17,7 @@
 use crate::errors::{route_error_helpers, FileInfoError};
 use crate::repository::PostgresFileUploadRepository;
 use crate::routes::ErrorResponse;
-use crate::services::FileInfoFinder;
+use crate::file::FileInfoFinder;
 use actix_web::error::Result;
 use actix_web::{get, web, HttpResponse};
 use tracing::debug;
@@ -70,7 +70,7 @@ mod tests {
     use crate::errors::{file_delete_codes, route_error_codes};
     use crate::routes::utils::tests::{create_test_file_upload, register_test_file};
     use crate::routes::{get_file_info, ErrorResponse};
-    use crate::services::FileInfoFinder;
+    use crate::file::FileInfoFinder;
     use actix_web::http::{Method, StatusCode};
     use actix_web::{test, web, App};
     use serial_test::serial;

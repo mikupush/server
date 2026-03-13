@@ -18,7 +18,7 @@ use crate::config::Settings;
 use crate::errors::route_error_helpers;
 use crate::repository::PostgresFileUploadRepository;
 use crate::routes::error::ErrorResponse;
-use crate::services::{FileUploadError, FileUploader};
+use crate::file::{FileUploadError, FileUploader};
 use actix_web::web::Payload;
 use actix_web::{post, web, HttpRequest, HttpResponse, Result};
 use futures::TryStreamExt;
@@ -102,7 +102,7 @@ mod tests {
     use crate::database::setup_database_connection;
     use crate::errors::route_error_codes;
     use crate::routes::utils::tests::register_test_file;
-    use crate::services::file_upload_codes;
+    use crate::file::file_upload_codes;
     use actix_web::http::{Method, StatusCode};
     use actix_web::{http::header::ContentType, test, App};
     use serial_test::serial;

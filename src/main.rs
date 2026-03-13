@@ -23,7 +23,7 @@ mod config;
 mod database;
 mod schema;
 mod serialization;
-mod services;
+mod file;
 mod errors;
 mod logging;
 mod repository;
@@ -32,7 +32,6 @@ mod tracing;
 mod jobs;
 mod template;
 mod cache;
-mod file;
 mod storage;
 mod clock;
 

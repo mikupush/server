@@ -14,18 +14,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod file_register;
-mod file_uploader;
-mod file_size_limiter;
-mod file_deleter;
-mod file_reader;
-mod file_info;
-mod file_chunk_size;
+mod register;
+mod upload;
+mod size_limit;
+mod delete;
+mod read;
+mod info;
+mod chunk_size;
 
-pub use file_deleter::*;
-pub use file_info::*;
-pub use file_reader::*;
-pub use file_register::*;
-pub use file_size_limiter::*;
-pub use file_uploader::*;
+pub use delete::*;
+pub use info::*;
+pub use read::*;
+pub use register::*;
+pub use size_limit::*;
+pub use upload::*;
 pub use crate::clock::*;
