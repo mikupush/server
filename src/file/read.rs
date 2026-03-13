@@ -17,7 +17,7 @@
 use crate::config::Settings;
 use crate::errors::FileReadError;
 use crate::model::{FilePart, FileUpload};
-use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
+use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::storage::{FileSystemObjectStorageReader, ObjectStorageReader};
 use bytes::Bytes;
 use rusqlite::fallible_iterator::FallibleIterator;

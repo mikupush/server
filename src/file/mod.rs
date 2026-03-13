@@ -21,6 +21,7 @@ mod delete;
 mod read;
 mod info;
 mod chunk_size;
+mod repository;
 
 pub use delete::*;
 pub use info::*;
@@ -28,3 +29,4 @@ pub use read::*;
 pub use register::*;
 pub use size_limit::*;
 pub use upload::*;
+pub use repository::*;

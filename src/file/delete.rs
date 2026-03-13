@@ -16,7 +16,7 @@
 
 use crate::config::Settings;
 use crate::errors::FileDeleteError;
-use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
+use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::storage::{FileSystemObjectStorageRemover, ObjectStorageRemoveError, ObjectStorageRemover};
 use std::path::Path;
 use tracing::debug;
@@ -87,7 +87,7 @@ mod tests {
     use crate::config::Settings;
     use crate::errors::FileDeleteError;
     use crate::model::FileUpload;
-    use crate::repository::{FileUploadRepository, InMemoryFileUploadRepository};
+    use crate::file::{FileUploadRepository, InMemoryFileUploadRepository};
     use crate::storage::{FakeObjectStorageRemover, ObjectStorageRemoveError, ObjectStorageRemover};
     use crate::file::FileDeleter;
     use serial_test::serial;

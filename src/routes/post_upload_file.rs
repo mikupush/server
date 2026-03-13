@@ -16,7 +16,7 @@
 
 use crate::config::Settings;
 use crate::errors::route_error_helpers;
-use crate::repository::PostgresFileUploadRepository;
+use crate::file::PostgresFileUploadRepository;
 use crate::routes::error::ErrorResponse;
 use crate::file::{FileUploadError, FileUploader};
 use actix_web::web::Payload;

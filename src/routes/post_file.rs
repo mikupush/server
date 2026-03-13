@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::repository::PostgresFileUploadRepository;
+use crate::file::PostgresFileUploadRepository;
 use crate::routes::error::ErrorResponse;
 use crate::file::{FileRegister, FileUploadError};
 use actix_web::{post, web, HttpResponse, Result};

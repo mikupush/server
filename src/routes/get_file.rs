@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::errors::{route_error_helpers, FileInfoError};
-use crate::repository::PostgresFileUploadRepository;
+use crate::file::PostgresFileUploadRepository;
 use crate::routes::ErrorResponse;
 use crate::file::FileInfoFinder;
 use actix_web::error::Result;

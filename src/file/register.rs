@@ -16,7 +16,7 @@
 
 use crate::config::Settings;
 use crate::model::FileUpload;
-use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
+use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::routes::FileCreate;
 use crate::file::{FileSizeLimiter, FileUploadError};
 use chrono::Duration;
@@ -91,7 +91,7 @@ impl FileRegister<PostgresFileUploadRepository<MokaCache>, SystemClock> {
 #[cfg(test)]
 mod tests {
     use crate::model::FileUpload;
-    use crate::repository::InMemoryFileUploadRepository;
+    use crate::file::InMemoryFileUploadRepository;
     use crate::routes::FileCreate;
     use crate::file::{FileRegister, FileSizeLimiter, FileUploadError};
     use std::collections::HashMap;

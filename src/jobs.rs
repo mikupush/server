@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
+use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::storage::ObjectStorageRemover;
 use crate::file::FileDeleter;
 use std::thread;

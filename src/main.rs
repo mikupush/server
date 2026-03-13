@@ -26,7 +26,6 @@ mod serialization;
 mod file;
 mod errors;
 mod logging;
-mod repository;
 mod model;
 mod tracing;
 mod jobs;

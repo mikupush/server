@@ -17,7 +17,7 @@
 use crate::config::Settings;
 use crate::errors::Error;
 use crate::model::{FilePart, FileUpload};
-use crate::repository::{FileUploadRepository, FileUploadRepositoryError, PostgresFileUploadRepository};
+use crate::file::{FileUploadRepository, FileUploadRepositoryError, PostgresFileUploadRepository};
 use crate::file::chunk_size::{ChunkedUploadSizeAccumulator, InMemoryChunkedUploadSizeAccumulator};
 use crate::storage::{
     FileSystemObjectStorageWriter,
@@ -278,7 +278,7 @@ pub mod file_upload_codes {
 mod tests {
     use crate::config::Settings;
     use crate::model::FileUpload;
-    use crate::repository::InMemoryFileUploadRepository;
+    use crate::file::InMemoryFileUploadRepository;
     use crate::file::chunk_size::InMemoryChunkedUploadSizeAccumulator;
     use crate::storage::FakeObjectStorageWriter;
     use crate::file::{FileSizeLimiter, FileUploadError, FileUploader};

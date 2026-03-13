@@ -17,7 +17,7 @@
 use crate::config::Settings;
 use crate::errors::FileInfoError;
 use crate::model::FileInfo;
-use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
+use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
 use std::path::Path;
 use tracing::debug;
 use uuid::Uuid;
@@ -69,7 +69,7 @@ mod tests {
     use super::*;
     use crate::config::Settings;
     use crate::database::DbPool;
-    use crate::repository::PostgresFileUploadRepository;
+    use crate::file::PostgresFileUploadRepository;
 
     impl FileInfoFinder<PostgresFileUploadRepository<NoOpCache>> {
         pub fn test(pool: DbPool) -> Self {

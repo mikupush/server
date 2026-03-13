@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::errors::Error;
-use crate::repository::FileUploadRepositoryError;
+use crate::file::FileUploadRepositoryError;
 use std::fmt::Display;
 use uuid::Uuid;
 
