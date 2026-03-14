@@ -14,23 +14,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::io;
-use async_stream::stream;
-use async_trait::async_trait;
 use bytes::Bytes;
 use futures::future::BoxFuture;
 use futures::{self, StreamExt};
-use futures::stream::BoxStream;
-use tokio::fs::File;
-use tokio_util::io::ReaderStream;
+use std::io;
+use std::io::{BufReader, Read};
+use std::fs::File;
 
-pub type BoxedStream = BoxStream<'static, io::Result<Bytes>>;
-type ResultStream = io::Result<BoxedStream>;
+pub type BytesStream = Box<dyn Read + Send + Sync + 'static>;
+pub type ResultStream = io::Result<BytesStream>;
 
-#[async_trait]
 pub trait ObjectStorageReader: Send + Sync {
-    async fn read(&self, location: String) -> ResultStream;
-    fn read_all(&self, location: String) -> BoxFuture<io::Result<Bytes>>;
+    fn read(&self, location: &String) -> ResultStream;
 }
 
 pub struct ObjectStorageReaderFactory;
@@ -44,18 +39,11 @@ impl ObjectStorageReaderFactory {
 #[derive(Debug, Clone)]
 pub struct FakeObjectStorageReader;
 
-#[async_trait]
 impl ObjectStorageReader for FakeObjectStorageReader {
-    async fn read(&self, _location: String) -> ResultStream {
+    fn read(&self, _location: &String) -> ResultStream {
         let data = b"sample content";
-        let stream = ReaderStream::new(&data[..]).map(|res| res.map(Bytes::from));
-        Ok(stream.boxed())
-    }
-
-    fn read_all(&self, _location: String) -> BoxFuture<std::io::Result<Bytes>> {
-        Box::pin(async move {
-            Ok(Bytes::from("sample content"))
-        })
+        let stream = BufReader::new(&data[..]);
+        Ok(Box::new(stream))
     }
 }
 
@@ -68,63 +56,33 @@ impl FileSystemObjectStorageReader {
     }
 }
 
-#[async_trait]
 impl ObjectStorageReader for FileSystemObjectStorageReader {
-    async fn read(&self, location: String) -> ResultStream {
-        let file = File::open(location).await?;
-        let stream = ReaderStream::new(file);
-        Ok(stream.boxed())
-    }
-
-    fn read_all(&self, location: String) -> BoxFuture<std::io::Result<Bytes>> {
-        Box::pin(async move {
-            tokio::fs::read(location).await.map(Bytes::from)
-        })
+    fn read(&self, location: &String) -> ResultStream {
+        let file = File::open(location)?;
+        Ok(Box::new(file))
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use futures::TryStreamExt;
 
-    #[tokio::test]
-    async fn test_file_system_read() {
+    #[test]
+    fn test_file_system_read() {
         let reader = FileSystemObjectStorageReader::new();
 
         let content = b"sample content";
         let path = "data/sample_file.txt";
         std::fs::write(path, content).unwrap();
 
-        let result = reader.read(path.to_string()).await;
+        let result = reader.read(&path.to_string());
 
         assert!(result.is_ok());
 
-        let stream = result.unwrap();
-        let stream_content: Vec<u8> = stream
-            .map_ok(|b| b.to_vec())
-            .try_concat()
-            .await
-            .unwrap();
+        let mut stream = result.unwrap();
+        let mut stream_content = Vec::new();
+        stream.read_to_end(&mut stream_content).unwrap();
 
         assert_eq!(content, stream_content.as_slice())
-    }
-
-    #[tokio::test]
-    async fn test_file_system_read_all() {
-        let reader = FileSystemObjectStorageReader::new();
-
-        let content = b"sample content";
-        let path = "data/sample_file_all.txt";
-        std::fs::write(path, content).unwrap();
-
-        let result = reader.read_all(path.to_string()).await;
-
-        assert!(result.is_ok());
-
-        let result_content = result.unwrap().to_vec();
-        let result_content = result_content.as_slice();
-
-        assert_eq!(content, result_content)
     }
 }

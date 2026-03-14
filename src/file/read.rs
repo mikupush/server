@@ -27,10 +27,14 @@ use futures::stream::{self, BoxStream, StreamExt};
 use futures::TryStreamExt;
 use rusqlite::fallible_iterator::FallibleIterator;
 use std::io;
+use std::io::Read;
 use std::path::Path;
 use std::pin::Pin;
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::Sender;
 use tokio_stream::Stream;
+use tokio_stream::wrappers::ReceiverStream;
+use tracing::error;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -96,9 +100,11 @@ impl FileReader<PostgresFileUploadRepository<MokaCache>, FileSystemObjectStorage
     }
 }
 
+const CHUNK_READ_SIZE: usize = 64 * 1024;
+
 pub struct FileStreamWrapper {
     pub details: FileUpload,
-    pub stream: BoxStream<'static, io::Result<Bytes>>,
+    pub stream: ReceiverStream<io::Result<Bytes>>,
 }
 
 #[derive(Clone)]
@@ -116,16 +122,25 @@ where
     OBR: ObjectStorageReader + Clone + Send + 'static
 {
     pub async fn read(&self) -> Result<FileStreamWrapper, FileReadError> {
+        let details = self.details.clone();
+        let reader = self.reader.clone();
         let directory = self.details.content_directory(&self.settings)?;
         let path = Path::new(&directory)
-            .join(self.details.name.clone())
+            .join(details.name.clone())
             .to_string_lossy()
             .to_string();
-        let stream = self.reader.read(path).await?;
+
+        let (sender, receiver) = mpsc::channel::<io::Result<Bytes>>(10);
+        let mut stream = tokio::task::spawn_blocking(move || reader.read(&path)).await
+            .map_err(|err| FileReadError::IO { message: err.to_string() })??;
+
+        tokio::task::spawn_blocking(move || {
+            send_reader_bytes(&mut stream, &sender);
+        });
 
         Ok(FileStreamWrapper {
             details: self.details.clone(),
-            stream: stream.boxed()
+            stream: ReceiverStream::new(receiver),
         })
     }
 }
@@ -155,31 +170,52 @@ where
     }
 
     pub async fn read(&self) -> Result<FileStreamWrapper, FileReadError> {
+        let (sender, receiver) = mpsc::channel::<io::Result<Bytes>>(10);
+        let this = self.clone();
+
+        tokio::task::spawn_blocking(move || {
+            if let Err(err) = this.send_bytes(sender) {
+                error!("error sending file bytes to stream: {}", err);
+            }
+        });
+
+        Ok(FileStreamWrapper {
+            details: self.details.clone(),
+            stream: ReceiverStream::new(receiver),
+        })
+    }
+
+    fn send_bytes(self, sender: Sender<io::Result<Bytes>>) -> Result<(), FileReadError> {
         let directory = self.details.content_directory(&self.settings)?;
         let parts = std::fs::read_dir(&directory)?.count();
-        let reader = self.reader.clone();
 
-        let parts_locations = (0..parts).map(move |part| {
+        for part in 0..parts {
             let location = directory.join(FilePart::name(part))
                 .to_string_lossy()
                 .to_string();
 
-            (location, reader.clone())
-        }).collect::<Vec<_>>();
+            let mut stream = self.reader.read(&location)?;
+            send_reader_bytes(&mut stream, &sender);
+        }
 
-        let read_stream = stream::iter(parts_locations)
-            .then(|(location, reader)| async move {
-                match reader.read(location).await {
-                    Ok(stream) => Either::Left(stream),
-                    Err(err) => Either::Right(stream::once(async { Err::<Bytes, _>(err) }).boxed())
-                }
-            })
-            .flatten()
-            .boxed();
+        Ok(())
+    }
+}
 
-        Ok(FileStreamWrapper {
-            details: self.details.clone(),
-            stream: read_stream
-        })
+fn send_reader_bytes(reader: &mut impl Read, sender: &Sender<io::Result<Bytes>>) {
+    let mut buffer = [0u8; CHUNK_READ_SIZE];
+
+    loop {
+        match reader.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(n) => {
+                let bytes = Bytes::copy_from_slice(&buffer[..n]);
+                if sender.blocking_send(Ok(bytes)).is_err() { break; }
+            }
+            Err(e) => {
+                let _ = sender.blocking_send(Err(e));
+                break;
+            }
+        }
     }
 }

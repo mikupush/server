@@ -16,13 +16,13 @@
 
 use crate::config::Settings;
 use crate::routes::error::helper;
-use crate::file::PostgresFileUploadRepository;
+use crate::file::{FileAssembler, PostgresFileUploadRepository};
 use crate::routes::error::ErrorResponse;
 use crate::file::{FileUploadError, FileUploader};
 use actix_web::web::Payload;
 use actix_web::{post, web, HttpRequest, HttpResponse, Result};
 use futures::TryStreamExt;
-use tracing::warn;
+use tracing::{error, info, warn};
 use tokio_util::io::StreamReader;
 use tracing::debug;
 use uuid::Uuid;
@@ -91,8 +91,27 @@ fn handle_post_upload_file_error(err: FileUploadError) -> HttpResponse {
 }
 
 #[post("/api/file/{id}/upload/ack")]
-pub async fn post_upload_ack() -> HttpResponse {
-    HttpResponse::Ok().finish()
+pub async fn post_upload_ack(
+    settings: web::Data<Settings>,
+    id: web::Path<String>,
+) -> HttpResponse {
+    let appender = FileAssembler::get_with_settings(&settings);
+    let Ok(id) = Uuid::try_from(id.to_string()) else {
+        debug!("cant convert id to uuid: {}", id.to_string());
+        return helper::invalid_uuid("id", id.to_string())
+    };
+
+    tokio::task::spawn_blocking(move || {
+        debug!("starting assembling parts for upload: {}", id);
+        std::thread::sleep(std::time::Duration::from_secs(1));
+
+        match appender.assemble(&id) {
+            Ok(()) => info!(upload = ?id, "successfully assembled parts for upload"),
+            Err(err) => error!(upload = ?id, "failed to assemble parts for upload: {}", err)
+        }
+    });
+
+    HttpResponse::NoContent().finish()
 }
 
 #[cfg(test)]
