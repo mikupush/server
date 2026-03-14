@@ -14,21 +14,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use crate::cache::MokaCache;
 use crate::config::Settings;
 use crate::file::error::FileReadError;
+use crate::file::upload::FileUpload;
 use crate::file::FilePart;
 use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
-use crate::storage::{FileSystemObjectStorageReader, ObjectStorageReader};
+use crate::storage::{FileSystemObjectStorageReader, ObjectStorageReader, ObjectStorageReaderFactory};
 use bytes::Bytes;
+use futures::future::Either;
+use futures::stream::{self, BoxStream, StreamExt};
+use futures::TryStreamExt;
 use rusqlite::fallible_iterator::FallibleIterator;
 use std::io;
 use std::path::Path;
+use std::pin::Pin;
 use tokio::sync::mpsc;
-use tokio_stream::wrappers::ReceiverStream;
 use tokio_stream::Stream;
 use uuid::Uuid;
-use crate::cache::MokaCache;
-use crate::file::upload::FileUpload;
 
 #[derive(Debug, Clone)]
 pub struct FileReader<FR, OBR>
@@ -95,7 +98,7 @@ impl FileReader<PostgresFileUploadRepository<MokaCache>, FileSystemObjectStorage
 
 pub struct FileStreamWrapper {
     pub details: FileUpload,
-    pub stream: Box<dyn Stream<Item = io::Result<Bytes>> + Send + Unpin + 'static>,
+    pub stream: BoxStream<'static, io::Result<Bytes>>,
 }
 
 #[derive(Clone)]
@@ -122,7 +125,7 @@ where
 
         Ok(FileStreamWrapper {
             details: self.details.clone(),
-            stream: Box::new(stream)
+            stream: stream.boxed()
         })
     }
 }
@@ -152,33 +155,31 @@ where
     }
 
     pub async fn read(&self) -> Result<FileStreamWrapper, FileReadError> {
-        let (sender, receiver) = mpsc::channel::<io::Result<Bytes>>(1);
-
-        let mut reader = self.clone();
-        tokio::spawn(async move {
-            let _ = reader.send_bytes(sender).await;
-        });
-
-        Ok(FileStreamWrapper {
-            details: self.details.clone(),
-            stream: Box::new(ReceiverStream::new(receiver))
-        })
-    }
-
-    async fn send_bytes(&mut self, sender: mpsc::Sender<io::Result<Bytes>>) -> io::Result<()> {
         let directory = self.details.content_directory(&self.settings)?;
         let parts = std::fs::read_dir(&directory)?.count();
-        let directory = directory.clone();
+        let reader = self.reader.clone();
 
-        for part in 0..parts {
+        let parts_locations = (0..parts).map(move |part| {
             let location = directory.join(FilePart::name(part))
                 .to_string_lossy()
                 .to_string();
 
-            let bytes = self.reader.read_all(location).await;
-            let _ = sender.send(bytes).await;
-        }
+            (location, reader.clone())
+        }).collect::<Vec<_>>();
 
-        Ok(())
+        let read_stream = stream::iter(parts_locations)
+            .then(|(location, reader)| async move {
+                match reader.read(location).await {
+                    Ok(stream) => Either::Left(stream),
+                    Err(err) => Either::Right(stream::once(async { Err::<Bytes, _>(err) }).boxed())
+                }
+            })
+            .flatten()
+            .boxed();
+
+        Ok(FileStreamWrapper {
+            details: self.details.clone(),
+            stream: read_stream
+        })
     }
 }

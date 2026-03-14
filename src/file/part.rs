@@ -14,10 +14,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use crate::file::FileUploadRepository;
+
 pub struct FilePart;
 
 impl FilePart {
     pub fn name(index: usize) -> String {
         format!("{}.part", index)
     }
+}
+
+pub struct FileAssembler<FR>
+where
+    FR: FileUploadRepository + Clone
+{
+    repository: FR,
 }

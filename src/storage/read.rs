@@ -14,27 +14,42 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::io;
+use async_stream::stream;
+use async_trait::async_trait;
 use bytes::Bytes;
 use futures::future::BoxFuture;
-use futures::Stream;
+use futures::{self, StreamExt};
+use futures::stream::BoxStream;
 use tokio::fs::File;
 use tokio_util::io::ReaderStream;
 
-pub trait ObjectStorageReader {
-    fn read(&self, location: String) -> BoxFuture<std::io::Result<impl Stream<Item = std::io::Result<Bytes>> + Send + Unpin + 'static>>;
-    fn read_all(&self, location: String) -> BoxFuture<std::io::Result<Bytes>>;
+pub type BoxedStream = BoxStream<'static, io::Result<Bytes>>;
+type ResultStream = io::Result<BoxedStream>;
+
+#[async_trait]
+pub trait ObjectStorageReader: Send + Sync {
+    async fn read(&self, location: String) -> ResultStream;
+    fn read_all(&self, location: String) -> BoxFuture<io::Result<Bytes>>;
+}
+
+pub struct ObjectStorageReaderFactory;
+
+impl ObjectStorageReaderFactory {
+    pub fn get() -> impl ObjectStorageReader + Send + Sync + Clone {
+        FileSystemObjectStorageReader::new()
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct FakeObjectStorageReader;
 
+#[async_trait]
 impl ObjectStorageReader for FakeObjectStorageReader {
-    fn read(&self, _location: String) -> BoxFuture<std::io::Result<impl Stream<Item = std::io::Result<Bytes>> + Send + Unpin + 'static>> {
-        Box::pin(async move {
-            let data = b"sample content";
-            let stream = ReaderStream::new(&data[..]);
-            Ok(stream)
-        })
+    async fn read(&self, _location: String) -> ResultStream {
+        let data = b"sample content";
+        let stream = ReaderStream::new(&data[..]).map(|res| res.map(Bytes::from));
+        Ok(stream.boxed())
     }
 
     fn read_all(&self, _location: String) -> BoxFuture<std::io::Result<Bytes>> {
@@ -53,13 +68,12 @@ impl FileSystemObjectStorageReader {
     }
 }
 
+#[async_trait]
 impl ObjectStorageReader for FileSystemObjectStorageReader {
-    fn read(&self, location: String) -> BoxFuture<std::io::Result<impl Stream<Item = std::io::Result<Bytes>> + Send + Unpin + 'static>> {
-        Box::pin(async move {
-            let file = File::open(location).await?;
-            let stream = ReaderStream::new(file);
-            Ok(stream)
-        })
+    async fn read(&self, location: String) -> ResultStream {
+        let file = File::open(location).await?;
+        let stream = ReaderStream::new(file);
+        Ok(stream.boxed())
     }
 
     fn read_all(&self, location: String) -> BoxFuture<std::io::Result<Bytes>> {
