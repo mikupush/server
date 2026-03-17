@@ -14,20 +14,61 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use actix_web::HttpRequest;
+
+pub fn range_header(request: &HttpRequest, total_size: u64) -> Option<(u64, u64)> {
+    let range = request.headers().get("Range")
+        .and_then(|value| value.to_str().ok())?;
+
+    if !range.starts_with("bytes=") {
+        return None;
+    }
+
+    let range = &range["bytes=".len()..];
+    let parts: Vec<&str> = range.split('-').collect();
+
+    if parts.len() != 2 {
+        return None;
+    }
+
+    let (start, end) = match (parts[0], parts[1]) {
+        ("", suffix) => {
+            let suffix = suffix.parse::<u64>().ok()?;
+            let start = total_size.saturating_sub(suffix);
+            (start, total_size.saturating_sub(1))
+        }
+        (start, "") => {
+            let start = start.parse::<u64>().ok()?;
+            (start, total_size.saturating_sub(1))
+        }
+        (start, end) => {
+            let start = start.parse::<u64>().ok()?;
+            let end = end.parse::<u64>().ok()?;
+            (start, end)
+        }
+    };
+
+    if start >= total_size || start > end {
+        return None;
+    }
+
+    let end = std::cmp::min(end, total_size.saturating_sub(1));
+
+    Some((start, end))
+}
+
 #[cfg(test)]
 pub mod tests {
     use std::io::Cursor;
     use crate::config::Settings;
     use crate::database::DbPool;
     use crate::file::{FileRegister, FileUpload, FileUploadModel, FileUploader};
-    use crate::file::FilePart;
     use crate::schema::file_uploads;
     use actix_web::dev::ServiceResponse;
     use chrono::Utc;
     use diesel::RunQueryDsl;
     use std::path::PathBuf;
     use std::sync::Mutex;
-    use tokio_util::io::{ReaderStream, StreamReader};
     use uuid::Uuid;
     use crate::routes::FileCreate;
 

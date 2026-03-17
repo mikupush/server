@@ -29,6 +29,8 @@ use serde_json::json;
 use tracing::debug;
 use uuid::Uuid;
 use crate::routes::error::helper;
+use crate::routes::utils::range_header;
+use crate::schema::file_uploads::dsl::file_uploads;
 
 #[get("/u/{id}")]
 pub async fn get_download(
@@ -64,6 +66,7 @@ struct Responder {
     settings: Settings,
     id: Uuid,
     mime_type: String,
+    size: u64,
     chunked: bool,
 }
 
@@ -78,6 +81,7 @@ impl Responder {
             id: id.clone(),
             mime_type: file_info.mime_type.clone(),
             chunked: file_info.chunked,
+            size: file_info.size as u64,
             settings: settings.clone(),
             request: request.clone()
         }
@@ -113,10 +117,6 @@ impl Responder {
         !self.chunked && supported_content_type
     }
 
-    fn range_request(&self) -> bool {
-        self.request.headers().contains_key("Range")
-    }
-
     pub async fn respond(&self) -> HttpResponse {
         if self.is_robot_request() && self.is_crawlable() {
             return self.raw().await
@@ -143,7 +143,14 @@ impl Responder {
     }
 
     async fn raw(&self) -> HttpResponse {
-        if self.range_request() {
+        let is_range_request = self.request.headers()
+            .contains_key("Range");
+
+        if is_range_request && !self.accept_range() {
+            return self.respond_range_not_satisfied();
+        }
+
+        if is_range_request {
             self.raw_range().await
         } else {
             self.raw_all().await
@@ -163,28 +170,54 @@ impl Responder {
         let mut response = HttpResponse::Ok();
         response.content_type(stream_wrapper.details.mime_type.clone());
         response.insert_header(("Content-Disposition", format!("inline; filename=\"{}\"", stream_wrapper.details.name)));
-        self.insert_raw_common_headers(&mut response, &stream_wrapper.details);
+        self.insert_raw_common_headers(&mut response);
 
         response.streaming(stream_wrapper.stream)
     }
 
     async fn raw_range(&self) -> HttpResponse {
-        HttpResponse::RangeNotSatisfiable().finish()
+        let (start, end) = match range_header(&self.request, self.size) {
+            Some(range) => range,
+            None => return HttpResponse::BadRequest().finish(),
+        };
+
+        let file_reader = FileReader::get_with_settings(&self.settings);
+        let result = file_reader.read_range(self.id, start, end).await;
+        if let Err(err) = &result {
+            return match err {
+                FileReadError::NotExists { .. } => HttpResponse::NotFound().finish(),
+                FileReadError::RangeNotAllowed { .. } => self.respond_range_not_satisfied(),
+                _ => HttpResponse::InternalServerError().finish(),
+            };
+        }
+
+        let stream_wrapper = result.unwrap();
+        let mut response = HttpResponse::PartialContent();
+        response.content_type(stream_wrapper.details.mime_type.clone());
+        response.insert_header(("Content-Disposition", format!("inline; filename=\"{}\"", stream_wrapper.details.name)));
+        response.insert_header(("Content-Range", format!("bytes {}-{}/{}", start, end, self.size)));
+        self.insert_raw_common_headers(&mut response);
+
+        response.streaming(stream_wrapper.stream)
     }
 
-    fn insert_raw_common_headers(
-        &self,
-        response: &mut HttpResponseBuilder,
-        file_upload: &FileUpload
-    ) {
-        response.insert_header(("Content-Length", file_upload.size.to_string()));
-        response.insert_header(("Content-Type", file_upload.mime_type.to_string()));
+    fn insert_raw_common_headers(&self, response: &mut HttpResponseBuilder) {
+        response.insert_header(("Content-Length", self.size.to_string()));
+        response.insert_header(("Content-Type", self.mime_type.to_string()));
 
         if self.accept_range() {
             response.insert_header(("Accept-Ranges", "bytes"));
         } else {
             response.insert_header(("Accept-Ranges", "none"));
         }
+    }
+
+    fn respond_range_not_satisfied(&self) -> HttpResponse {
+        let mut response = HttpResponse::RangeNotSatisfiable();
+        response.content_type(self.mime_type.clone());
+        response.insert_header(("Content-Range", format!("bytes */{}", self.size)));
+        self.insert_raw_common_headers(&mut response);
+        response.finish()
     }
 }
 
@@ -539,7 +572,7 @@ mod tests {
         let pool = setup_database_connection(&settings);
         let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
 
-        let file_upload = factory.create_chunked(FileCreateFactories::text_plain()).await;
+        let file_upload = factory.create_chunked(FileCreateFactories::video_mp4()).await;
         assert_get_download_416_raw_not_supporting_range(&settings, &file_upload).await;
     }
 
@@ -556,7 +589,7 @@ mod tests {
         ).await;
 
         let initial_range = TEST_FILE_CONTENT_LENGTH / 2;
-        let (_, file_upload) = factory.create(FileCreateFactories::text_plain()).await;
+        let (_, file_upload) = factory.create(FileCreateFactories::video_mp4()).await;
         let request = test::TestRequest::default()
             .uri(format!("/u/{}", file_upload.id.clone()).as_str())
             .method(Method::GET)
@@ -568,6 +601,6 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
         assert_eq!(content_length, file_upload.size.to_string());
-        assert_eq!(content_range, format!("bytes {}-{}/{}", initial_range, file_upload.size, file_upload.size));
+        assert_eq!(content_range, format!("bytes {}-{}/{}", initial_range, file_upload.size - 1, file_upload.size));
     }
 }
