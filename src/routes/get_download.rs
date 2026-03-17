@@ -118,7 +118,11 @@ impl Responder {
     }
 
     pub async fn respond(&self) -> HttpResponse {
-        if self.is_robot_request() && self.is_crawlable() {
+        let force_raw = self.request
+            .query_string()
+            .contains("raw");
+
+        if force_raw || (self.is_robot_request() && self.is_crawlable()) {
             return self.raw().await
         }
 

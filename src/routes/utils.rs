@@ -35,11 +35,11 @@ pub fn range_header(request: &HttpRequest, total_size: u64) -> Option<(u64, u64)
         ("", suffix) => {
             let suffix = suffix.parse::<u64>().ok()?;
             let start = total_size.saturating_sub(suffix);
-            (start, total_size.saturating_sub(1))
+            (start, total_size)
         }
         (start, "") => {
             let start = start.parse::<u64>().ok()?;
-            (start, total_size.saturating_sub(1))
+            (start, total_size)
         }
         (start, end) => {
             let start = start.parse::<u64>().ok()?;
