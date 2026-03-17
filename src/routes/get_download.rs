@@ -18,11 +18,11 @@ use actix_http::header::{Header, QualityItem};
 use crate::config::Settings;
 use crate::file::error::{Error, FileInfoError, FileReadError};
 use crate::routes::ErrorResponse;
-use crate::file::{FileInfoFinder, FileReader, SingleFileReader};
+use crate::file::{FileInfo, FileInfoFinder, FileReader, FileUpload, SingleFileReader};
 use crate::template::TemplateRenderer;
 use crate::tracing::ElapsedTimeTracing;
 use actix_http::StatusCode;
-use actix_web::{get, mime, web, HttpRequest, HttpResponse};
+use actix_web::{get, mime, web, HttpRequest, HttpResponse, HttpResponseBuilder};
 use actix_web::http::header::{Accept, ACCEPT, USER_AGENT};
 use log::warn;
 use serde_json::json;
@@ -52,7 +52,7 @@ pub async fn get_download(
         }
     };
 
-    let success_responder = Responder::new(&id, &file_upload.mime_type, &settings, &request);
+    let success_responder = Responder::new(&id, &file_upload, &settings, &request);
     let response = success_responder.respond().await;
     time_tracing.trace();
 
@@ -64,18 +64,20 @@ struct Responder {
     settings: Settings,
     id: Uuid,
     mime_type: String,
+    chunked: bool,
 }
 
 impl Responder {
     pub fn new(
         id: &Uuid,
-        mime_type: &String,
+        file_info: &FileInfo,
         settings: &Settings,
         request: &HttpRequest
     ) -> Self {
         Self {
             id: id.clone(),
-            mime_type: mime_type.clone(),
+            mime_type: file_info.mime_type.clone(),
+            chunked: file_info.chunked,
             settings: settings.clone(),
             request: request.clone()
         }
@@ -101,6 +103,18 @@ impl Responder {
         self.mime_type.starts_with("video/")
         || self.mime_type.starts_with("audio/")
         || self.mime_type.starts_with("image/")
+    }
+
+    fn accept_range(&self) -> bool {
+        let supported_content_type =
+            self.mime_type.starts_with("video/")
+            || self.mime_type.starts_with("audio/");
+
+        !self.chunked && supported_content_type
+    }
+
+    fn range_request(&self) -> bool {
+        self.request.headers().contains_key("Range")
     }
 
     pub async fn respond(&self) -> HttpResponse {
@@ -129,6 +143,14 @@ impl Responder {
     }
 
     async fn raw(&self) -> HttpResponse {
+        if self.range_request() {
+            self.raw_range().await
+        } else {
+            self.raw_all().await
+        }
+    }
+
+    async fn raw_all(&self) -> HttpResponse {
         let file_reader = FileReader::get_with_settings(&self.settings);
         let stream_wrapper = match file_reader.read(self.id).await {
             Ok(stream_wrapper) => stream_wrapper,
@@ -138,12 +160,31 @@ impl Responder {
             }
         };
 
-        HttpResponse::Ok()
-            .content_type(stream_wrapper.details.mime_type.clone())
-            .insert_header(("Content-Length", stream_wrapper.details.size.to_string()))
-            .insert_header(("Content-Disposition", format!("inline; filename=\"{}\"", stream_wrapper.details.name)))
-            .insert_header(("Content-Type", stream_wrapper.details.mime_type.to_string()))
-            .streaming(stream_wrapper.stream)
+        let mut response = HttpResponse::Ok();
+        response.content_type(stream_wrapper.details.mime_type.clone());
+        response.insert_header(("Content-Disposition", format!("inline; filename=\"{}\"", stream_wrapper.details.name)));
+        self.insert_raw_common_headers(&mut response, &stream_wrapper.details);
+
+        response.streaming(stream_wrapper.stream)
+    }
+
+    async fn raw_range(&self) -> HttpResponse {
+        HttpResponse::RangeNotSatisfiable().finish()
+    }
+
+    fn insert_raw_common_headers(
+        &self,
+        response: &mut HttpResponseBuilder,
+        file_upload: &FileUpload
+    ) {
+        response.insert_header(("Content-Length", file_upload.size.to_string()));
+        response.insert_header(("Content-Type", file_upload.mime_type.to_string()));
+
+        if self.accept_range() {
+            response.insert_header(("Accept-Ranges", "bytes"));
+        } else {
+            response.insert_header(("Accept-Ranges", "none"));
+        }
     }
 }
 
@@ -187,10 +228,11 @@ mod tests {
     use crate::config::Settings;
     use crate::database::setup_database_connection;
     use crate::file::error::file_read_codes;
-    use crate::routes::utils::tests::{create_test_chunked_file_upload, create_test_file_upload, header_value};
+    use crate::routes::utils::tests::{header_value, FileCreateFactories, IntegrationTestFileUploadFactory, TEST_FILE_CONTENT_LENGTH};
     use actix_web::http::{Method, StatusCode};
     use actix_web::{test, App};
     use serial_test::serial;
+    use crate::file::FileUpload;
     use crate::routes::error::code;
 
     #[actix_web::test]
@@ -198,13 +240,14 @@ mod tests {
     async fn test_get_download_200_ok() {
         let settings = Settings::load(None);
         let pool = setup_database_connection(&settings);
+        let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(settings))
                 .service(get_download)
         ).await;
 
-        let (_, file_upload) = create_test_file_upload(pool.clone());
+        let (_, file_upload) = factory.create(FileCreateFactories::text_plain()).await;
         let request = test::TestRequest::default()
             .uri(format!("/u/{}", file_upload.id.clone()).as_str())
             .method(Method::GET)
@@ -225,13 +268,15 @@ mod tests {
     async fn test_get_download_200_chunked_ok() {
         let settings = Settings::load(None);
         let pool = setup_database_connection(&settings);
+        let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(settings.clone()))
                 .service(get_download)
         ).await;
 
-        let (_, file_upload) = create_test_chunked_file_upload(&pool, &settings);
+        let (content, file_create_request) = FileCreateFactories::text_plain();
+        let file_upload = factory.create_chunked((content.clone(), file_create_request)).await;
         let request = test::TestRequest::default()
             .uri(format!("/u/{}", file_upload.id.clone()).as_str())
             .method(Method::GET)
@@ -247,7 +292,7 @@ mod tests {
         assert_eq!(content_type, file_upload.mime_type);
 
         let body = test::read_body(response).await;
-        assert_eq!(body, "HelloWorld");
+        assert_eq!(body, content);
     }
 
     #[actix_web::test]
@@ -307,13 +352,14 @@ mod tests {
         settings.debug.enable = false;
 
         let pool = setup_database_connection(&settings);
+        let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(settings))
                 .service(get_download)
         ).await;
 
-        let (_, file_upload) = create_test_file_upload(pool.clone());
+        let (_, file_upload) = factory.create(FileCreateFactories::text_plain()).await;
         let request = test::TestRequest::default()
             .uri(format!("/u/{}", file_upload.id.clone()).as_str())
             .method(Method::GET)
@@ -331,13 +377,14 @@ mod tests {
     async fn test_get_download_200_raw_ok_when_discord() {
         let settings = Settings::load(None);
         let pool = setup_database_connection(&settings);
+        let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(settings))
                 .service(get_download)
         ).await;
 
-        let (_, file_upload) = create_test_file_upload(pool.clone());
+        let (_, file_upload) = factory.create(FileCreateFactories::image_png()).await;
         let request = test::TestRequest::default()
             .uri(format!("/u/{}", file_upload.id.clone()).as_str())
             .method(Method::GET)
@@ -349,5 +396,178 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         assert_eq!(content_type, file_upload.mime_type);
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_200_fallback_html_when_discord() {
+        let settings = Settings::load(None);
+        let pool = setup_database_connection(&settings);
+        let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
+                .service(get_download)
+        ).await;
+
+        let (_, file_upload) = factory.create(FileCreateFactories::text_plain()).await;
+        let request = test::TestRequest::default()
+            .uri(format!("/u/{}", file_upload.id.clone()).as_str())
+            .method(Method::GET)
+            .insert_header(("Accept", "text/html"))
+            .insert_header(("User-Agent", "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)"))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let content_type = header_value("Content-Type", &response);
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(content_type, "text/html; charset=utf-8");
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_200_raw_supporting_range() {
+        let settings = Settings::load(None);
+        let pool = setup_database_connection(&settings);
+        let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
+                .service(get_download)
+        ).await;
+
+        let (_, file_upload) = factory.create(FileCreateFactories::video_mp4()).await;
+        let request = test::TestRequest::default()
+            .uri(format!("/u/{}", file_upload.id.clone()).as_str())
+            .method(Method::GET)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let accept_range = header_value("Accept-Ranges", &response);
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(accept_range, "bytes");
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_200_raw_not_supporting_range() {
+        let settings = Settings::load(None);
+        let pool = setup_database_connection(&settings);
+        let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
+                .service(get_download)
+        ).await;
+
+        let (_, file_upload) = factory.create(FileCreateFactories::text_plain()).await;
+        let request = test::TestRequest::default()
+            .uri(format!("/u/{}", file_upload.id.clone()).as_str())
+            .method(Method::GET)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let accept_range = header_value("Accept-Ranges", &response);
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(accept_range, "none");
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_200_raw_chunked_not_supporting_range() {
+        let settings = Settings::load(None);
+        let pool = setup_database_connection(&settings);
+        let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
+                .service(get_download)
+        ).await;
+
+        let file_upload = factory.create_chunked(FileCreateFactories::video_mp4()).await;
+        let request = test::TestRequest::default()
+            .uri(format!("/u/{}", file_upload.id.clone()).as_str())
+            .method(Method::GET)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let accept_range = header_value("Accept-Ranges", &response);
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(accept_range, "none");
+    }
+
+    async fn assert_get_download_416_raw_not_supporting_range(
+        settings: &Settings,
+        file_upload: &FileUpload
+    ) {
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings.clone()))
+                .service(get_download)
+        ).await;
+
+        let initial_range = TEST_FILE_CONTENT_LENGTH / 2;
+        let request = test::TestRequest::default()
+            .uri(format!("/u/{}", file_upload.id.clone()).as_str())
+            .method(Method::GET)
+            .insert_header(("Range", format!("bytes={}-", initial_range)))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let content_range = header_value("Content-Range", &response);
+        let content_length = header_value("Content-Length", &response);
+
+        assert_eq!(response.status(), StatusCode::RANGE_NOT_SATISFIABLE);
+        assert_eq!(content_length, file_upload.size.to_string());
+        assert_eq!(content_range, format!("bytes */{}", file_upload.size));
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_416_raw_not_supporting_range() {
+        let settings = Settings::load(None);
+        let pool = setup_database_connection(&settings);
+        let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
+
+        let (_, file_upload) = factory.create(FileCreateFactories::text_plain()).await;
+        assert_get_download_416_raw_not_supporting_range(&settings, &file_upload).await;
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_416_raw_chunked_not_supporting_range() {
+        let settings = Settings::load(None);
+        let pool = setup_database_connection(&settings);
+        let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
+
+        let file_upload = factory.create_chunked(FileCreateFactories::text_plain()).await;
+        assert_get_download_416_raw_not_supporting_range(&settings, &file_upload).await;
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_206_raw_partial_content() {
+        let settings = Settings::load(None);
+        let pool = setup_database_connection(&settings);
+        let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
+                .service(get_download)
+        ).await;
+
+        let initial_range = TEST_FILE_CONTENT_LENGTH / 2;
+        let (_, file_upload) = factory.create(FileCreateFactories::text_plain()).await;
+        let request = test::TestRequest::default()
+            .uri(format!("/u/{}", file_upload.id.clone()).as_str())
+            .method(Method::GET)
+            .insert_header(("Range", format!("bytes={}-", initial_range)))
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let content_range = header_value("Content-Range", &response);
+        let content_length = header_value("Content-Length", &response);
+
+        assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
+        assert_eq!(content_length, file_upload.size.to_string());
+        assert_eq!(content_range, format!("bytes {}-{}/{}", initial_range, file_upload.size, file_upload.size));
     }
 }

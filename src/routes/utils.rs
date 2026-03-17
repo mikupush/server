@@ -16,9 +16,10 @@
 
 #[cfg(test)]
 pub mod tests {
+    use std::io::Cursor;
     use crate::config::Settings;
     use crate::database::DbPool;
-    use crate::file::{FileUpload, FileUploadModel};
+    use crate::file::{FileRegister, FileUpload, FileUploadModel, FileUploader};
     use crate::file::FilePart;
     use crate::schema::file_uploads;
     use actix_web::dev::ServiceResponse;
@@ -26,10 +27,94 @@ pub mod tests {
     use diesel::RunQueryDsl;
     use std::path::PathBuf;
     use std::sync::Mutex;
+    use tokio_util::io::{ReaderStream, StreamReader};
     use uuid::Uuid;
+    use crate::routes::FileCreate;
 
     // used to give unique prefix to the test file
     static TEST_FILE_COUNT: Mutex<i32> = Mutex::new(0);
+    pub const TEST_FILE_CONTENT_LENGTH: usize = 1024;
+
+    pub struct IntegrationTestFileUploadFactory {
+        settings: Settings,
+        pool: DbPool,
+    }
+
+    pub type FileCreateStub = (Vec<u8>, FileCreate);
+
+    impl IntegrationTestFileUploadFactory {
+        pub fn new(settings: &Settings, pool: &DbPool) -> Self {
+            Self { settings: settings.clone(), pool: pool.clone() }
+        }
+
+        pub async fn create(&self, stub: FileCreateStub) -> (PathBuf, FileUpload) {
+            let register = FileRegister::for_integration(&self.settings, &self.pool);
+            let uploader = FileUploader::for_integration(&self.settings, &self.pool);
+            let (content, request) = stub;
+            let reader = Cursor::new(content);
+
+            let upload = register.register_file(request.clone()).unwrap();
+            let _ = uploader.upload_file(request.id, reader).await;
+
+            (upload.content_path(&self.settings).unwrap(), upload)
+        }
+
+        pub async fn create_chunked(&self, stub: FileCreateStub) -> FileUpload {
+            let register = FileRegister::for_integration(&self.settings, &self.pool);
+            let uploader = FileUploader::for_integration(&self.settings, &self.pool);
+            let (content, request) = stub;
+            let chunks: Vec<&[u8]> = content.chunks(2).collect();
+
+            let upload = register.register_file(request.clone()).unwrap();
+
+            for (index, chunk) in chunks.iter().enumerate() {
+                let reader = Cursor::new(chunk);
+                let _ = uploader.upload_chunk(request.id, index as i64, reader).await;
+            }
+
+            upload
+        }
+    }
+
+    pub struct FileCreateFactories;
+
+    impl FileCreateFactories {
+        pub fn text_plain() -> (Vec<u8>, FileCreate) {
+            let content = vec![0u8; TEST_FILE_CONTENT_LENGTH];
+            let request = FileCreate {
+                id: Uuid::new_v4(),
+                name: "example_file.txt".to_string(),
+                mime_type: "text/plain".to_string(),
+                size: content.len() as i64,
+            };
+
+            (content, request)
+        }
+
+        pub fn image_png() -> (Vec<u8>, FileCreate) {
+            let content = vec![0u8; TEST_FILE_CONTENT_LENGTH];
+            let request = FileCreate {
+                id: Uuid::new_v4(),
+                name: "example_image.png".to_string(),
+                mime_type: "image/png".to_string(),
+                size: content.len() as i64,
+            };
+
+            (content, request)
+        }
+
+        pub fn video_mp4() -> (Vec<u8>, FileCreate) {
+            let content = vec![0u8; TEST_FILE_CONTENT_LENGTH];
+            let request = FileCreate {
+                id: Uuid::new_v4(),
+                name: "example_video.mp4".to_string(),
+                mime_type: "video/mp4".to_string(),
+                size: content.len() as i64,
+            };
+
+            (content, request)
+        }
+    }
 
     pub fn create_test_file_upload(pool: DbPool) -> (PathBuf, FileUpload) {
         let mut count = TEST_FILE_COUNT.lock().unwrap();
@@ -58,35 +143,6 @@ pub mod tests {
             .unwrap();
 
         *count += 1;
-        (path, file_upload)
-    }
-
-    pub fn create_test_chunked_file_upload(pool: &DbPool, settings: &Settings) -> (PathBuf, FileUpload) {
-        let parts = vec!["Hello", "World"];
-        let file_upload = FileUpload {
-            id: Uuid::new_v4(),
-            name: "chunked_file.txt".to_string(),
-            mime_type: "text/plain".to_string(),
-            size: 11,
-            uploaded_at: Utc::now().naive_utc(),
-            chunked: true,
-            expires_at: None
-        };
-
-        let path = file_upload.content_directory(&settings).unwrap();
-        std::fs::create_dir_all(&path).unwrap();
-
-        for (i, content) in parts.iter().enumerate() {
-            std::fs::write(path.join(FilePart::name(i)), content).unwrap();
-        }
-
-        let mut connection = pool.get().unwrap();
-        let record: FileUploadModel = file_upload.clone().into();
-        diesel::insert_into(file_uploads::table)
-            .values(&record)
-            .execute(&mut connection)
-            .unwrap();
-
         (path, file_upload)
     }
 

@@ -89,60 +89,19 @@ impl FileRegister<PostgresFileUploadRepository<MokaCache>, SystemClock> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use crate::file::upload::FileUpload;
-    use crate::file::InMemoryFileUploadRepository;
+    use crate::file::{InMemoryFileUploadRepository, PostgresFileUploadRepository};
     use crate::routes::FileCreate;
     use crate::file::{FileRegister, FileSizeLimiter, FileUploadError};
     use std::collections::HashMap;
     use chrono::{Duration, NaiveDateTime};
+    use r2d2::Pool;
     use uuid::Uuid;
-    use crate::clock::FakeClock;
+    use crate::cache::MokaCache;
+    use crate::clock::{FakeClock, SystemClock};
     use crate::config::Settings;
-
-    fn test_date_time() -> NaiveDateTime {
-        NaiveDateTime::from_timestamp(1676224000, 0)
-    }
-
-    impl FileRegister<InMemoryFileUploadRepository, FakeClock> {
-        pub fn create() -> Self {
-            Self::new(
-                Self::create_repository(),
-                FileSizeLimiter::create(),
-                &Settings::default(),
-                FakeClock(test_date_time())
-            )
-        }
-
-        pub fn create_limited() -> Self {
-            Self::new(
-                Self::create_repository(),
-                FileSizeLimiter::create_limited(),
-                &Settings::default(),
-                FakeClock(test_date_time())
-            )
-        }
-
-        pub fn create_with_expiration() -> Self {
-            let mut settings = Settings::default();
-            settings.upload.expires_in_seconds = Some(86400);
-
-            Self::new(
-                Self::create_repository(),
-                FileSizeLimiter::create_limited(),
-                &settings,
-                FakeClock(test_date_time())
-            )
-        }
-
-        fn create_repository() -> InMemoryFileUploadRepository {
-            let items: HashMap<Uuid, FileUpload> = HashMap::from([(
-                Uuid::parse_str("9317393a-c4ef-4b69-bfb9-060050f0879a").unwrap(),
-                FileUpload::create("9317393a-c4ef-4b69-bfb9-060050f0879a")
-            )]);
-            InMemoryFileUploadRepository::new(items)
-        }
-    }
+    use crate::database::DbPool;
 
     #[test]
     fn test_register_file() {
@@ -229,4 +188,60 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(file_upload, result.unwrap());
     }
+
+    impl FileRegister<InMemoryFileUploadRepository, FakeClock> {
+        pub fn create() -> Self {
+            Self::new(
+                Self::create_repository(),
+                FileSizeLimiter::create(),
+                &Settings::default(),
+                FakeClock(test_date_time())
+            )
+        }
+
+        pub fn create_limited() -> Self {
+            Self::new(
+                Self::create_repository(),
+                FileSizeLimiter::create_limited(),
+                &Settings::default(),
+                FakeClock(test_date_time())
+            )
+        }
+
+        pub fn create_with_expiration() -> Self {
+            let mut settings = Settings::default();
+            settings.upload.expires_in_seconds = Some(86400);
+
+            Self::new(
+                Self::create_repository(),
+                FileSizeLimiter::create_limited(),
+                &settings,
+                FakeClock(test_date_time())
+            )
+        }
+
+        fn create_repository() -> InMemoryFileUploadRepository {
+            let items: HashMap<Uuid, FileUpload> = HashMap::from([(
+                Uuid::parse_str("9317393a-c4ef-4b69-bfb9-060050f0879a").unwrap(),
+                FileUpload::create("9317393a-c4ef-4b69-bfb9-060050f0879a")
+            )]);
+            InMemoryFileUploadRepository::new(items)
+        }
+    }
+
+    impl FileRegister<PostgresFileUploadRepository<MokaCache>, SystemClock> {
+        pub fn for_integration(settings: &Settings, pool: &DbPool) -> Self {
+            Self::new(
+                PostgresFileUploadRepository::for_integration(pool),
+                FileSizeLimiter::new(settings),
+                settings,
+                SystemClock
+            )
+        }
+    }
+
+    fn test_date_time() -> NaiveDateTime {
+        NaiveDateTime::from_timestamp(1676224000, 0)
+    }
+
 }

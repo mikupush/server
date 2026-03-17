@@ -26,7 +26,8 @@ use uuid::Uuid;
 pub enum FileReadError {
     NotExists { id: Uuid },
     IO { message: String },
-    DB { message: String }
+    DB { message: String },
+    RangeNotAllowed(Uuid, String)
 }
 
 impl Display for FileReadError {
@@ -41,6 +42,7 @@ impl Error for FileReadError {
             Self::NotExists { .. } => file_read_codes::NOT_EXISTS_CODE.to_string(),
             Self::DB { .. } => file_read_codes::DB_CODE.to_string(),
             Self::IO { .. } => file_read_codes::IO_CODE.to_string(),
+            Self::RangeNotAllowed { .. } => file_read_codes::RANGE_NOT_ALLOWED_CODE.to_string(),
         }
     }
 
@@ -49,6 +51,7 @@ impl Error for FileReadError {
             Self::NotExists { id: uuid } => format!("File with uuid {} is not registered", uuid),
             Self::DB { message } => message.clone(),
             Self::IO { message } => message.clone(),
+            Self::RangeNotAllowed(id, message) => format!("range not allowed for {}: {}", id, message),
         }
     }
 }
@@ -97,4 +100,5 @@ pub mod file_read_codes {
     pub const NOT_EXISTS_CODE: &str = "NotExists";
     pub const DB_CODE: &str = "DB";
     pub const IO_CODE: &str = "IO";
+    pub const RANGE_NOT_ALLOWED_CODE: &str = "RangeNotAllowed";
 }

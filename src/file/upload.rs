@@ -28,6 +28,7 @@ use crate::storage::{
 };
 use crate::file::FileSizeLimiter;
 use std::fmt::{format, Display};
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use tokio::io::AsyncRead;
 use tracing::debug;
@@ -73,6 +74,18 @@ impl FileUpload {
         let destination_directory = destination_directory.join("sum");
 
         Ok(destination_directory)
+    }
+
+    pub fn content_path(&self, settings: &Settings) -> Result<PathBuf, std::io::Error> {
+        if self.chunked {
+            return Err(std::io::Error::new(
+                ErrorKind::AddrNotAvailable,
+                "chunked file does not have a single file name"
+            ))
+        }
+
+        let destination_directory = self.directory(settings)?;
+        Ok(destination_directory.join(self.name.as_str()))
     }
 }
 
@@ -354,17 +367,20 @@ pub mod file_upload_codes {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use crate::config::Settings;
     use crate::file::upload::FileUpload;
-    use crate::file::InMemoryFileUploadRepository;
+    use crate::file::{InMemoryFileUploadRepository, PostgresFileUploadRepository};
     use crate::file::chunk_size::InMemoryChunkedUploadSizeAccumulator;
-    use crate::storage::FakeObjectStorageWriter;
+    use crate::storage::{FakeObjectStorageWriter, FileSystemObjectStorageWriter};
     use crate::file::{FileSizeLimiter, FileUploadError, FileUploader};
     use bytes::Bytes;
     use std::collections::HashMap;
+    use r2d2::Pool;
     use tokio_util::io::StreamReader;
     use uuid::Uuid;
+    use crate::cache::MokaCache;
+    use crate::database::DbPool;
 
     #[actix_web::test]
     async fn test_upload_file() {
@@ -511,6 +527,22 @@ mod tests {
             ]);
 
             InMemoryFileUploadRepository::new(items)
+        }
+    }
+
+    impl FileUploader<
+        PostgresFileUploadRepository<MokaCache>,
+        FileSystemObjectStorageWriter,
+        InMemoryChunkedUploadSizeAccumulator
+    > {
+        pub fn for_integration(settings: &Settings, pool: &DbPool) -> Self {
+            Self::new(
+                PostgresFileUploadRepository::for_integration(pool),
+                FileSystemObjectStorageWriter::new(),
+                settings,
+                FileSizeLimiter::new(settings),
+                InMemoryChunkedUploadSizeAccumulator::new()
+            )
         }
     }
 }

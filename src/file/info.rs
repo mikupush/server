@@ -22,8 +22,9 @@ use tracing::debug;
 use uuid::Uuid;
 use serde::{Deserialize, Serialize};
 use chrono::NaiveDateTime;
-use crate::cache::{Cache, MokaCache};
-use crate::file::upload::FileUpload as DomainFileUpload;
+use crate::cache::MokaCache;
+use crate::file::upload::FileUpload;
+use crate::schema::file_uploads::chunked;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum FileStatus {
@@ -40,10 +41,11 @@ pub struct FileInfo {
     pub uploaded_at: NaiveDateTime,
     pub status: FileStatus,
     pub expires_at: Option<NaiveDateTime>,
+    pub chunked: bool,
 }
 
 impl FileInfo {
-    pub fn from_file_upload(file_upload: &DomainFileUpload, path: PathBuf) -> Self {
+    pub fn from_file_upload(file_upload: &FileUpload, path: PathBuf) -> Self {
         Self {
             id: file_upload.id,
             name: file_upload.name.clone(),
@@ -55,6 +57,7 @@ impl FileInfo {
                 false => FileStatus::WaitingForUpload,
             },
             expires_at: file_upload.expires_at,
+            chunked: file_upload.chunked,
         }
     }
 }

@@ -187,19 +187,13 @@ where
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
     use crate::database::setup_database_connection;
     use chrono::Utc;
     use serial_test::serial;
     use crate::cache::NoOpCache;
     use crate::file::FileUploadModel;
-
-    impl PostgresFileUploadRepository<NoOpCache> {
-        pub fn with_pool(pool: DbPool) -> Self {
-            Self::new(pool.clone(), NoOpCache)
-        }
-    }
 
     #[test]
     #[serial]
@@ -306,5 +300,17 @@ mod tests {
             .first(&mut connection)
             .optional()
             .unwrap()
+    }
+
+    impl PostgresFileUploadRepository<NoOpCache> {
+        pub fn with_pool(pool: DbPool) -> Self {
+            Self::new(pool.clone(), NoOpCache)
+        }
+    }
+
+    impl PostgresFileUploadRepository<MokaCache> {
+        pub fn for_integration(pool: &DbPool) -> Self {
+            Self::new(pool.clone(), MokaCache::new())
+        }
     }
 }

@@ -62,13 +62,7 @@ where
     }
 
     pub async fn read(&self, id: Uuid) -> Result<FileStreamWrapper, FileReadError> {
-        let repository = self.repository.clone();
-        let file_upload_result = tokio::task::spawn_blocking(move || repository.find_by_id(&id)).await
-            .map_err(|err| FileReadError::IO { message: err.to_string() })?;
-        let file_upload = match file_upload_result? {
-            Some(file_upload) => file_upload,
-            None => return Err(FileReadError::NotExists { id })
-        };
+        let file_upload = self.find_upload_by_id(&id).await?;
 
         if file_upload.chunked {
             let reader = ChunkedFileReader::new(
@@ -86,6 +80,48 @@ where
             };
 
             reader.read().await
+        }
+    }
+
+    pub async fn read_range(&self, id: Uuid, start: u64, end: u64) -> Result<FileStreamWrapper, FileReadError> {
+        let file_upload = self.find_upload_by_id(&id).await?;
+        let size = file_upload.size as u64;
+
+        if file_upload.chunked {
+            return Err(FileReadError::RangeNotAllowed(id, "file is chunked".to_string()));
+        }
+
+        if start > end {
+            return Err(FileReadError::RangeNotAllowed(id, "start is greater than end".to_string()));
+        }
+
+        if start > size || end > size {
+            return Err(FileReadError::RangeNotAllowed(id, "end is greater than file size".to_string()));
+        }
+
+        let reader = SingleFileReader {
+            details: file_upload,
+            settings: self.settings.clone(),
+            reader: self.reader.clone()
+        };
+
+        Ok(reader.read_range(start, end).await?)
+    }
+
+    async fn find_upload_by_id(&self, id: &Uuid) -> Result<FileUpload, FileReadError> {
+        let repository = self.repository.clone();
+        let id = id.clone();
+
+        let find_task = tokio::task::spawn_blocking(move || {
+            repository.find_by_id(&id)
+        });
+
+        let file_upload_result = find_task.await
+            .map_err(|err| FileReadError::IO { message: err.to_string() })?;
+
+        match file_upload_result? {
+            Some(file_upload) => Ok(file_upload),
+            None => Err(FileReadError::NotExists { id })
         }
     }
 }
@@ -133,6 +169,32 @@ where
         let (sender, receiver) = mpsc::channel::<io::Result<Bytes>>(10);
         let mut stream = tokio::task::spawn_blocking(move || reader.read(&path)).await
             .map_err(|err| FileReadError::IO { message: err.to_string() })??;
+
+        tokio::task::spawn_blocking(move || {
+            send_reader_bytes(&mut stream, &sender);
+        });
+
+        Ok(FileStreamWrapper {
+            details: self.details.clone(),
+            stream: ReceiverStream::new(receiver),
+        })
+    }
+
+    pub async fn read_range(&self, start: u64, end: u64) -> Result<FileStreamWrapper, FileReadError> {
+        let details = self.details.clone();
+        let reader = self.reader.clone();
+        let directory = self.details.content_directory(&self.settings)?;
+        let path = Path::new(&directory)
+            .join(details.name.clone())
+            .to_string_lossy()
+            .to_string();
+
+        let (sender, receiver) = mpsc::channel::<io::Result<Bytes>>(10);
+        let task = tokio::task::spawn_blocking(move || {
+            reader.read_range(&path, start, end)
+        });
+
+        let mut stream = task.await.map_err(|err| FileReadError::IO { message: err.to_string() })??;
 
         tokio::task::spawn_blocking(move || {
             send_reader_bytes(&mut stream, &sender);
