@@ -71,7 +71,7 @@ impl ObjectStorageReader for FileSystemObjectStorageReader {
 
         let mut file = File::open(location)?;
         file.seek(SeekFrom::Start(start))?;
-        let reader = file.take(end - start);
+        let reader = file.take(end - start + 1);
 
         Ok(Box::new(reader))
     }

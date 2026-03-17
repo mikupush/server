@@ -95,8 +95,8 @@ where
             return Err(FileReadError::RangeNotAllowed(id, "start is greater than end".to_string()));
         }
 
-        if start > size || end > size {
-            return Err(FileReadError::RangeNotAllowed(id, "end is greater than file size".to_string()));
+        if start >= size || end >= size {
+            return Err(FileReadError::RangeNotAllowed(id, "range indices are out of file bounds".to_string()));
         }
 
         let reader = SingleFileReader {
