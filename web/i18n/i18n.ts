@@ -46,6 +46,11 @@ i18n
   .use(initReactI18next) // passes i18n down to react-i18next
   .init(options);
 
+// ensure use page language on client side
+if (typeof document !== 'undefined') {
+  i18n.changeLanguage(document.documentElement.lang)
+}
+
 /**
  * Returns all language paths
  */

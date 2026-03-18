@@ -22,6 +22,8 @@ import type {FileInfoError, FileInfo, UploadMetadata} from "@/models.ts";
 import {useTranslation} from "react-i18next";
 import {Button} from "@/components/ui/button.tsx";
 import {Download, LoaderCircle, TriangleAlert} from "lucide-react";
+import {Card, CardContent} from "@/components/ui/card.tsx";
+import {Separator} from "@/components/ui/separator.tsx";
 
 export default function FileDownload() {
   const { t } = useTranslation()
@@ -50,17 +52,60 @@ export default function FileDownload() {
     return await response.json() as FileInfo
   }
 
-  const View = () => (
-    <div className="flex flex-col items-center">
-      <FileDetails details={details!} />
-      <Button asChild className="mt-6 p-6 text-lg">
-        <a href={`/u/${details.id}`} download>
-          <Download className="size-5" />
-          {t('download_file')}
-        </a>
-      </Button>
-    </div>
-  )
+  const canPreviewMedia = () => {
+    const allowedMimeType = details.mime_type.startsWith('image/')
+      || details.mime_type.startsWith('video/')
+
+    return !details.chunked && allowedMimeType
+  }
+
+  const MediaPreview = () => {
+    const rawUrl = `/u/${details.id}?raw`
+
+    if (details.mime_type.startsWith('image/')) {
+      return <img className="hidden sm:block rounded-lg max-h-150" src={rawUrl} alt="" />
+    }
+
+    if (details.mime_type.startsWith('video/')) {
+      return <video className="hidden sm:block rounded-lg" src={rawUrl} controls={true} />
+    }
+  }
+
+  const View = () => {
+    return canPreviewMedia() ? (
+      <Card className="p-0 mx-auto max-w-4xl">
+        <CardContent className="p-1">
+          <div className="flex justify-center">
+            <MediaPreview />
+          </div>
+          <div className="flex flex-col sm:flex-row justify-between p-3">
+            <FileDetails details={details!} variant="row" className="hidden sm:block min-w-0" />
+            <FileDetails details={details!} variant="column" className="block sm:hidden" />
+            <Separator className="block sm:hidden my-6"/>
+            <Button asChild className="place-self-center p-6 text-lg sm:ml-6">
+              <a href={`/u/${details.id}`} download>
+                <Download className="size-5"/>
+                {t('download_file')}
+              </a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    ) : (
+      <Card className="mx-auto max-w-xl">
+        <CardContent className="flex flex-col">
+          <FileDetails details={details!} />
+          <Separator className="my-6"/>
+          <Button asChild className="place-self-center p-6 text-lg">
+            <a href={`/u/${details.id}`} download>
+              <Download className="size-5"/>
+              {t('download_file')}
+            </a>
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
 
   const Loading = () => (
     <LoaderCircle className="mx-auto animate-spin" size={100} />

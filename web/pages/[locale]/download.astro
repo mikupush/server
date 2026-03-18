@@ -29,7 +29,7 @@ export function getStaticPaths() {
 await i18n.changeLanguage(Astro.currentLocale)
 ---
 <PageLayout>
-  <section class="flex-1 place-content-center m-auto w-full max-w-lg px-3">
+  <section class="flex-1 place-content-center w-full px-3">
     <FileDownload client:load />
   </section>
 </PageLayout>

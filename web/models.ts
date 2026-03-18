@@ -37,6 +37,7 @@ export interface FileInfo {
   status: FileInfoStatus;
   uploaded_at: string;
   expires_at?: string | null;
+  chunked: boolean;
 }
 
 export interface HealthStatus {
