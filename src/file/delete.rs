@@ -15,12 +15,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::errors::FileDeleteError;
-use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
-use crate::services::object_storage_remover::{FileSystemObjectStorageRemover, ObjectStorageRemoveError, ObjectStorageRemover};
+use crate::file::error::FileDeleteError;
+use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
+use crate::storage::{FileSystemObjectStorageRemover, ObjectStorageRemoveError, ObjectStorageRemover};
 use std::path::Path;
 use tracing::debug;
 use uuid::Uuid;
+use crate::cache::MokaCache;
 
 #[derive(Debug, Clone)]
 pub struct FileDeleter<FR, OSR>
@@ -38,13 +39,17 @@ where
     FR: FileUploadRepository + Clone,
     OSR: ObjectStorageRemover + Clone,
 {
-    pub fn new(repository: FR, object_storage_remover: OSR, settings: Settings) -> Self {
-        Self { repository, remover: object_storage_remover, settings }
+    pub fn new(repository: FR, object_storage_remover: OSR, settings: &Settings) -> Self {
+        Self {
+            repository,
+            remover: object_storage_remover,
+            settings: settings.clone()
+        }
     }
 
     pub fn delete(&self, id: Uuid) -> Result<(), FileDeleteError> {
         debug!("deleting file with id: {}", id.to_string());
-        let file_upload = match self.repository.find_by_id(id)? {
+        let file_upload = match self.repository.find_by_id(&id)? {
             Some(file_upload) => file_upload,
             None => {
                 debug!("file with id {} does not exist on the database", id.to_string());
@@ -61,16 +66,16 @@ where
         }
 
         debug!("deleting file from the database: {}", id.to_string());
-        self.repository.delete(id)?;
+        self.repository.delete(&id)?;
 
         Ok(())
     }
 }
 
-impl FileDeleter<PostgresFileUploadRepository, FileSystemObjectStorageRemover> {
-    pub fn get_with_settings(settings: Settings) -> Self {
+impl FileDeleter<PostgresFileUploadRepository<MokaCache>, FileSystemObjectStorageRemover> {
+    pub fn get_with_settings(settings: &Settings) -> Self {
         Self::new(
-            PostgresFileUploadRepository::get_with_settings(settings.clone()),
+            PostgresFileUploadRepository::get_with_settings(settings),
             FileSystemObjectStorageRemover::new(),
             settings
         )
@@ -80,11 +85,11 @@ impl FileDeleter<PostgresFileUploadRepository, FileSystemObjectStorageRemover> {
 #[cfg(test)]
 mod tests {
     use crate::config::Settings;
-    use crate::errors::FileDeleteError;
-    use crate::model::FileUpload;
-    use crate::repository::{FileUploadRepository, InMemoryFileUploadRepository};
-    use crate::services::object_storage_remover::{FakeObjectStorageRemover, ObjectStorageRemoveError, ObjectStorageRemover};
-    use crate::services::FileDeleter;
+    use crate::file::error::FileDeleteError;
+    use crate::file::upload::FileUpload;
+    use crate::file::{FileUploadRepository, InMemoryFileUploadRepository};
+    use crate::storage::{FakeObjectStorageRemover, ObjectStorageRemoveError, ObjectStorageRemover};
+    use crate::file::FileDeleter;
     use serial_test::serial;
     use std::collections::HashMap;
     use std::path::Path;
@@ -95,7 +100,7 @@ mod tests {
             Self::new(
                 Self::create_repository(),
                 FakeObjectStorageRemover::new(),
-                Settings::default()
+                &Settings::default()
             )
         }
 
@@ -120,7 +125,7 @@ mod tests {
         let result = deleter.delete(id);
 
         assert!(result.is_ok());
-        let stored = deleter.repository.find_by_id(id).unwrap();
+        let stored = deleter.repository.find_by_id(&id).unwrap();
         assert!(stored.is_none(), "file upload should be removed from repository");
         cleanup_directory(&deleter.settings.upload.directory, id);
     }
@@ -137,7 +142,7 @@ mod tests {
         assert!(matches!(result.unwrap_err(), FileDeleteError::NotExists { id } if id == missing_id));
 
         let existing_id = Uuid::parse_str("5769aa43-2380-49be-aafb-e9dd4bd4564f").unwrap();
-        assert!(deleter.repository.find_by_id(existing_id).unwrap().is_some(), "existing file should stay untouched");
+        assert!(deleter.repository.find_by_id(&existing_id).unwrap().is_some(), "existing file should stay untouched");
     }
 
     #[test]
@@ -145,13 +150,13 @@ mod tests {
     fn test_delete_ignores_missing_storage_object() {
         let repository = FileDeleter::<InMemoryFileUploadRepository, FakeObjectStorageRemover>::create_repository();
         let settings = Settings::default();
-        let deleter = FileDeleter::new(repository.clone(), NotFoundObjectStorageRemover, settings.clone());
+        let deleter = FileDeleter::new(repository.clone(), NotFoundObjectStorageRemover, &settings);
         let id = Uuid::parse_str("5769aa43-2380-49be-aafb-e9dd4bd4564f").unwrap();
 
         let result = deleter.delete(id);
 
         assert!(result.is_ok(), "removal should continue when storage object is missing");
-        assert!(repository.find_by_id(id).unwrap().is_none(), "record should still be deleted from repository");
+        assert!(repository.find_by_id(&id).unwrap().is_none(), "record should still be deleted from repository");
         cleanup_directory(&settings.upload.directory, id);
     }
 
@@ -160,13 +165,13 @@ mod tests {
     fn test_delete_returns_error_on_storage_failure() {
         let repository = FileDeleter::<InMemoryFileUploadRepository, FakeObjectStorageRemover>::create_repository();
         let settings = Settings::default();
-        let deleter = FileDeleter::new(repository.clone(), FailingObjectStorageRemover, settings.clone());
+        let deleter = FileDeleter::new(repository.clone(), FailingObjectStorageRemover, &settings);
         let id = Uuid::parse_str("5769aa43-2380-49be-aafb-e9dd4bd4564f").unwrap();
 
         let result = deleter.delete(id);
 
         assert!(matches!(result, Err(FileDeleteError::IO { .. })));
-        assert!(repository.find_by_id(id).unwrap().is_some(), "record should remain when storage removal fails");
+        assert!(repository.find_by_id(&id).unwrap().is_some(), "record should remain when storage removal fails");
         cleanup_directory(&settings.upload.directory, id);
     }
 

@@ -24,4 +24,4 @@ chmod +x "$tar_package_directory/mikupush-server"
 
 tar \
   -C "$tar_package_directory" \
-  -czvf "$bundle_directory/mikupush-server-linux-$version-$arch.tar.gz" .
+  -czvf "$bundle_directory/mikupush-server_${version}_${arch}.tar.gz" .

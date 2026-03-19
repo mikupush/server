@@ -14,6 +14,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+mod delete;
+mod read;
+mod info;
+
+pub use delete::*;
+pub use info::*;
+pub use read::*;
+
 use std::fmt::Display;
 
-
+pub trait Error: Display {
+    fn code(&self) -> String;
+    fn message(&self) -> String;
+}

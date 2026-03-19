@@ -19,8 +19,8 @@
 
 import PageLayout from '@/layout/page.astro'
 import { languagePaths } from "@/i18n/i18n.ts"
-import i18n from "i18next";
-import FileDownload from '@/components/FileDownload';
+import i18n, {t} from "i18next";
+import {TriangleAlert} from "lucide-react";
 
 export function getStaticPaths() {
   return languagePaths();
@@ -29,7 +29,8 @@ export function getStaticPaths() {
 await i18n.changeLanguage(Astro.currentLocale)
 ---
 <PageLayout>
-  <section class="flex-1 place-content-center w-full px-3">
-    <FileDownload client:load />
-  </section>
+  <div class="flex flex-1 flex-col items-center justify-center">
+    <TriangleAlert className="text-red-500" size={100} />
+    <p class="text-2xl mt-3 px-5 text-center">{t('system_error')}</p>
+  </div>
 </PageLayout>

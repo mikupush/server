@@ -15,12 +15,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::model::FileUpload;
-use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
+use crate::file::upload::FileUpload;
+use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
 use crate::routes::FileCreate;
-use crate::services::{FileSizeLimiter, FileUploadError, SystemClock};
+use crate::file::{FileSizeLimiter, FileUploadError};
 use chrono::Duration;
-use crate::services::clock::Clock;
+use crate::cache::MokaCache;
+use crate::clock::{Clock, SystemClock};
 
 #[derive(Debug, Clone)]
 pub struct FileRegister<FR, C>
@@ -39,8 +40,8 @@ where
     FR: FileUploadRepository + Clone,
     C: Clock + Clone
 {
-    pub fn new(repository: FR, limiter: FileSizeLimiter, settings: Settings, clock: C) -> Self {
-        Self { repository, limiter, settings, clock }
+    pub fn new(repository: FR, limiter: FileSizeLimiter, settings: &Settings, clock: C) -> Self {
+        Self { repository, limiter, settings: settings.clone(), clock }
     }
 
     pub fn register_file(&self, file_create: FileCreate) -> Result<FileUpload, FileUploadError> {
@@ -64,23 +65,23 @@ where
             expires_at
         };
 
-        let existing = self.repository.find_by_id(file_create.id)?;
+        let existing = self.repository.find_by_id(&file_create.id)?;
 
         if existing.is_some() {
             return Err(FileUploadError::Exists)
         }
 
-        self.repository.save(file_upload.clone())?;
+        self.repository.save(&file_upload.clone())?;
 
         Ok(file_upload)
     }
 }
 
-impl FileRegister<PostgresFileUploadRepository, SystemClock> {
-    pub fn get_with_settings(settings: Settings) -> Self {
+impl FileRegister<PostgresFileUploadRepository<MokaCache>, SystemClock> {
+    pub fn get_with_settings(settings: &Settings) -> Self {
         Self::new(
-            PostgresFileUploadRepository::get_with_settings(settings.clone()),
-            FileSizeLimiter::new(settings.clone()),
+            PostgresFileUploadRepository::get_with_settings(&settings),
+            FileSizeLimiter::new(settings),
             settings,
             SystemClock,
         )
@@ -88,59 +89,19 @@ impl FileRegister<PostgresFileUploadRepository, SystemClock> {
 }
 
 #[cfg(test)]
-mod tests {
-    use crate::model::FileUpload;
-    use crate::repository::InMemoryFileUploadRepository;
+pub mod tests {
+    use crate::file::upload::FileUpload;
+    use crate::file::{InMemoryFileUploadRepository, PostgresFileUploadRepository};
     use crate::routes::FileCreate;
-    use crate::services::{FakeClock, FileRegister, FileSizeLimiter, FileUploadError};
+    use crate::file::{FileRegister, FileSizeLimiter, FileUploadError};
     use std::collections::HashMap;
     use chrono::{Duration, NaiveDateTime};
+    use r2d2::Pool;
     use uuid::Uuid;
+    use crate::cache::MokaCache;
+    use crate::clock::{FakeClock, SystemClock};
     use crate::config::Settings;
-
-    fn test_date_time() -> NaiveDateTime {
-        NaiveDateTime::from_timestamp(1676224000, 0)
-    }
-
-    impl FileRegister<InMemoryFileUploadRepository, FakeClock> {
-        pub fn create() -> Self {
-            Self::new(
-                Self::create_repository(),
-                FileSizeLimiter::create(),
-                Settings::default(),
-                FakeClock(test_date_time())
-            )
-        }
-
-        pub fn create_limited() -> Self {
-            Self::new(
-                Self::create_repository(),
-                FileSizeLimiter::create_limited(),
-                Settings::default(),
-                FakeClock(test_date_time())
-            )
-        }
-
-        pub fn create_with_expiration() -> Self {
-            let mut settings = Settings::default();
-            settings.upload.expires_in_seconds = Some(86400);
-
-            Self::new(
-                Self::create_repository(),
-                FileSizeLimiter::create_limited(),
-                settings,
-                FakeClock(test_date_time())
-            )
-        }
-
-        fn create_repository() -> InMemoryFileUploadRepository {
-            let items: HashMap<Uuid, FileUpload> = HashMap::from([(
-                Uuid::parse_str("9317393a-c4ef-4b69-bfb9-060050f0879a").unwrap(),
-                FileUpload::create("9317393a-c4ef-4b69-bfb9-060050f0879a")
-            )]);
-            InMemoryFileUploadRepository::new(items)
-        }
-    }
+    use crate::database::DbPool;
 
     #[test]
     fn test_register_file() {
@@ -227,4 +188,60 @@ mod tests {
         assert!(result.is_ok());
         assert_eq!(file_upload, result.unwrap());
     }
+
+    impl FileRegister<InMemoryFileUploadRepository, FakeClock> {
+        pub fn create() -> Self {
+            Self::new(
+                Self::create_repository(),
+                FileSizeLimiter::create(),
+                &Settings::default(),
+                FakeClock(test_date_time())
+            )
+        }
+
+        pub fn create_limited() -> Self {
+            Self::new(
+                Self::create_repository(),
+                FileSizeLimiter::create_limited(),
+                &Settings::default(),
+                FakeClock(test_date_time())
+            )
+        }
+
+        pub fn create_with_expiration() -> Self {
+            let mut settings = Settings::default();
+            settings.upload.expires_in_seconds = Some(86400);
+
+            Self::new(
+                Self::create_repository(),
+                FileSizeLimiter::create_limited(),
+                &settings,
+                FakeClock(test_date_time())
+            )
+        }
+
+        fn create_repository() -> InMemoryFileUploadRepository {
+            let items: HashMap<Uuid, FileUpload> = HashMap::from([(
+                Uuid::parse_str("9317393a-c4ef-4b69-bfb9-060050f0879a").unwrap(),
+                FileUpload::create("9317393a-c4ef-4b69-bfb9-060050f0879a")
+            )]);
+            InMemoryFileUploadRepository::new(items)
+        }
+    }
+
+    impl FileRegister<PostgresFileUploadRepository<MokaCache>, SystemClock> {
+        pub fn for_integration(settings: &Settings, pool: &DbPool) -> Self {
+            Self::new(
+                PostgresFileUploadRepository::for_integration(pool),
+                FileSizeLimiter::new(settings),
+                settings,
+                SystemClock
+            )
+        }
+    }
+
+    fn test_date_time() -> NaiveDateTime {
+        NaiveDateTime::from_timestamp(1676224000, 0)
+    }
+
 }

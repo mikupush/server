@@ -15,9 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::repository::PostgresFileUploadRepository;
+use crate::file::PostgresFileUploadRepository;
 use crate::routes::error::ErrorResponse;
-use crate::services::{FileRegister, FileUploadError};
+use crate::file::{FileRegister, FileUploadError};
 use actix_web::{post, web, HttpResponse, Result};
 use serde::{Deserialize, Serialize};
 use tracing::debug;
@@ -40,7 +40,7 @@ pub async fn post_file(
 ) -> Result<HttpResponse> {
     let time_tracing = ElapsedTimeTracing::new("post_file");
     let settings = settings.get_ref().clone();
-    let file_register = FileRegister::get_with_settings(settings);
+    let file_register = FileRegister::get_with_settings(&settings);
     let request = request.into_inner();
 
     let request_clone = request.clone();
@@ -81,9 +81,9 @@ fn handle_register_file_failure(request: FileCreate, err: FileUploadError) -> Ht
 mod tests {
     use super::*;
     use crate::config::Upload;
-    use crate::errors::route_error_codes;
+    use crate::routes::error::code;
     use crate::routes::json_error_handler;
-    use crate::services::file_upload_codes;
+    use crate::file::file_upload_codes;
     use actix_web::http::{Method, StatusCode};
     use actix_web::{http::header::ContentType, test, App};
     use serial_test::serial;
@@ -214,7 +214,7 @@ mod tests {
         assert_eq!(status_code, StatusCode::BAD_REQUEST);
 
         let response_body = serde_json::from_slice::<ErrorResponse>(&response_body).unwrap();
-        assert_eq!(response_body.code, route_error_codes::INVALID_REQUEST_BODY_CODE);
+        assert_eq!(response_body.code, code::INVALID_REQUEST_BODY_CODE);
     }
 
     fn create_settings_limited() -> Settings {

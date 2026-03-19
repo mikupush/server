@@ -15,9 +15,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use crate::config::Settings;
-use crate::repository::{FileUploadRepository, PostgresFileUploadRepository};
-use crate::services::object_storage_remover::ObjectStorageRemover;
-use crate::services::FileDeleter;
+use crate::file::{FileUploadRepository, PostgresFileUploadRepository};
+use crate::storage::ObjectStorageRemover;
+use crate::file::FileDeleter;
 use std::thread;
 use std::time::Duration;
 use tracing::{debug, error, info};
@@ -33,8 +33,8 @@ pub fn start_cleanup_expired_files(settings: Settings) {
         debug!("expired file cleanup job started");
 
         loop {
-            let repository = PostgresFileUploadRepository::get_with_settings(settings.clone());
-            let deleter = FileDeleter::get_with_settings(settings.clone());
+            let repository = PostgresFileUploadRepository::get_with_settings(&settings);
+            let deleter = FileDeleter::get_with_settings(&settings);
 
             cleanup_expired_files(repository, deleter);
             thread::sleep(Duration::from_secs(settings.upload.expiration_cleanup_interval_seconds));

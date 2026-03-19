@@ -29,9 +29,15 @@ import i18n from "i18next";
 
 export function LanguageSelect() {
   const {t} = useTranslation()
+  const lang = document.documentElement.lang;
+
+  const selectLanguage = (value: string) => {
+    document.cookie = `language=${value}`
+    window.location.reload()
+  }
 
   return (
-    <Select value={i18n.language}>
+    <Select value={lang} onValueChange={selectLanguage}>
       <SelectTrigger
         className="border-0 dark:bg-transparent shadow-none hover:bg-muted hover:text-accent-foreground dark:hover:bg-muted/50 gap-3"
         aria-label={t('select_language')}

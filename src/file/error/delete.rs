@@ -14,24 +14,25 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::errors::Error;
-use crate::repository::FileUploadRepositoryError;
+use crate::file::error::Error;
+use crate::file::FileUploadRepositoryError;
+use crate::storage::ObjectStorageRemoveError;
 use std::fmt::Display;
 use uuid::Uuid;
 
 #[derive(Debug)]
-pub enum FileInfoError {
+pub enum FileDeleteError {
     NotExists { id: Uuid },
     IO { message: String },
     DB { message: String }
 }
 
-impl Error for FileInfoError {
+impl Error for FileDeleteError {
     fn code(&self) -> String {
         match self {
-            Self::NotExists { .. } => file_info_codes::NOT_EXISTS_CODE.to_string(),
-            Self::DB { .. } => file_info_codes::DB_CODE.to_string(),
-            Self::IO { .. } => file_info_codes::IO_CODE.to_string(),
+            Self::NotExists { .. } => file_delete_codes::NOT_EXISTS_CODE.to_string(),
+            Self::DB { .. } => file_delete_codes::DB_CODE.to_string(),
+            Self::IO { .. } => file_delete_codes::IO_CODE.to_string(),
         }
     }
 
@@ -44,31 +45,31 @@ impl Error for FileInfoError {
     }
 }
 
-impl Display for FileInfoError {
+impl Display for FileDeleteError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} error: {}", self.code(), self.message())
     }
 }
 
-impl From<std::io::Error> for FileInfoError {
+impl From<std::io::Error> for FileDeleteError {
     fn from(value: std::io::Error) -> Self {
-        FileInfoError::IO { message: value.to_string() }
+        FileDeleteError::IO { message: value.to_string() }
     }
 }
 
-impl From<diesel::result::Error> for FileInfoError {
+impl From<diesel::result::Error> for FileDeleteError {
     fn from(value: diesel::result::Error) -> Self {
         Self::DB { message: value.to_string() }
     }
 }
 
-impl From<r2d2::Error> for FileInfoError {
+impl From<r2d2::Error> for FileDeleteError {
     fn from(value: r2d2::Error) -> Self {
         Self::DB { message: value.to_string() }
     }
 }
 
-impl From<FileUploadRepositoryError> for FileInfoError {
+impl From<FileUploadRepositoryError> for FileDeleteError {
     fn from(value: FileUploadRepositoryError) -> Self {
         match value {
             FileUploadRepositoryError::Db(err) => err.into(),
@@ -77,7 +78,16 @@ impl From<FileUploadRepositoryError> for FileInfoError {
     }
 }
 
-pub mod file_info_codes {
+impl From<ObjectStorageRemoveError> for FileDeleteError {
+    fn from(value: ObjectStorageRemoveError) -> Self {
+        match value {
+            ObjectStorageRemoveError::IO(err) => Self::IO { message: err },
+            ObjectStorageRemoveError::NotExists => Self::NotExists { id: Uuid::nil() },
+        }
+    }
+}
+
+pub mod file_delete_codes {
     pub const NOT_EXISTS_CODE: &str = "NotExists";
     pub const DB_CODE: &str = "DB";
     pub const IO_CODE: &str = "IO";

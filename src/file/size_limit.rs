@@ -23,8 +23,8 @@ pub struct FileSizeLimiter {
 }
 
 impl FileSizeLimiter {
-    pub fn new(settings: Settings) -> Self {
-        Self { settings }
+    pub fn new(settings: &Settings) -> Self {
+        Self { settings: settings.clone() }
     }
 
     /// Check if the file size is limited by the settings
@@ -54,7 +54,7 @@ pub mod tests {
 
     impl FileSizeLimiter {
         pub fn create() -> Self {
-            Self::new(Settings::default())
+            Self::new(&Settings::default())
         }
 
         pub fn create_limited() -> FileSizeLimiter {
@@ -66,7 +66,7 @@ pub mod tests {
                 Debug::default()
             );
 
-            FileSizeLimiter::new(settings)
+            FileSizeLimiter::new(&settings)
         }
 
         pub fn create_unlimited() -> FileSizeLimiter {
@@ -78,7 +78,7 @@ pub mod tests {
                 Debug::default()
             );
 
-            FileSizeLimiter::new(settings)
+            FileSizeLimiter::new(&settings)
         }
     }
 

@@ -16,15 +16,16 @@
 
 use crate::config::Settings;
 use crate::database::{get_database_connection, DbPool};
-use crate::model::FileUpload;
-use crate::model::FileUploadModel as FileUploadModel;
+use crate::file::{FileUpload, FileUploadModel};
 use crate::schema::file_uploads;
 use diesel::result::Error as DieselError;
-use diesel::{OptionalExtension, QueryDsl, RunQueryDsl, ExpressionMethods};
+use diesel::{ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use r2d2::Error as PoolError;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use core::time::Duration;
 use uuid::Uuid;
+use crate::cache::{Cache, MokaCache};
 use crate::tracing::ElapsedTimeTracing;
 
 #[derive(Debug)]
@@ -46,10 +47,10 @@ impl From<DieselError> for FileUploadRepositoryError {
 }
 
 pub trait FileUploadRepository {
-    fn find_by_id(&self, file_upload_id: Uuid) -> Result<Option<FileUpload>, FileUploadRepositoryError>;
+    fn find_by_id(&self, file_upload_id: &Uuid) -> Result<Option<FileUpload>, FileUploadRepositoryError>;
     fn find_expired(&self) -> Result<Vec<FileUpload>, FileUploadRepositoryError>;
-    fn delete(&self, file_upload_id: Uuid) -> Result<(), FileUploadRepositoryError>;
-    fn save(&self, file_upload: FileUpload) -> Result<(), FileUploadRepositoryError>;
+    fn delete(&self, file_upload_id: &Uuid) -> Result<(), FileUploadRepositoryError>;
+    fn save(&self, file_upload: &FileUpload) -> Result<(), FileUploadRepositoryError>;
 }
 
 #[derive(Debug, Clone)]
@@ -64,7 +65,7 @@ impl InMemoryFileUploadRepository {
 }
 
 impl FileUploadRepository for InMemoryFileUploadRepository {
-    fn find_by_id(&self, file_upload_id: Uuid) -> Result<Option<FileUpload>, FileUploadRepositoryError> {
+    fn find_by_id(&self, file_upload_id: &Uuid) -> Result<Option<FileUpload>, FileUploadRepositoryError> {
         let items = self.file_uploads.lock().unwrap();
         Ok(items.get(&file_upload_id).cloned())
     }
@@ -79,37 +80,56 @@ impl FileUploadRepository for InMemoryFileUploadRepository {
         Ok(expired)
     }
 
-    fn delete(&self, file_upload_id: Uuid) -> Result<(), FileUploadRepositoryError> {
+    fn delete(&self, file_upload_id: &Uuid) -> Result<(), FileUploadRepositoryError> {
         let mut items = self.file_uploads.lock().unwrap();
         items.remove(&file_upload_id);
         Ok(())
     }
 
-    fn save(&self, file_upload: FileUpload) -> Result<(), FileUploadRepositoryError> {
+    fn save(&self, file_upload: &FileUpload) -> Result<(), FileUploadRepositoryError> {
         let mut items = self.file_uploads.lock().unwrap();
-        items.insert(file_upload.id, file_upload);
+        items.insert(file_upload.id, file_upload.clone());
         Ok(())
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct PostgresFileUploadRepository {
-    db_pool: DbPool
+pub struct PostgresFileUploadRepository<C>
+where
+    C: Cache + Clone
+{
+    db_pool: DbPool,
+    cache: C
 }
 
-impl PostgresFileUploadRepository {
-    pub fn new(db_pool: DbPool) -> Self {
-        Self { db_pool }
-    }
-
-    pub fn get_with_settings(settings: Settings) -> Self {
-        Self::new(get_database_connection(settings))
+impl<C> PostgresFileUploadRepository<C>
+where
+    C: Cache + Clone
+{
+    pub fn new(db_pool: DbPool, cache: C) -> Self {
+        Self { db_pool, cache }
     }
 }
 
-impl FileUploadRepository for PostgresFileUploadRepository {
-    fn find_by_id(&self, file_upload_id: Uuid) -> Result<Option<FileUpload>, FileUploadRepositoryError> {
+impl PostgresFileUploadRepository<MokaCache> {
+    pub fn get_with_settings(settings: &Settings) -> Self {
+        Self::new(get_database_connection(settings), MokaCache::new())
+    }
+}
+
+impl<C> FileUploadRepository for PostgresFileUploadRepository<C>
+where
+    C: Cache + Clone
+{
+    fn find_by_id(&self, file_upload_id: &Uuid) -> Result<Option<FileUpload>, FileUploadRepositoryError> {
         let trace_time = ElapsedTimeTracing::new("postgres_find_file_by_id");
+        let cache_key = format!("mikupush:postgres:file_upload_id:{}", file_upload_id);
+        let cached: Option<FileUpload> = self.cache.get(cache_key.as_str());
+        if let Some(cached) = cached {
+            trace_time.trace();
+            return Ok(Some(cached));
+        }
+
         let mut connection = self.db_pool.get()?;
         let record: Option<FileUploadModel> = file_uploads::table
             .find(file_upload_id)
@@ -117,6 +137,10 @@ impl FileUploadRepository for PostgresFileUploadRepository {
             .optional()?;
 
         let mapped = record.map(FileUpload::from);
+        if let Some(item) = &mapped {
+            self.cache.set(cache_key.as_str(), item, Some(Duration::from_secs(15)));
+        }
+
         trace_time.trace();
         Ok(mapped)
     }
@@ -135,7 +159,7 @@ impl FileUploadRepository for PostgresFileUploadRepository {
         Ok(mapped)
     }
 
-    fn delete(&self, file_upload_id: Uuid) -> Result<(), FileUploadRepositoryError> {
+    fn delete(&self, file_upload_id: &Uuid) -> Result<(), FileUploadRepositoryError> {
         let trace_time = ElapsedTimeTracing::new("postgres_delete_file_by_id");
         let mut connection = self.db_pool.get()?;
         diesel::delete(file_uploads::table.find(file_upload_id))
@@ -145,10 +169,10 @@ impl FileUploadRepository for PostgresFileUploadRepository {
         Ok(())
     }
 
-    fn save(&self, file_upload: FileUpload) -> Result<(), FileUploadRepositoryError> {
+    fn save(&self, file_upload: &FileUpload) -> Result<(), FileUploadRepositoryError> {
         let trace_time = ElapsedTimeTracing::new("postgres_save_file");
         let mut connection = self.db_pool.get()?;
-        let model: FileUploadModel = file_upload.into();
+        let model: FileUploadModel = file_upload.clone().into();
 
         diesel::insert_into(file_uploads::table)
             .values(&model)
@@ -163,20 +187,22 @@ impl FileUploadRepository for PostgresFileUploadRepository {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
     use crate::database::setup_database_connection;
     use chrono::Utc;
     use serial_test::serial;
+    use crate::cache::NoOpCache;
+    use crate::file::FileUploadModel;
 
     #[test]
     #[serial]
     fn test_find_by_id() {
         let pool = setup_database_connection(&Settings::load(None));
-        let repository = PostgresFileUploadRepository::new(pool.clone());
+        let repository = PostgresFileUploadRepository::with_pool(pool.clone());
         let file_upload = insert_file_upload(&pool);
 
-        let stored = repository.find_by_id(file_upload.id).unwrap();
+        let stored = repository.find_by_id(&file_upload.id).unwrap();
 
         let stored = stored.expect("file upload should exist after save");
         assert_eq!(stored.id, file_upload.id);
@@ -189,9 +215,9 @@ mod tests {
     #[serial]
     fn test_find_by_id_not_found() {
         let pool = setup_database_connection(&Settings::load(None));
-        let repository = PostgresFileUploadRepository::new(pool.clone());
+        let repository = PostgresFileUploadRepository::with_pool(pool.clone());
 
-        let result = repository.find_by_id(Uuid::new_v4()).unwrap();
+        let result = repository.find_by_id(&Uuid::new_v4()).unwrap();
 
         assert!(result.is_none());
     }
@@ -200,10 +226,10 @@ mod tests {
     #[serial]
     fn test_delete_file_upload() {
         let pool = setup_database_connection(&Settings::load(None));
-        let repository = PostgresFileUploadRepository::new(pool.clone());
+        let repository = PostgresFileUploadRepository::with_pool(pool.clone());
         let file_upload = insert_file_upload(&pool);
 
-        repository.delete(file_upload.id).unwrap();
+        repository.delete(&file_upload.id).unwrap();
 
         let stored = find_file_upload(&pool, file_upload.id);
         assert!(stored.is_none(), "file upload should be removed from database");
@@ -213,10 +239,10 @@ mod tests {
     #[serial]
     fn test_save_insert_file_upload() {
         let pool = setup_database_connection(&Settings::load(None));
-        let repository = PostgresFileUploadRepository::new(pool.clone());
+        let repository = PostgresFileUploadRepository::with_pool(pool.clone());
         let file_upload: FileUpload = create_file_upload().into();
 
-        repository.save(file_upload.clone()).unwrap();
+        repository.save(&file_upload.clone()).unwrap();
 
         let stored = find_file_upload(&pool, file_upload.id);
         assert!(stored.is_some(), "file upload should be saved to database");
@@ -227,17 +253,17 @@ mod tests {
     #[serial]
     fn test_save_update_file_upload() {
         let pool = setup_database_connection(&Settings::load(None));
-        let repository = PostgresFileUploadRepository::new(pool.clone());
+        let repository = PostgresFileUploadRepository::with_pool(pool.clone());
         let mut file_upload: FileUpload = create_file_upload().into();
 
-        repository.save(file_upload.clone()).unwrap();
+        repository.save(&file_upload.clone()).unwrap();
 
         let stored = find_file_upload(&pool, file_upload.id);
         assert!(stored.is_some(), "file upload should be saved to database");
         assert_eq!(file_upload, stored.unwrap().into(), "saved file upload should be equals to expected");
 
         file_upload.name = "new_name.jpg".to_string();
-        repository.save(file_upload.clone()).unwrap();
+        repository.save(&file_upload.clone()).unwrap();
 
         let stored = find_file_upload(&pool, file_upload.id);
         assert_eq!(file_upload, stored.unwrap().into(), "saved file upload should be equals to expected");
@@ -274,5 +300,17 @@ mod tests {
             .first(&mut connection)
             .optional()
             .unwrap()
+    }
+
+    impl PostgresFileUploadRepository<NoOpCache> {
+        pub fn with_pool(pool: DbPool) -> Self {
+            Self::new(pool.clone(), NoOpCache)
+        }
+    }
+
+    impl PostgresFileUploadRepository<MokaCache> {
+        pub fn for_integration(pool: &DbPool) -> Self {
+            Self::new(pool.clone(), MokaCache::new())
+        }
     }
 }

@@ -23,14 +23,14 @@ mod config;
 mod database;
 mod schema;
 mod serialization;
-mod services;
-mod errors;
+mod file;
 mod logging;
-mod repository;
-mod model;
 mod tracing;
 mod jobs;
 mod template;
+mod cache;
+mod storage;
+mod clock;
 
 use crate::database::setup_database_connection;
 use crate::logging::configure_logging;
@@ -69,10 +69,6 @@ async fn main() -> std::io::Result<()> {
     // launch scheduled jobs
     jobs::start_cleanup_expired_files(settings.clone());
 
-    // services
-    let file_upload_repository = repository::PostgresFileUploadRepository::new(pool.clone());
-    let finder = services::FileInfoFinder::new(file_upload_repository.clone(), settings.clone());
-
     let settings_clone = settings.clone();
     HttpServer::new(move || {
         App::new()
@@ -80,7 +76,6 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::JsonConfig::default().error_handler(json_error_handler))
             .app_data(web::Data::new(settings_clone.clone()))
             .app_data(web::Data::new(pool.clone()))
-            .app_data(web::Data::new(finder.clone()))
             .service(
                 web::scope(&settings.server.static_base_path)
                     .wrap(DefaultHeaders::new().add(("Cache-Control", "public, max-age=31536000")))
@@ -92,6 +87,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::delete_file)
             .service(routes::post_upload_file)
             .service(routes::post_upload_part)
+            .service(routes::post_upload_ack)
             .service(routes::get_download)
             .service(routes::health)
             .service(routes::get_file_info)

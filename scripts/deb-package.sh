@@ -50,4 +50,4 @@ chmod +x "$deb_package_directory/DEBIAN/postinst"
 chmod +x "$deb_package_directory/DEBIAN/prerm"
 chmod +x "$deb_package_directory/DEBIAN/postrm"
 
-dpkg-deb --build "$deb_package_directory" "$target_directory/bundle/mikupush-server-$version-$arch.deb"
+dpkg-deb --build "$deb_package_directory" "$target_directory/bundle/mikupush-server_${version}_${arch}.deb"

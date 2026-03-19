@@ -14,30 +14,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use crate::errors::Error;
-use crate::repository::FileUploadRepositoryError;
+use crate::file::error::Error;
+use crate::file::FileUploadRepositoryError;
 use std::fmt::Display;
 use uuid::Uuid;
 
-#[derive(Debug)]
-pub enum FileReadError {
+#[derive(Debug, PartialEq)]
+pub enum FileInfoError {
     NotExists { id: Uuid },
     IO { message: String },
     DB { message: String }
 }
 
-impl Display for FileReadError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} error: {}", self.code(), self.message())
-    }
-}
-
-impl Error for FileReadError {
+impl Error for FileInfoError {
     fn code(&self) -> String {
         match self {
-            Self::NotExists { .. } => file_read_codes::NOT_EXISTS_CODE.to_string(),
-            Self::DB { .. } => file_read_codes::DB_CODE.to_string(),
-            Self::IO { .. } => file_read_codes::IO_CODE.to_string(),
+            Self::NotExists { .. } => file_info_codes::NOT_EXISTS_CODE.to_string(),
+            Self::DB { .. } => file_info_codes::DB_CODE.to_string(),
+            Self::IO { .. } => file_info_codes::IO_CODE.to_string(),
         }
     }
 
@@ -50,25 +44,31 @@ impl Error for FileReadError {
     }
 }
 
-impl From<std::io::Error> for FileReadError {
-    fn from(value: std::io::Error) -> Self {
-        Self::IO { message: value.to_string() }
+impl Display for FileInfoError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} error: {}", self.code(), self.message())
     }
 }
 
-impl From<diesel::result::Error> for FileReadError {
+impl From<std::io::Error> for FileInfoError {
+    fn from(value: std::io::Error) -> Self {
+        FileInfoError::IO { message: value.to_string() }
+    }
+}
+
+impl From<diesel::result::Error> for FileInfoError {
     fn from(value: diesel::result::Error) -> Self {
         Self::DB { message: value.to_string() }
     }
 }
 
-impl From<r2d2::Error> for FileReadError {
+impl From<r2d2::Error> for FileInfoError {
     fn from(value: r2d2::Error) -> Self {
         Self::DB { message: value.to_string() }
     }
 }
 
-impl From<FileUploadRepositoryError> for FileReadError {
+impl From<FileUploadRepositoryError> for FileInfoError {
     fn from(value: FileUploadRepositoryError) -> Self {
         match value {
             FileUploadRepositoryError::Db(err) => err.into(),
@@ -77,7 +77,7 @@ impl From<FileUploadRepositoryError> for FileReadError {
     }
 }
 
-pub mod file_read_codes {
+pub mod file_info_codes {
     pub const NOT_EXISTS_CODE: &str = "NotExists";
     pub const DB_CODE: &str = "DB";
     pub const IO_CODE: &str = "IO";
