@@ -3,8 +3,8 @@
 Miku Push! server is the backend behind the client that makes posible to share files, you can
 self-host your private instance of the server. Read the docs to install and configure the server.
 
-- 👉[Installation](https://mikupush.io/docs/server/installation)
-- 👉[Configuration](https://mikupush.io/docs/server/configuration)
+- 👉 [Installation](https://mikupush.io/docs/server/installation)
+- 👉 [Configuration](https://mikupush.io/docs/server/configuration)
 
 ## Contributing
 
