@@ -7,6 +7,8 @@ on:
       - main
     paths-ignore:
       - 'README.md'
+      - 'THIRD_PARTY_LICENSES.md'
+      - 'CONTRIBUTING.md'
 
 jobs:
   build:
