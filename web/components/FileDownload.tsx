@@ -97,7 +97,7 @@ export default function FileDownload() {
           <FileDetails details={details!} />
           <Separator className="my-6"/>
           <Button asChild className="place-self-center p-6 text-lg">
-            <a href={`/u/${details.id}`} download>
+            <a href={`/u/${details.id}?raw`} download>
               <Download className="size-5"/>
               {t('download_file')}
             </a>
