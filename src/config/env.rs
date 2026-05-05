@@ -86,6 +86,8 @@ impl Default for EnvLoggingConfig {
 
 #[derive(Debug, Clone)]
 pub struct EnvServer {
+    pub name: Option<String>,
+    pub icon: Option<String>,
     pub host: Option<String>,
     pub port: Option<u16>,
     pub static_directory: Option<String>,
@@ -96,6 +98,8 @@ pub struct EnvServer {
 impl EnvServer {
     pub fn load() -> Self {
         Self {
+            name: env("MIKU_PUSH_SERVER_NAME"),
+            icon: env("MIKU_PUSH_SERVER_ICON"),
             host: env("MIKU_PUSH_SERVER_HOST"),
             port: env("MIKU_PUSH_SERVER_PORT")
                 .map(|value| value.parse().expect("Server port must be a number")),
@@ -109,6 +113,8 @@ impl EnvServer {
 impl Default for EnvServer {
     fn default() -> Self {
         Self {
+            name: None,
+            icon: None,
             host: None,
             port: None,
             static_directory: None,

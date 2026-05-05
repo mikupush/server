@@ -71,6 +71,10 @@ impl Default for YamlLoggingConfig {
 #[derive(Debug, Clone, Deserialize)]
 pub struct YamlServer {
     #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub icon: Option<String>,
+    #[serde(default)]
     pub host: Option<String>,
     #[serde(default)]
     pub port: Option<u16>,
@@ -85,6 +89,8 @@ pub struct YamlServer {
 impl Default for YamlServer {
     fn default() -> Self {
         Self {
+            name: None,
+            icon: None,
             host: None,
             port: None,
             static_directory: None,

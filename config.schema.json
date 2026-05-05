@@ -11,6 +11,17 @@
       "title": "HTTP API server configuration",
       "additionalProperties": false,
       "properties": {
+        "name": {
+          "type": "string",
+          "description": "Public server name used in metadata endpoints. Alternatively, you can use MIKU_PUSH_SERVER_NAME to override this value.",
+          "default": "mikupush.io",
+          "examples": ["mikupush.io", "files.example.com"]
+        },
+        "icon": {
+          "type": "string",
+          "description": "Optional path to server icon file. The file must be an image and not exceed 1MB. Alternatively, you can use MIKU_PUSH_SERVER_ICON to override this value.",
+          "examples": ["examples/server_icon.svg", "/etc/io.mikupush.server/server_icon.svg"]
+        },
         "host": {
           "type": "string",
           "description": "IP address or hostname where the server will listen for connections. Alternatively, you can use MIKU_PUSH_SERVER_HOST to override this value.",
@@ -168,7 +179,7 @@
   },
   "examples": [
     {
-      "server": { "host": "0.0.0.0", "port": 8080 },
+      "server": { "name": "mikupush.io", "host": "0.0.0.0", "port": 8080 },
       "log": { "level": "info", "file_prefix": "server", "directory": "/var/log/io.mikupush.server", "json": false },
       "database": { "host": "localhost", "port": 5432, "database": "postgres", "user": "postgres", "password": "postgres" },
       "upload": { "max_size": 5000000000, "directory": "data", "expires_in_seconds": 604800, "expiration_cleanup_interval_seconds": 3600 },

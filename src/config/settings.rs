@@ -122,6 +122,8 @@ impl Default for LoggingConfig {
 
 #[derive(Debug, Clone)]
 pub struct Server {
+    pub name: String,
+    pub icon: Option<String>,
     pub host: String,
     pub port: u16,
     pub static_directory: String,
@@ -133,6 +135,12 @@ impl Server {
     pub fn from(yaml: YamlSettings, env: EnvSettings) -> Self {
         let default = Self::default();
         Self {
+            name: env.server.name
+                .or_else(|| log_yaml_config("server.name", yaml.server.name))
+                .or_else(|| log_default_config("server.name", Some(default.name)))
+                .unwrap(),
+            icon: env.server.icon
+                .or_else(|| log_yaml_config("server.icon", yaml.server.icon)),
             host: env.server.host
                 .or_else(|| log_yaml_config("server.host", yaml.server.host))
                 .or_else(|| log_default_config("server.host", Some(default.host)))
@@ -160,6 +168,8 @@ impl Server {
 impl Default for Server {
     fn default() -> Self {
         Self {
+            name: "mikupush.io".to_string(),
+            icon: None,
             host: "0.0.0.0".to_string(),
             port: 8080,
             static_directory: "dist/assets".to_string(),

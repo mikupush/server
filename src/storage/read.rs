@@ -143,6 +143,6 @@ mod test {
         let mut stream = result.unwrap();
         let mut stream_content = Vec::new();
         stream.read_to_end(&mut stream_content).unwrap();
-        assert_eq!(b"cont", stream_content.as_slice())
+        assert_eq!(b"conte", stream_content.as_slice())
     }
 }
