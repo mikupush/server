@@ -141,7 +141,7 @@ mod tests {
         ).await;
 
         let file_upload = register_test_file(pool);
-        let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
+        let file_content = std::fs::read("examples/hatsune_miku.jpg").unwrap();
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{}/upload", file_upload.id).as_str())
             .method(Method::POST)
@@ -193,7 +193,7 @@ mod tests {
         ).await;
 
         let file_upload = register_test_file(pool);
-        let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
+        let file_content = std::fs::read("examples/hatsune_miku.jpg").unwrap();
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{}/upload", file_upload.id).as_str())
             .method(Method::POST)
@@ -219,7 +219,7 @@ mod tests {
         ).await;
 
         let id = Uuid::new_v4();
-        let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
+        let file_content = std::fs::read("examples/hatsune_miku.jpg").unwrap();
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{id}/upload").as_str())
             .method(Method::POST)
@@ -248,7 +248,7 @@ mod tests {
         ).await;
 
         let file_upload = register_test_file(pool);
-        let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
+        let file_content = std::fs::read("examples/hatsune_miku.jpg").unwrap();
 
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{}/upload/part/0", file_upload.id).as_str())
@@ -302,7 +302,7 @@ mod tests {
         ).await;
 
         let file_upload = register_test_file(pool);
-        let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
+        let file_content = std::fs::read("examples/hatsune_miku.jpg").unwrap();
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{}/upload/part/0", file_upload.id).as_str())
             .method(Method::POST)
@@ -328,7 +328,7 @@ mod tests {
         ).await;
 
         let id = Uuid::new_v4();
-        let file_content = std::fs::read("resources/hatsune_miku.jpg").unwrap();
+        let file_content = std::fs::read("examples/hatsune_miku.jpg").unwrap();
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{id}/upload/part/0").as_str())
             .method(Method::POST)

@@ -22,6 +22,7 @@ mod error;
 mod utils;
 mod health;
 mod get_file;
+mod server;
 
 pub use delete_file::*;
 pub use error::*;
@@ -30,3 +31,4 @@ pub use get_file::*;
 pub use health::*;
 pub use post_file::*;
 pub use post_upload_file::*;
+pub use server::*;

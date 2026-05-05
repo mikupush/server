@@ -252,6 +252,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api/info:
+    get:
+      summary: Get server information
+      description: Get server name and running version metadata.
+      operationId: getServerInfo
+      responses:
+        200:
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerInfo'
+  /api/icon:
+    get:
+      summary: Get server icon
+      description: Returns the configured server icon file when available and valid.
+      operationId: getServerIcon
+      responses:
+        200:
+          description: Successful operation
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        404:
+          description: Server icon not configured, invalid, or exceeds max size
+        500:
+          description: Unexpected error while reading icon
   /health:
     get:
       summary: Health check
@@ -418,3 +447,27 @@ components:
           enum:
             - "up"
             - "down"
+    ServerInfo:
+      required:
+        - name
+        - version
+      type: object
+      properties:
+        name:
+          type: string
+          example: mikupush.io
+        version:
+          $ref: '#/components/schemas/ServerVersion'
+    ServerVersion:
+      required:
+        - name
+        - code
+      type: object
+      properties:
+        name:
+          type: string
+          example: 0.0.17
+        code:
+          type: integer
+          format: int64
+          example: 17

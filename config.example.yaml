@@ -1,5 +1,14 @@
 # HTTP API server configuration.
 server:
+  # Public server name used in metadata endpoints.
+  # Alternatively, you can use MIKU_PUSH_SERVER_NAME environment variable to override this value.
+  # Default value if not specified: mikupush.io
+  name: mikupush.io
+  # Optional path to server icon file.
+  # The file must be an image and not exceed 1MB.
+  # Alternatively, you can use MIKU_PUSH_SERVER_ICON environment variable to override this value.
+  # Default value if not specified: null (disabled)
+  # icon: examples/server_icon.svg
   # IP address or hostname where the server will listen for connections.
   # Alternatively, you can use MIKU_PUSH_SERVER_HOST environment variable to override this value.
   # Default value if not specified: 0.0.0.0
