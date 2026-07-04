@@ -6,6 +6,7 @@ services:
     volumes:
       - ./data:/srv/data
       - ./config.yaml:/srv/config.yaml:ro
+      - ./examples/server_icon.svg:/srv/examples/server_icon.svg:ro
     environment:
       RUST_LOG: debug
       MIKU_PUSH_DATABASE_HOST: postgres
