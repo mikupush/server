@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use actix_http::body::SizedStream;
 use actix_http::header::{Header, QualityItem};
 use crate::config::Settings;
 use crate::file::error::{Error, FileInfoError, FileReadError};
@@ -174,9 +175,9 @@ impl Responder {
         let mut response = HttpResponse::Ok();
         response.content_type(stream_wrapper.details.mime_type.clone());
         response.insert_header(("Content-Disposition", format!("inline; filename=\"{}\"", stream_wrapper.details.name)));
-        self.insert_raw_common_headers(&mut response);
+        self.insert_raw_common_headers(&mut response, self.size);
 
-        response.streaming(stream_wrapper.stream)
+        response.body(SizedStream::new(self.size, stream_wrapper.stream))
     }
 
     async fn raw_range(&self) -> HttpResponse {
@@ -200,13 +201,13 @@ impl Responder {
         response.content_type(stream_wrapper.details.mime_type.clone());
         response.insert_header(("Content-Disposition", format!("inline; filename=\"{}\"", stream_wrapper.details.name)));
         response.insert_header(("Content-Range", format!("bytes {}-{}/{}", start, end, self.size)));
-        self.insert_raw_common_headers(&mut response);
+        self.insert_raw_common_headers(&mut response, end - start + 1);
 
-        response.streaming(stream_wrapper.stream)
+        response.body(SizedStream::new(end - start + 1, stream_wrapper.stream))
     }
 
-    fn insert_raw_common_headers(&self, response: &mut HttpResponseBuilder) {
-        response.insert_header(("Content-Length", self.size.to_string()));
+    fn insert_raw_common_headers(&self, response: &mut HttpResponseBuilder, content_length: u64) {
+        response.insert_header(("Content-Length", content_length.to_string()));
         response.insert_header(("Content-Type", self.mime_type.to_string()));
 
         if self.accept_range() {
@@ -220,7 +221,7 @@ impl Responder {
         let mut response = HttpResponse::RangeNotSatisfiable();
         response.content_type(self.mime_type.clone());
         response.insert_header(("Content-Range", format!("bytes */{}", self.size)));
-        self.insert_raw_common_headers(&mut response);
+        self.insert_raw_common_headers(&mut response, 0);
         response.finish()
     }
 }
@@ -554,7 +555,7 @@ mod tests {
         let content_length = header_value("Content-Length", &response);
 
         assert_eq!(response.status(), StatusCode::RANGE_NOT_SATISFIABLE);
-        assert_eq!(content_length, file_upload.size.to_string());
+        assert_eq!(content_length, "0");
         assert_eq!(content_range, format!("bytes */{}", file_upload.size));
     }
 
@@ -604,7 +605,7 @@ mod tests {
         let content_length = header_value("Content-Length", &response);
 
         assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
-        assert_eq!(content_length, file_upload.size.to_string());
+        assert_eq!(content_length, (file_upload.size - initial_range as i64).to_string());
         assert_eq!(content_range, format!("bytes {}-{}/{}", initial_range, file_upload.size - 1, file_upload.size));
     }
 }
