@@ -72,6 +72,8 @@ impl MokaCache {
     pub fn start_invalidate_expired(&self) {
         let this = self.clone();
         std::thread::spawn(move || {
+            debug!("start cache expired keys cleanup job");
+
             loop {
                 let short_lived_keys_guard = this.short_lived_keys.lock();
                 if let Err(err) = &short_lived_keys_guard {
