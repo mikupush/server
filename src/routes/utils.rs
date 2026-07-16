@@ -59,22 +59,20 @@ pub fn range_header(request: &HttpRequest, total_size: u64) -> Option<(u64, u64)
 
 #[cfg(test)]
 pub mod tests {
-    use std::io::Cursor;
     use crate::config::Settings;
     use crate::database::DbPool;
     use crate::file::{FileRegister, FileUpload, FileUploadModel, FileUploader};
+    use crate::routes::FileCreate;
     use crate::schema::file_uploads;
     use actix_web::dev::ServiceResponse;
     use chrono::Utc;
     use diesel::RunQueryDsl;
+    use std::io::Cursor;
     use std::path::PathBuf;
-    use std::sync::Mutex;
     use uuid::Uuid;
-    use crate::routes::FileCreate;
 
-    // used to give unique prefix to the test file
-    static TEST_FILE_COUNT: Mutex<i32> = Mutex::new(0);
     pub const TEST_FILE_CONTENT_LENGTH: usize = 1024;
+    pub const TEST_FILE_CHUNK_COUNT: usize = 2;
 
     pub struct IntegrationTestFileUploadFactory {
         settings: Settings,
@@ -100,11 +98,11 @@ pub mod tests {
             (upload.content_path(&self.settings).unwrap(), upload)
         }
 
-        pub async fn create_chunked(&self, stub: FileCreateStub) -> FileUpload {
+        pub async fn create_chunked(&self, stub: FileCreateStub, chunks: usize) -> FileUpload {
             let register = FileRegister::for_integration(&self.settings, &self.pool);
             let uploader = FileUploader::for_integration(&self.settings, &self.pool);
             let (content, request) = stub;
-            let chunks: Vec<&[u8]> = content.chunks(2).collect();
+            let chunks: Vec<&[u8]> = content.chunks(content.len() / chunks).collect();
 
             let upload = register.register_file(request.clone()).unwrap();
 
@@ -158,10 +156,10 @@ pub mod tests {
     }
 
     pub fn create_test_file_upload(pool: DbPool) -> (PathBuf, FileUpload) {
-        let mut count = TEST_FILE_COUNT.lock().unwrap();
+        let id = Uuid::new_v4();
         let file_upload = FileUpload {
             id: Uuid::new_v4(),
-            name: format!("hatsune_miku_{}.jpg", count),
+            name: format!("hatsune_miku_{}.jpg", id),
             mime_type: "image/jpeg".to_string(),
             size: 200792,
             uploaded_at: Utc::now().naive_utc(),
@@ -183,7 +181,6 @@ pub mod tests {
             .execute(&mut connection)
             .unwrap();
 
-        *count += 1;
         (path, file_upload)
     }
 
