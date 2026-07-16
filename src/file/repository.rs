@@ -113,7 +113,7 @@ where
 
 impl PostgresFileUploadRepository<MokaCache> {
     pub fn get_with_settings(settings: &Settings) -> Self {
-        Self::new(get_database_connection(settings), MokaCache::new())
+        Self::new(get_database_connection(settings), MokaCache::current())
     }
 }
 
@@ -310,7 +310,7 @@ pub mod tests {
 
     impl PostgresFileUploadRepository<MokaCache> {
         pub fn for_integration(pool: &DbPool) -> Self {
-            Self::new(pool.clone(), MokaCache::new())
+            Self::new(pool.clone(), MokaCache::initialize())
         }
     }
 }

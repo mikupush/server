@@ -14,8 +14,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+use std::ops::Add;
+use std::sync::{Arc, LazyLock, LockResult, Mutex};
 use std::time::Duration;
-use chrono::TimeDelta;
+use chrono::{TimeDelta, Utc};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tracing::{debug, warn};
@@ -39,16 +42,64 @@ impl Cache for NoOpCache {
     }
 }
 
+static CACHE_INSTANCE: LazyLock<MokaCache> = LazyLock::new(|| MokaCache::initialize());
+
 #[derive(Debug, Clone)]
 pub struct MokaCache {
     cache: moka::sync::Cache<String, String>,
+    short_lived_keys: Arc<Mutex<HashMap<String, i64>>>
 }
 
 impl MokaCache {
     pub fn new() -> Self {
         Self {
             cache: moka::sync::Cache::new(10_000),
+            short_lived_keys: Arc::new(Mutex::new(HashMap::new()))
         }
+    }
+
+    pub fn initialize() -> Self {
+        let cache = MokaCache::new();
+        // start invalidate caches job on singleton initialization
+        cache.start_invalidate_expired();
+        cache
+    }
+
+    pub fn current() -> Self {
+        CACHE_INSTANCE.clone()
+    }
+
+    pub fn start_invalidate_expired(&self) {
+        let this = self.clone();
+        std::thread::spawn(move || {
+            loop {
+                let short_lived_keys_guard = this.short_lived_keys.lock();
+                if let Err(err) = &short_lived_keys_guard {
+                    warn!("unable to fetch cache short lived keys: {}", err);
+                    return;
+                }
+
+                let now_ms = Utc::now().timestamp();
+                let mut short_lived_keys_guard = short_lived_keys_guard.unwrap();
+                let mut deleted_keys = Vec::<String>::new();
+
+                debug!(expired_before = now_ms, "deleting expired cache keys");
+
+                for (key, expires_at) in short_lived_keys_guard.iter() {
+                    if *expires_at < now_ms {
+                        debug!(key = key, expires_at = *expires_at, "cache key expired");
+                        deleted_keys.push(key.clone());
+                        this.cache.invalidate(key);
+                    }
+                }
+
+                for key in deleted_keys {
+                    let _ = short_lived_keys_guard.remove(&key);
+                }
+
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        });
     }
 }
 
@@ -76,13 +127,17 @@ impl Cache for MokaCache {
         debug!("inserted cache {} with expiration: {:?}", key, ttl);
 
         if let Some(ttl) = ttl {
-            let this = self.clone();
             let key = key.to_string();
-            let _ = std::thread::spawn(move || {
-                std::thread::sleep(ttl);
-                this.cache.invalidate(&key);
-                debug!("cache {} expired after {} seconds", key, ttl.as_secs());
-            });
+            let expires_at = Utc::now().add(ttl);
+            let expires_at_ms = expires_at.timestamp();
+            let short_lived_keys_guard = self.short_lived_keys.lock();
+            if let Err(err) = &short_lived_keys_guard {
+                warn!("unable to add ttl to cache {}: {}", key, err);
+                return;
+            }
+
+            let mut short_lived_keys_guard = short_lived_keys_guard.unwrap();
+            let _ = short_lived_keys_guard.insert(key, expires_at_ms);
         }
     }
 }
@@ -109,6 +164,7 @@ mod tests {
     #[test]
     fn test_moka_ttl() {
         let cache = MokaCache::new();
+        cache.start_invalidate_expired();
         cache.set(TTL_KEY, "example".to_string(), Some(TTL));
 
         let cached: Option<String> = cache.get(TTL_KEY);
