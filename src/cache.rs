@@ -85,8 +85,6 @@ impl MokaCache {
                 let mut short_lived_keys_guard = short_lived_keys_guard.unwrap();
                 let mut deleted_keys = Vec::<String>::new();
 
-                debug!(expired_before = now_ms, "deleting expired cache keys");
-
                 for (key, expires_at) in short_lived_keys_guard.iter() {
                     if *expires_at < now_ms {
                         debug!(key = key, expires_at = *expires_at, "cache key expired");
