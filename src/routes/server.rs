@@ -134,7 +134,7 @@ mod tests {
 
     #[actix_web::test]
     async fn get_server_icon_404() {
-        let settings = Settings::load(None);
+        let settings = Settings::default();
         let app = test::init_service(
             App::new()
                 .app_data(web::Data::new(settings.clone()))
