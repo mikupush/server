@@ -18,8 +18,10 @@ mod read;
 mod remove;
 mod write;
 mod append;
+mod object;
 
 pub use read::*;
 pub use remove::*;
 pub use write::*;
 pub use append::*;
+pub use object::*;

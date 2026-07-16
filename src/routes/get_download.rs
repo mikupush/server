@@ -266,7 +266,7 @@ mod tests {
     use crate::config::Settings;
     use crate::database::setup_database_connection;
     use crate::file::error::file_read_codes;
-    use crate::routes::utils::tests::{header_value, FileCreateFactories, IntegrationTestFileUploadFactory, TEST_FILE_CONTENT_LENGTH};
+    use crate::routes::utils::tests::{header_value, FileCreateFactories, IntegrationTestFileUploadFactory, TEST_FILE_CHUNK_COUNT, TEST_FILE_CONTENT_LENGTH};
     use actix_web::http::{Method, StatusCode};
     use actix_web::{test, App};
     use serial_test::serial;
@@ -314,7 +314,7 @@ mod tests {
         ).await;
 
         let (content, file_create_request) = FileCreateFactories::text_plain();
-        let file_upload = factory.create_chunked((content.clone(), file_create_request)).await;
+        let file_upload = factory.create_chunked((content.clone(), file_create_request), TEST_FILE_CHUNK_COUNT).await;
         let request = test::TestRequest::default()
             .uri(format!("/u/{}", file_upload.id.clone()).as_str())
             .method(Method::GET)
@@ -522,7 +522,7 @@ mod tests {
                 .service(get_download)
         ).await;
 
-        let file_upload = factory.create_chunked(FileCreateFactories::video_mp4()).await;
+        let file_upload = factory.create_chunked(FileCreateFactories::video_mp4(), TEST_FILE_CHUNK_COUNT).await;
         let request = test::TestRequest::default()
             .uri(format!("/u/{}", file_upload.id.clone()).as_str())
             .method(Method::GET)
@@ -577,7 +577,7 @@ mod tests {
         let pool = setup_database_connection(&settings);
         let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
 
-        let file_upload = factory.create_chunked(FileCreateFactories::video_mp4()).await;
+        let file_upload = factory.create_chunked(FileCreateFactories::video_mp4(), TEST_FILE_CHUNK_COUNT).await;
         assert_get_download_416_raw_not_supporting_range(&settings, &file_upload).await;
     }
 

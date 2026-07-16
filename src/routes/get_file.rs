@@ -69,10 +69,11 @@ mod tests {
     use crate::config::Settings;
     use crate::database::setup_database_connection;
     use crate::file::error::file_delete_codes;
-    use crate::routes::utils::tests::{create_test_file_upload, register_test_file};
+    use crate::routes::utils::tests::{create_test_file_upload, register_test_file, FileCreateFactories, FileCreateStub, IntegrationTestFileUploadFactory};
     use crate::routes::{get_file_info, ErrorResponse};
     use actix_web::http::{Method, StatusCode};
     use actix_web::{test, web, App};
+    use diesel::dsl::family;
     use serial_test::serial;
     use uuid::Uuid;
     use crate::file::{FileInfo, FileStatus};
@@ -104,6 +105,39 @@ mod tests {
         assert_eq!(file_upload.size, file_info.size);
         assert_eq!(file_upload.uploaded_at, file_info.uploaded_at);
         assert_eq!(file_upload.mime_type, file_info.mime_type);
+        assert_eq!(FileStatus::Uploaded, file_info.status);
+    }
+
+    #[actix_web::test]
+    async fn test_get_file_info_200_ok_chunked() {
+        let settings = Settings::load(None);
+        let pool = setup_database_connection(&settings);
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings.clone()))
+                .service(get_file_info)
+        ).await;
+
+        let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
+        let file_upload = factory.create_chunked(FileCreateFactories::text_plain(), 2).await;
+
+        let request = test::TestRequest::default()
+            .uri(format!("/api/file/{}", file_upload.id.clone()).as_str())
+            .method(Method::GET)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let status_code = response.status().clone();
+        let response = test::read_body(response).await;
+        let file_info: FileInfo = serde_json::from_slice(&response).unwrap();
+
+        assert_eq!(status_code, StatusCode::OK);
+        assert_eq!(file_upload.name, file_info.name);
+        assert_eq!(file_upload.id, file_info.id);
+        assert_eq!(file_upload.size, file_info.size);
+        assert_eq!(file_upload.uploaded_at, file_info.uploaded_at);
+        assert_eq!(file_upload.mime_type, file_info.mime_type);
+        assert_eq!(true, file_info.chunked);
+        assert_eq!(Some(2), file_info.chunks);
         assert_eq!(FileStatus::Uploaded, file_info.status);
     }
 
