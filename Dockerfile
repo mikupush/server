@@ -14,7 +14,7 @@ COPY . .
 
 RUN npm install && npm run build
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 WORKDIR /srv
 
