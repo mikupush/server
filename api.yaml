@@ -224,6 +224,46 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /api/file/{id}/download/part/{part}:
+    get:
+      summary: Download a part of a chunked file
+      description: Returns one part of a file that was uploaded in chunks.
+      operationId: downloadFilePart
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: acdb1260-d4de-4aab-a3a9-02665ae25771
+        - name: part
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+            example: 1
+      responses:
+        200:
+          description: File part downloaded successfully
+          headers:
+            Content-Length:
+              description: Size of the returned part in bytes
+              schema:
+                type: integer
+                format: int64
+          content:
+            '*/*':
+              schema:
+                type: string
+                format: binary
+        400:
+          description: The file ID is invalid or the file was not uploaded in chunks
+        404:
+          description: The registered file or requested part does not exist
+        500:
+          description: Unexpected error while locating the file or reading the requested part
   /api/file/{id}/upload/ack:
     post:
       summary: Finalize chunked upload
