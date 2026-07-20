@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use actix_http::body::SizedStream;
+use actix_http::body::{BodyStream, SizedStream};
 use actix_http::header::{Header, QualityItem};
 use crate::config::Settings;
 use crate::file::error::{Error, FileInfoError, FileReadError};
@@ -258,6 +258,66 @@ impl ErrorResponder {
         let mut response = HttpResponse::build(status);
         response.json(ErrorResponse::from(err))
     }
+}
+
+#[get("/api/file/{id}/download/part/{part}")]
+pub async fn get_download_part(
+    path: web::Path<(String, usize)>,
+    settings: web::Data<Settings>
+) -> HttpResponse {
+    let (id, part) = path.into_inner();
+    let file_info = FileInfoFinder::get_with_settings(&settings);
+    let file_reader = FileReader::get_with_settings(&settings);
+
+    let Ok(id) = Uuid::parse_str(id.as_str()) else {
+        debug!("cant convert id to uuid: {}", id.to_string());
+        return helper::invalid_uuid("id", id.to_string())
+    };
+
+    let info = match web::block(move || file_info.find(&id)).await {
+        Ok(info) => info,
+        Err(err) => {
+            warn!("error blocking for find file: {}", err);
+            return HttpResponse::InternalServerError().finish();
+        }
+    };
+
+    if let Err(err) = &info {
+        return match err {
+            FileInfoError::NotExists { .. } => {
+                debug!("file not found: {}", id.to_string());
+                HttpResponse::NotFound().finish()
+            },
+            _ => {
+                warn!("error finding file info with id {}: {}", id, err);
+                HttpResponse::InternalServerError().finish()
+            },
+        }
+    }
+
+    let info = info.unwrap();
+
+    if info.chunked == false {
+        debug!("file for download part {} is not chunked: {}", part, info.chunked);
+        return HttpResponse::BadRequest().finish();
+    }
+
+
+    let stream_wrapper = file_reader.read_chunk(id, part).await;
+    if let Err(err) = &stream_wrapper {
+        warn!("error reading file chunk with id {}: {}", id, err);
+        return match err {
+            FileReadError::NotExists { .. } => HttpResponse::NotFound().finish(),
+            _ => HttpResponse::InternalServerError().finish(),
+        };
+    }
+
+    let stream_wrapper = stream_wrapper.unwrap();
+
+    HttpResponse::Ok()
+        .insert_header(("Content-Type", info.mime_type))
+        .insert_header(("Content-Length", stream_wrapper.chunk_size))
+        .body(SizedStream::new(stream_wrapper.chunk_size, stream_wrapper.stream))
 }
 
 #[cfg(test)]
@@ -607,5 +667,103 @@ mod tests {
         assert_eq!(response.status(), StatusCode::PARTIAL_CONTENT);
         assert_eq!(content_length, (file_upload.size - initial_range as i64).to_string());
         assert_eq!(content_range, format!("bytes {}-{}/{}", initial_range, file_upload.size - 1, file_upload.size));
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_part_chunked_ok() {
+        let settings = Settings::load(None);
+        let pool = setup_database_connection(&settings);
+        let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings.clone()))
+                .service(get_download_part)
+        ).await;
+
+        let (content, file_create_request) = FileCreateFactories::text_plain();
+        let file_upload = factory.create_chunked((content.clone(), file_create_request), TEST_FILE_CHUNK_COUNT).await;
+        let request = test::TestRequest::default()
+            .uri(format!(
+                "/api/file/{id}/download/part/{part}",
+                id = file_upload.id, part = 1
+            ).as_str())
+            .method(Method::GET)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let content_type = header_value("Content-Type", &response);
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(content_type, file_upload.mime_type);
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_part_400_invalid_uuid() {
+        let settings = Settings::load(None);
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
+                .service(get_download_part)
+        ).await;
+
+        let request = test::TestRequest::default()
+            .uri(format!(
+                "/api/file/{id}/download/part/{part}",
+                id = "patata", part = 1
+            ).as_str())
+            .method(Method::GET)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_part_400_not_chunked() {
+        let settings = Settings::load(None);
+        let pool = setup_database_connection(&settings);
+        let factory = IntegrationTestFileUploadFactory::new(&settings, &pool);
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
+                .service(get_download_part)
+        ).await;
+
+        let (_, file_upload) = factory.create(FileCreateFactories::text_plain()).await;
+        let request = test::TestRequest::default()
+            .uri(format!(
+                "/api/file/{id}/download/part/{part}",
+                id = file_upload.id, part = 1
+            ).as_str())
+            .method(Method::GET)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[actix_web::test]
+    #[serial]
+    async fn test_get_download_part_404_not_found() {
+        let settings = Settings::load(None);
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(settings))
+                .service(get_download_part)
+        ).await;
+
+        let id = Uuid::new_v4();
+        let request = test::TestRequest::default()
+            .uri(format!(
+                "/api/file/{id}/download/part/{part}",
+                id = id, part = 1
+            ).as_str())
+            .method(Method::GET)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 }

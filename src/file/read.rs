@@ -108,6 +108,18 @@ where
         Ok(reader.read_range(start, end).await?)
     }
 
+    pub async fn read_chunk(&self, id: Uuid, part: usize) -> Result<FileStreamWrapper, FileReadError> {
+        let file_upload = self.find_upload_by_id(&id).await?;
+
+        let reader = SingleFileReader {
+            details: file_upload,
+            settings: self.settings.clone(),
+            reader: self.reader.clone()
+        };
+
+        reader.read_chunk(part).await
+    }
+
     async fn find_upload_by_id(&self, id: &Uuid) -> Result<FileUpload, FileReadError> {
         let repository = self.repository.clone();
         let id = id.clone();
@@ -141,6 +153,9 @@ const CHUNK_READ_SIZE: usize = 64 * 1024;
 pub struct FileStreamWrapper {
     pub details: FileUpload,
     pub stream: ReceiverStream<io::Result<Bytes>>,
+    // chunk size of file if you call read_chunk,
+    // if not the value will not be provided and then will be 0
+    pub chunk_size: u64,
 }
 
 #[derive(Clone)]
@@ -177,6 +192,7 @@ where
         Ok(FileStreamWrapper {
             details: self.details.clone(),
             stream: ReceiverStream::new(receiver),
+            chunk_size: 0,
         })
     }
 
@@ -203,6 +219,31 @@ where
         Ok(FileStreamWrapper {
             details: self.details.clone(),
             stream: ReceiverStream::new(receiver),
+            chunk_size: 0,
+        })
+    }
+
+    pub async fn read_chunk(&self, part: usize) -> Result<FileStreamWrapper, FileReadError> {
+        let reader = self.reader.clone();
+        let directory = self.details.content_directory(&self.settings)?;
+        let path = Path::new(&directory)
+            .join(FilePart::name(part))
+            .to_string_lossy()
+            .to_string();
+
+        let (sender, receiver) = mpsc::channel::<io::Result<Bytes>>(10);
+        let (size, stream) = tokio::task::spawn_blocking(move || reader.read_with_size(&path)).await
+            .map_err(|err| FileReadError::IO { message: err.to_string() })?;
+        let mut stream = stream?;
+
+        tokio::task::spawn_blocking(move || {
+            send_reader_bytes(&mut stream, &sender);
+        });
+
+        Ok(FileStreamWrapper {
+            details: self.details.clone(),
+            stream: ReceiverStream::new(receiver),
+            chunk_size: size,
         })
     }
 }
@@ -244,6 +285,7 @@ where
         Ok(FileStreamWrapper {
             details: self.details.clone(),
             stream: ReceiverStream::new(receiver),
+            chunk_size: 0,
         })
     }
 
