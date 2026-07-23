@@ -17,6 +17,11 @@ node_modules
 .cache
 .DS_Store
 dist
+AGENTS.md
 GEMINI.md
+CLAUDE.md
+.claude
+.codex
+.agents
 .astro
 tmp
