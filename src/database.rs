@@ -42,13 +42,7 @@ pub fn setup_database_connection(settings: &Settings) -> DbPool {
 }
 
 pub fn get_database_connection(settings: &Settings) -> DbPool {
-    if let Some(pool) = DB_POOL.get() {
-        return pool.clone()
-    }
-
-    let pool = setup_database_connection(settings);
-    DB_POOL.set(pool.clone()).expect("database connection pool already set");
-    pool
+    DB_POOL.get_or_init(|| setup_database_connection(settings)).clone()
 }
 
 #[cfg(test)]
