@@ -98,6 +98,7 @@ async fn main() -> std::io::Result<()> {
             .service(routes::get_file_info)
             .service(routes::get_server_info)
             .service(routes::get_server_icon)
+            .default_service(web::route().to(routes::astro_dev_server_proxy))
     })
     .keep_alive(Duration::from_secs(10))
     .bind((settings.server.host, settings.server.port))?

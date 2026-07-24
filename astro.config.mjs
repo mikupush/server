@@ -23,9 +23,13 @@ export default defineConfig({
   },
   vite: {
     server: {
+      port: 4321,
       proxy: {
         '/u': 'http://localhost:8080',
         '/api': 'http://localhost:8080'
+      },
+      hmr: {
+        port: 4321
       }
     },
     resolve: {
