@@ -25,19 +25,24 @@ import {
 } from "@/components/ui/select"
 import {Languages} from "lucide-react";
 import {useTranslation} from "react-i18next";
-import i18n from "i18next";
 
 export function LanguageSelect() {
   const {t} = useTranslation()
   const lang = document.documentElement.lang;
 
-  const selectLanguage = (value: string) => {
+  const languages = [
+    {value: "en", label: "English"},
+    {value: "es", label: "Español"},
+  ]
+
+  const selectLanguage = (value: string | null) => {
+    if (value === null) return
     document.cookie = `language=${value}`
     window.location.reload()
   }
 
   return (
-    <Select value={lang} onValueChange={selectLanguage}>
+    <Select items={languages} value={lang} onValueChange={selectLanguage}>
       <SelectTrigger
         className="border-0 dark:bg-transparent shadow-none hover:bg-muted hover:text-accent-foreground dark:hover:bg-muted/50 gap-3"
         aria-label={t('select_language')}
@@ -46,8 +51,9 @@ export function LanguageSelect() {
         <SelectValue placeholder={t('select_language')}/>
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="en">English</SelectItem>
-        <SelectItem value="es">Español</SelectItem>
+        {languages.map((language) => (
+          <SelectItem key={language.value} value={language.value}>{language.label}</SelectItem>
+        ))}
       </SelectContent>
     </Select>
   )

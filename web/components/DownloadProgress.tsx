@@ -71,8 +71,8 @@ export default function DownloadProgress({details}: DownloadProgressProps) {
         </Button>
       )}
 
-      <Drawer open={open} onOpenChange={setOpen} direction="bottom" modal={false} shouldScaleBackground={false}>
-        <DrawerContent onInteractOutside={(event) => event.preventDefault()}>
+      <Drawer open={open} onOpenChange={setOpen} swipeDirection="down" modal={false} disablePointerDismissal>
+        <DrawerContent>
           <div className="mx-auto w-full max-w-xl px-4 pb-6">
             <DrawerHeader className="relative px-0 pr-10 text-left">
               <DrawerTitle className="break-all">{details.name}</DrawerTitle>

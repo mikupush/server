@@ -29,8 +29,8 @@ interface LinkButtonProps {
 
 export default function LinkButton({href, target, rel, className, children}: LinkButtonProps) {
   return (
-    <Button asChild variant="ghost" size="lg">
-      <a href={href} target={target} rel={rel} className={className}>{children}</a>
+    <Button variant="ghost" size="lg" nativeButton={false} render={<a href={href} target={target} rel={rel} />} className={className}>
+      {children}
     </Button>
   )
 }
