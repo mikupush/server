@@ -25,6 +25,7 @@
   "file_not_found": "El archivo solicitado no se ha encontrado.",
   "invalid_file_id": "El ID de archivo proporcionado no es válido.",
   "system_error": "Ha ocurrido un error interno en el sistema. Por favor, inténtelo de nuevo más tarde.",
+  "downloading_file": "Descargando Archivo",
   "download_progress": "Descargando: {{percent}} %",
   "download_keep_open": "Mantén esta pestaña abierta. Si sales o la cierras, la descarga se detendrá.",
   "cancel_download": "Cancelar descarga",

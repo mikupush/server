@@ -26,6 +26,7 @@
   "file_not_found": "The requested file was not found.",
   "invalid_file_id": "The provided file ID is invalid.",
   "system_error": "An internal system error occurred. Please try again later.",
+  "downloading_file": "Downloading File",
   "download_progress": "Downloading: {{percent}}%",
   "download_keep_open": "Keep this tab open. Leaving or closing it will stop the download.",
   "cancel_download": "Cancel download",

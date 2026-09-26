@@ -18,7 +18,7 @@
 
 import {useState} from "react";
 import {useTranslation} from "react-i18next";
-import {Download, LoaderCircle, X} from "lucide-react";
+import {ArrowDownToLine, CircleCheck, CircleSlash, CircleX, Download, LoaderCircle, X} from "lucide-react";
 import {Button} from "@/components/ui/button.tsx";
 import {Progress} from "@/components/ui/progress.tsx";
 import {Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription} from "@/components/ui/drawer.tsx";
@@ -71,16 +71,22 @@ export default function DownloadProgress({details}: DownloadProgressProps) {
         </Button>
       )}
 
-      <Drawer open={open} onOpenChange={setOpen} swipeDirection="down" modal={false} disablePointerDismissal>
+      <Drawer
+        open={open}
+        onOpenChange={setOpen}
+        swipeDirection="down"
+        modal={false}
+        disablePointerDismissal
+      >
         <DrawerContent>
           <div className="mx-auto w-full max-w-xl px-4 pb-6">
-            <DrawerHeader className="relative px-0 pr-10 text-left">
-              <DrawerTitle className="break-all">{details.name}</DrawerTitle>
-              <DrawerDescription>{t('download_keep_open')}</DrawerDescription>
+            <DrawerHeader>
+              <DrawerTitle className="break-all">{t('downloading_file')}</DrawerTitle>
+              <DrawerDescription className="text-center">{t('download_keep_open')}</DrawerDescription>
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute right-0 top-2"
+                className="absolute right-2 top-2"
                 aria-label={t('hide_download')}
                 onClick={hideProgress}
               >
@@ -89,21 +95,44 @@ export default function DownloadProgress({details}: DownloadProgressProps) {
             </DrawerHeader>
 
             {downloading && (
-              <div className="space-y-4">
-                <div className="flex flex-wrap justify-between gap-2 text-sm tabular-nums">
-                  <p>{t('download_progress', {percent})}</p>
-                  <p>{t('download_speed', {speed: formatDownloadSpeed(speed)})}</p>
+              <div className="flex space-x-3 my-5">
+                <div className="flex justify-center items-center rounded bg-blue-100 text-blue-600 size-20">
+                  <ArrowDownToLine size="30" />
                 </div>
-                <Progress value={percent} aria-label={t('download')} />
-                <div className="flex justify-end">
-                  <Button variant="outline" onClick={cancelDownload}>{t('cancel_download')}</Button>
+                <div className="flex-1 space-y-2">
+                  <p className="font-bold line-clamp-1">{details.name}</p>
+                  <div className="flex flex-wrap justify-between gap-2 text-sm tabular-nums">
+                    <p>{t('download_progress', {percent})}</p>
+                    <p>{t('download_speed', {speed: formatDownloadSpeed(speed)})}</p>
+                  </div>
+                  <Progress value={percent} aria-label={t('download')} />
+                  <div className="flex justify-end">
+                    <Button variant="outline" onClick={cancelDownload}>{t('cancel_download')}</Button>
+                  </div>
                 </div>
               </div>
             )}
 
-            {status === 'completed' && <p role="status">{t('download_complete')}</p>}
-            {status === 'cancelled' && <p role="status">{t('download_cancelled')}</p>}
-            {status === 'error' && <p role="alert" className="text-destructive">{t(error)}</p>}
+            {status === 'completed' && (
+              <div className="flex items-center justify-center my-5">
+                <CircleCheck size="30" className="text-green-600" />
+                <p role="status" className="ml-2">{t('download_complete')}</p>
+              </div>
+            )}
+
+            {status === 'cancelled' && (
+              <div className="flex items-center justify-center my-5">
+                <CircleSlash size="30" />
+                <p role="status" className="ml-2">{t('download_cancelled')}</p>
+              </div>
+            )}
+
+            {status === 'error' && (
+              <div className="flex items-center justify-center my-5">
+                <CircleX size="30" className="text-destructive" />
+                <p role="status" className="text-destructive ml-2">{t(error)}</p>
+              </div>
+            )}
           </div>
         </DrawerContent>
       </Drawer>
