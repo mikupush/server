@@ -24,12 +24,14 @@ use serde_json::json;
 use tracing::{debug, warn};
 use crate::template::TemplateRenderer;
 use crate::tracing::ElapsedTimeTracing;
+use crate::serialization::query_string::deserialize_flag;
 
 const ANY_CONTENT_TYPE: &'static str = "*/*";
 
 #[derive(Deserialize)]
 struct Options {
-    json: Option<bool>,
+    #[serde(default, deserialize_with = "deserialize_flag")]
+    json: bool,
 }
 
 #[get("/health")]
@@ -45,7 +47,7 @@ pub async fn get_health(
         .unwrap_or(&default_accept_header)
         .to_str()
         .unwrap_or(ANY_CONTENT_TYPE);
-    let json = options.json.unwrap_or(false) || accept_header == "application/json";
+    let json = options.json || accept_header == "application/json";
 
     if let Err(_) = health_check(&pool).await {
         time_tracing.trace();
@@ -175,7 +177,7 @@ mod tests {
     }
 
     #[actix_web::test]
-    async fn test_health_200_ok_json_query() {
+    async fn test_health_200_ok_json_query_true() {
         let pool = setup_database_connection(&Settings::load(None));
         let app = test::init_service(
             App::new()
@@ -186,6 +188,48 @@ mod tests {
 
         let request = test::TestRequest::default()
             .uri("/health?json=true")
+            .method(Method::GET)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let content_type = header_value("Content-Type", &response);
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(content_type, "application/json");
+    }
+
+    #[actix_web::test]
+    async fn test_health_200_ok_json_query_false() {
+        let pool = setup_database_connection(&Settings::load(None));
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(pool))
+                .app_data(web::Data::new(Settings::default()))
+                .service(get_health)
+        ).await;
+
+        let request = test::TestRequest::default()
+            .uri("/health?json=false")
+            .method(Method::GET)
+            .to_request();
+        let response = test::call_service(&app, request).await;
+        let content_type = header_value("Content-Type", &response);
+
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_ne!(content_type, "application/json");
+    }
+
+    #[actix_web::test]
+    async fn test_health_200_ok_json_query() {
+        let pool = setup_database_connection(&Settings::load(None));
+        let app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(pool))
+                .app_data(web::Data::new(Settings::default()))
+                .service(get_health)
+        ).await;
+
+        let request = test::TestRequest::default()
+            .uri("/health?json")
             .method(Method::GET)
             .to_request();
         let response = test::call_service(&app, request).await;

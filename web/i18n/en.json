@@ -25,5 +25,16 @@
   "text": "Text file",
   "file_not_found": "The requested file was not found.",
   "invalid_file_id": "The provided file ID is invalid.",
-  "system_error": "An internal system error occurred. Please try again later."
+  "system_error": "An internal system error occurred. Please try again later.",
+  "download_progress": "Downloading: {{percent}}%",
+  "download_keep_open": "Keep this tab open. Leaving or closing it will stop the download.",
+  "cancel_download": "Cancel download",
+  "download_failed": "The download was interrupted. You can try again.",
+  "download_speed": "Speed: {{speed}}",
+  "download_complete": "Download ready. The file has been sent to your browser to save.",
+  "download_unsupported": "This browser cannot download to temporary storage. Use a modern browser over HTTPS or localhost.",
+  "download_storage_full": "There is not enough browser storage for this file. Free up space and try again.",
+  "view_download": "View download",
+  "hide_download": "Hide download progress",
+  "download_cancelled": "Download cancelled."
 }

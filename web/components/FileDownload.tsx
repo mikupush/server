@@ -16,130 +16,136 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import FileDetails from "@/components/FileDetails.tsx";
 import {useEffect, useState} from "react";
-import type {FileInfoError, FileInfo, UploadMetadata} from "@/models.ts";
 import {useTranslation} from "react-i18next";
-import {Button} from "@/components/ui/button.tsx";
-import {Download, LoaderCircle, TriangleAlert} from "lucide-react";
+import {LoaderCircle, TriangleAlert} from "lucide-react";
+import FileDetails from "@/components/FileDetails.tsx";
+import DownloadProgress from "@/components/DownloadProgress.tsx";
 import {Card, CardContent} from "@/components/ui/card.tsx";
 import {Separator} from "@/components/ui/separator.tsx";
+import type {FileInfoError, FileInfo, UploadMetadata} from "@/models.ts";
+
+async function fetchFileDetails(signal: AbortSignal): Promise<FileInfo> {
+  const metadataElement = document.getElementById('upload-metadata')!
+  const metadata: UploadMetadata = JSON.parse(metadataElement.innerText)
+  const response = await fetch(`/api/file/${metadata.id}`, {signal})
+
+  if (!response.ok) {
+    const error = await response.json() as FileInfoError
+    throw error.code
+  }
+
+  return await response.json() as FileInfo
+}
+
+function getFileErrorMessage(error: string): string {
+  switch (error) {
+    case 'NotExists':
+      return 'file_not_found'
+    case 'InvalidPathParameter':
+      return 'invalid_file_id'
+    default:
+      return 'system_error'
+  }
+}
 
 export default function FileDownload() {
-  const { t } = useTranslation()
+  const {t} = useTranslation()
   const [details, setDetails] = useState<FileInfo | null>(null)
-  const [isLoading, setIsLoading] = useState<boolean>(true)
-  const [error, setError] = useState<string>('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
+    const abort = new AbortController()
 
-    setIsLoading(true)
-    fetchDetails()
-      .then(info => setDetails(info))
-      .catch(error => setError(error))
-      .finally(() => setIsLoading(false))
+    void fetchFileDetails(abort.signal)
+      .then((info) => {
+        if (!abort.signal.aborted) {
+          setDetails(info)
+        }
+      })
+      .catch((error: unknown) => {
+        if (!abort.signal.aborted) {
+          setError(String(error))
+        }
+      })
+      .finally(() => {
+        if (!abort.signal.aborted) {
+          setIsLoading(false)
+        }
+      })
+
+    return () => {
+      abort.abort()
+    }
   }, [])
 
-  const fetchDetails = async () => {
-    const metadata: UploadMetadata = JSON.parse(document.getElementById('upload-metadata')!.innerText)
-    const response = await fetch(`/api/file/${metadata.id}`)
-
-    if (response.status !== 200) {
-      const error = await response.json() as FileInfoError
-      throw error.code
-    }
-
-    return await response.json() as FileInfo
+  if (isLoading) {
+    return <LoaderCircle className="mx-auto animate-spin" size={100} />
   }
 
-  const canPreviewMedia = () => {
-    const allowedMimeType = details.mime_type.startsWith('image/')
-      || details.mime_type.startsWith('video/')
-
-    return !details.chunked && allowedMimeType
-  }
-
-  const MediaPreview = () => {
-    const rawUrl = `/u/${details.id}?raw`
-
-    if (details.mime_type.startsWith('image/')) {
-      return <img className="hidden sm:block rounded-lg max-h-150" src={rawUrl} alt="" />
-    }
-
-    if (details.mime_type.startsWith('video/')) {
-      return <video className="hidden sm:block rounded-lg" src={rawUrl} controls={true} />
-    }
-  }
-
-  const View = () => {
-    return canPreviewMedia() ? (
-      <Card className="p-0 mx-auto max-w-4xl">
-        <CardContent className="p-1">
-          <div className="flex justify-center">
-            <MediaPreview />
-          </div>
-          <div className="flex flex-col sm:flex-row justify-between p-3">
-            <FileDetails details={details!} variant="row" className="hidden sm:block min-w-0" />
-            <FileDetails details={details!} variant="column" className="block sm:hidden" />
-            <Separator className="block sm:hidden my-6"/>
-            <Button asChild className="place-self-center p-6 text-lg sm:ml-6">
-              <a href={`/u/${details.id}?raw`} download>
-                <Download className="size-5"/>
-                {t('download_file')}
-              </a>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    ) : (
-      <Card className="mx-auto max-w-xl">
-        <CardContent className="flex flex-col">
-          <FileDetails details={details!} />
-          <Separator className="my-6"/>
-          <Button asChild className="place-self-center p-6 text-lg">
-            <a href={`/u/${details.id}?raw`} download>
-              <Download className="size-5"/>
-              {t('download_file')}
-            </a>
-          </Button>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  const Loading = () => (
-    <LoaderCircle className="mx-auto animate-spin" size={100} />
-  )
-
-  const Error = () => {
-    const getErrorMessage = (errorCode: string) => {
-      switch (errorCode) {
-        case 'NotExists':
-          return t('file_not_found')
-        case 'InvalidPathParameter':
-          return t('invalid_file_id')
-        default:
-          return t('system_error')
-      }
-    }
-
+  if (error || !details) {
     return (
       <div className="flex flex-col items-center">
         <TriangleAlert className="text-red-500" size={100} />
-        <p className="text-2xl mt-3 px-5 text-center">{getErrorMessage(error)}</p>
+        <p className="text-2xl mt-3 px-5 text-center">
+          {t(getFileErrorMessage(error))}
+        </p>
       </div>
     )
   }
 
+  const isImage = details.mime_type.startsWith('image/')
+  const isVideo = details.mime_type.startsWith('video/')
+  const canPreview = !details.chunked && (isImage || isVideo)
+  const rawUrl = `/u/${details.id}?raw`
+
+  const controls = (
+    <div className={canPreview ? 'w-full sm:w-72 sm:ml-6 shrink-0' : 'w-full'}>
+      <div className="text-center">
+        <DownloadProgress details={details} />
+      </div>
+    </div>
+  )
+
+  if (canPreview) {
+    return (
+      <Card className="p-0 mx-auto max-w-4xl">
+        <CardContent className="p-1">
+          <div className="flex justify-center">
+            {isImage ? (
+              <img className="hidden sm:block rounded-lg max-h-150" src={rawUrl} alt="" />
+            ) : (
+              <video className="hidden sm:block rounded-lg" src={rawUrl} controls />
+            )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between p-3">
+            <FileDetails
+              details={details}
+              variant="row"
+              className="hidden sm:block min-w-0"
+            />
+            <FileDetails
+              details={details}
+              variant="column"
+              className="block sm:hidden"
+            />
+            <Separator className="block sm:hidden my-6" />
+            {controls}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
-    <>
-      {(isLoading) ? (
-        <Loading />
-      ) : (error) ? (
-        <Error />
-      ) : (
-        <View />
-      )}
-    </>
+    <Card className="mx-auto max-w-xl">
+      <CardContent className="flex flex-col">
+        <FileDetails details={details} />
+        <Separator className="my-6" />
+        {controls}
+      </CardContent>
+    </Card>
   )
 }
