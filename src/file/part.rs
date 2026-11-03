@@ -194,7 +194,7 @@ where
             None => return Err(PartCleanupError::NotFound(id.clone()))
         };
 
-        let content_path = file.content_path(&self.settings)?;
+        let content_path = file.content_directory(&self.settings)?;
         let parts = self.counter.count_in_directory(&content_path.to_string_lossy().to_string())?;
 
         for part in 0..parts {
