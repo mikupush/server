@@ -1620,6 +1620,7 @@ dependencies = [
  "moka",
  "pq-sys",
  "r2d2",
+ "rand 0.10.2",
  "reqwest",
  "rusqlite",
  "serde",

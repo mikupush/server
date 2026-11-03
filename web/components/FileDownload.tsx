@@ -101,7 +101,7 @@ export default function FileDownload() {
   const rawUrl = `/u/${details.id}?raw`
 
   const controls = (
-    <div className={canPreview ? 'flex w-full sm:w-72 sm:ml-6 shrink-0 justify-end items-center' : 'w-full'}>
+    <div className={canPreview ? 'flex w-full sm:w-72 sm:ml-6 shrink-0 justify-end items-center' : 'flex justify-center w-full'}>
       <DownloadProgress details={details} />
     </div>
   )

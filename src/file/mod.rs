@@ -24,6 +24,7 @@ mod chunk_size;
 mod repository;
 pub mod error;
 mod part;
+mod lock;
 
 pub use delete::*;
 pub use info::*;

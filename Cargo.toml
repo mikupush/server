@@ -34,3 +34,4 @@ accept-language = "3.1.0"
 reqwest = { version = "0.13.4", features = ["blocking"] }
 moka = { version = "0.12.15", features = ["future", "sync"] }
 log = "0.4.33"
+rand = "0.10.2"
