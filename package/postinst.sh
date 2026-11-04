@@ -3,6 +3,7 @@
 USER="mikupush"
 
 mkdir -p /var/lib/io.mikupush.server/data
+mkdir -p /var/lib/io.mikupush.server/state
 mkdir -p /var/log/io.mikupush.server
 
 if ! id -u "$USER" > /dev/null 2>&1; then

@@ -40,7 +40,7 @@ use config::Settings;
 use std::path::PathBuf;
 use std::time::Duration;
 use actix_web::middleware::DefaultHeaders;
-use crate::file::FileSystemInMemoryPartCleanupJob;
+use crate::file::FileSystemPartCleanupWorker;
 
 pub const SERVER_VERSION: &str = "0.0.20";
 pub const SERVER_VERSION_CODE: u64 = 1;
@@ -70,8 +70,8 @@ async fn main() -> std::io::Result<()> {
     // database connection pool
     let pool = setup_database_connection(&settings);
 
-    // singleton instances, only for struct that must be initialized early
-    FileSystemInMemoryPartCleanupJob::initialize(&settings);
+    // Workers
+    FileSystemPartCleanupWorker::start_consuming(&settings);
 
     // launch scheduled jobs
     jobs::start_cleanup_expired_files(settings.clone());

@@ -181,6 +181,9 @@ where
             .set(&model)
             .execute(&mut connection)?;
 
+        let cache_key = format!("mikupush:postgres:file_upload_id:{}", file_upload.id);
+        self.cache.set(cache_key.as_str(), file_upload, Some(Duration::from_secs(15)));
+
         trace_time.trace();
         Ok(())
     }

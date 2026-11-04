@@ -129,6 +129,7 @@ pub struct Server {
     pub static_directory: String,
     pub static_base_path: String,
     pub templates_directory: String,
+    pub state_directory: String,
 }
 
 impl Server {
@@ -161,6 +162,10 @@ impl Server {
                 .or_else(|| log_yaml_config("server.templates_directory", yaml.server.templates_directory))
                 .or_else(|| log_default_config("server.templates_directory", Some(default.templates_directory)))
                 .unwrap(),
+            state_directory: env.server.state_directory
+                .or_else(|| log_yaml_config("server.state_directory", yaml.server.state_directory))
+                .or_else(|| log_default_config("server.state_directory", Some(default.state_directory)))
+                .unwrap(),
         }
     }
 }
@@ -175,6 +180,7 @@ impl Default for Server {
             static_directory: "dist/assets".to_string(),
             static_base_path: "/assets".to_string(),
             templates_directory: "dist".to_string(),
+            state_directory: "data/state".to_string(),
         }
     }
 
@@ -229,7 +235,7 @@ impl Default for Upload {
     fn default() -> Self {
         Self {
             max_size: None,
-            directory: "data".to_string(),
+            directory: "data/uploads".to_string(),
             expires_in_seconds: None,
             expiration_cleanup_interval_seconds: 3600,
         }
@@ -528,7 +534,7 @@ mod tests {
         // Default
         let yaml_empty = YamlSettings::default();
         let upload = Upload::from(yaml_empty, env_empty);
-        assert_eq!(upload.directory, "data");
+        assert_eq!(upload.directory, "data/uploads");
         assert_eq!(upload.max_size, None);
     }
 

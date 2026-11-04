@@ -29,6 +29,11 @@ server:
   # Alternatively, you can use MIKU_PUSH_SERVER_TEMPLATES_DIR environment variable to override this value.
   # Default value if not specified: dist (which is relative to the executable)
   templates_directory: dist
+  # Directory for local persistent state, such as queued jobs.
+  # This does not apply to data stored in a configured database.
+  # Alternatively, use MIKU_PUSH_SERVER_STATE_DIRECTORY.
+  # Default value: data/state
+  state_directory: data/state
 
 # Logging configuration.
 log:
@@ -90,8 +95,9 @@ upload:
   max_size: 5000000000 # 5GB
   # Directory where uploaded files are stored.
   # Can be a relative or absolute path.
-  # Default value: data
-  directory: data
+  # Alternatively, use MIKU_PUSH_UPLOAD_DIRECTORY.
+  # Default value: data/uploads
+  directory: data/uploads
   # Expiration time for uploaded files in seconds.
   # If not set, files do not expire.
   # Alternatively, you can use MIKU_PUSH_UPLOAD_EXPIRES_IN_SECONDS environment variable to override this value.
