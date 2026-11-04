@@ -155,7 +155,7 @@ pub mod tests {
         }
     }
 
-    pub fn create_test_file_upload(pool: DbPool) -> (PathBuf, FileUpload) {
+    pub fn create_test_file_upload(settings: &Settings, pool: DbPool) -> (PathBuf, FileUpload) {
         let id = Uuid::new_v4();
         let file_upload = FileUpload {
             id: Uuid::new_v4(),
@@ -167,7 +167,6 @@ pub mod tests {
             expires_at: None
         };
 
-        let settings = Settings::default();
         let path = file_upload.content_directory(&settings)
             .unwrap()
             .join(file_upload.name.clone());

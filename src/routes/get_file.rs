@@ -85,11 +85,11 @@ mod tests {
         let pool = setup_database_connection(&settings);
         let app = test::init_service(
             App::new()
-                .app_data(web::Data::new(settings))
+                .app_data(web::Data::new(settings.clone()))
                 .service(get_file_info)
         ).await;
 
-        let (_, file_upload) = create_test_file_upload(pool.clone());
+        let (_, file_upload) = create_test_file_upload(&settings, pool.clone());
         let request = test::TestRequest::default()
             .uri(format!("/api/file/{}", file_upload.id.clone()).as_str())
             .method(Method::GET)
