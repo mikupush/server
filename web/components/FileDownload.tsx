@@ -53,13 +53,20 @@ export default function FileDownload() {
   const {t} = useTranslation()
   const [details, setDetails] = useState<FileInfo | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isEncrypted, setIsEncrypted] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
     const abort = new AbortController()
+    const updateEncryptionStatus = () => {
+      setIsEncrypted(window.location.hash.length > 1)
+    }
+
+    updateEncryptionStatus()
+    window.addEventListener('hashchange', updateEncryptionStatus)
 
     void fetchFileDetails(abort.signal)
-      .then((info) => {
+      .then((info: FileInfo) => {
         if (!abort.signal.aborted) {
           setDetails(info)
         }
@@ -77,6 +84,7 @@ export default function FileDownload() {
 
     return () => {
       abort.abort()
+      window.removeEventListener('hashchange', updateEncryptionStatus)
     }
   }, [])
 
@@ -97,7 +105,7 @@ export default function FileDownload() {
 
   const isImage = details.mime_type.startsWith('image/')
   const isVideo = details.mime_type.startsWith('video/')
-  const canPreview = !details.chunked && (isImage || isVideo)
+  const canPreview = !isEncrypted && !details.chunked && (isImage || isVideo)
   const rawUrl = `/u/${details.id}?raw`
 
   const controls = (
