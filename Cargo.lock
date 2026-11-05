@@ -1602,7 +1602,7 @@ dependencies = [
 
 [[package]]
 name = "mikupush-server"
-version = "0.0.20"
+version = "0.0.21"
 dependencies = [
  "accept-language",
  "actix-files",

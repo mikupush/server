@@ -42,7 +42,7 @@ use std::time::Duration;
 use actix_web::middleware::DefaultHeaders;
 use crate::file::FileSystemPartCleanupWorker;
 
-pub const SERVER_VERSION: &str = "0.0.20";
+pub const SERVER_VERSION: &str = "0.0.21";
 pub const SERVER_VERSION_CODE: u64 = 1;
 
 #[derive(Debug, Parser)]
