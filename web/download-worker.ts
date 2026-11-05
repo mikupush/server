@@ -18,6 +18,12 @@
 
 /// <reference lib="webworker" />
 
+import {createDecryptionStream} from './cipher';
+
+type DownloadRequest =
+  | { type: 'start'; url: string; size: number; encryptionKey?: string }
+  | { type: 'cancel' };
+
 const context = self as unknown as DedicatedWorkerGlobalScope;
 let abortController: AbortController | undefined;
 let started = false;
@@ -61,7 +67,7 @@ function getDownloadErrorCode(error: unknown) {
   return 'failed';
 }
 
-context.onmessage = async function (event) {
+context.onmessage = async (event: MessageEvent<DownloadRequest>) => {
   const progressIntervalMs = 150;
 
   if (event.data.type === 'cancel') {
@@ -75,7 +81,8 @@ context.onmessage = async function (event) {
 
   started = true;
   abortController = new AbortController();
-  const { url, size } = event.data;
+  const signal = abortController.signal;
+  const { url, size, encryptionKey } = event.data;
 
   let directory: FileSystemDirectoryHandle | undefined;
   let access: FileSystemSyncAccessHandle | undefined;
@@ -88,7 +95,7 @@ context.onmessage = async function (event) {
     const timeoutMs = 120_000;
 
     clearTimeout(timer);
-    timer = setTimeout(function () {
+    timer = setTimeout(() => {
       abortController?.abort(new Error('Download timed out'));
     }, timeoutMs);
   }
@@ -101,6 +108,10 @@ context.onmessage = async function (event) {
     if (!Number.isSafeInteger(size) || size < 0) {
       throw new Error('Invalid file size');
     }
+
+    const decryption = encryptionKey === undefined
+      ? undefined
+      : await createDecryptionStream(encryptionKey);
 
     const root = await navigator.storage.getDirectory();
     directory = await root.getDirectoryHandle('mikupush-downloads', { create: true });
@@ -130,9 +141,37 @@ context.onmessage = async function (event) {
       throw new Error(`HTTP ${response.status}`);
     }
 
-    reader = response.body.getReader();
     let received = 0;
     let lastProgress = 0;
+    let writtenBytes = 0;
+
+    // Count ciphertext bytes for the server's size check and download progress.
+    const download = response.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
+      transform: (value: Uint8Array, controller: TransformStreamDefaultController<Uint8Array>) => {
+        signal.throwIfAborted();
+        refreshTimeout();
+
+        if (received + value.byteLength > size) {
+          throw new Error('Unexpected file size');
+        }
+
+        received += value.byteLength;
+
+        if (Date.now() - lastProgress >= progressIntervalMs || received === size) {
+          lastProgress = Date.now();
+          context.postMessage({ type: 'progress', received });
+        }
+
+        controller.enqueue(value);
+      },
+      flush: () => {
+        if (received !== size) {
+          throw new Error('Unexpected file size');
+        }
+      }
+    }));
+
+    reader = (decryption ? download.pipeThrough(decryption) : download).getReader();
 
     while (true) {
       refreshTimeout();
@@ -143,14 +182,10 @@ context.onmessage = async function (event) {
         break;
       }
 
-      if (received + value.byteLength > size) {
-        throw new Error('Unexpected file size');
-      }
-
       let offset = 0;
 
       while (offset < value.byteLength) {
-        const written = access.write(value.subarray(offset), { at: received + offset });
+        const written = access.write(value.subarray(offset), { at: writtenBytes + offset });
 
         if (written <= 0) {
           throw new Error('Unable to write file');
@@ -159,16 +194,7 @@ context.onmessage = async function (event) {
         offset += written;
       }
 
-      received += value.byteLength;
-
-      if (Date.now() - lastProgress >= progressIntervalMs || received === size) {
-        lastProgress = Date.now();
-        context.postMessage({ type: 'progress', received });
-      }
-    }
-
-    if (received !== size) {
-      throw new Error('Unexpected file size');
+      writtenBytes += value.byteLength;
     }
 
     access.flush();

@@ -17,6 +17,13 @@
  */
 
 import type {FileInfo} from './models';
+import {decodeEncryptionKey} from './cipher';
+
+type DownloadMessage =
+  | { type: 'closed' }
+  | { type: 'progress'; received: number }
+  | { type: 'error'; code: string }
+  | { type: 'complete'; file: File };
 
 export async function prepareDownload() {
   if (!('serviceWorker' in navigator)) {
@@ -42,12 +49,12 @@ export function startDownload(
   let settled = false;
   let rejectDownload: (reason: Error) => void;
 
-  function beforeUnload(event: BeforeUnloadEvent) {
+  const beforeUnload = (event: BeforeUnloadEvent) => {
     event.preventDefault();
     event.returnValue = true;
-  }
+  };
 
-  function cancel() {
+  const cancel = () => {
     if (settled) {
       return;
     }
@@ -55,9 +62,9 @@ export function startDownload(
     settled = true;
     worker?.postMessage({ type: 'cancel' });
     rejectDownload(new Error('cancelled'));
-  }
+  };
 
-  const done = new Promise<void>(function (resolve, reject) {
+  const done = new Promise<void>((resolve, reject) => {
     rejectDownload = reject;
 
     if (!window.isSecureContext || !('Worker' in window) || !navigator.storage?.getDirectory) {
@@ -65,20 +72,22 @@ export function startDownload(
       return;
     }
 
+    const encryptionKey = decodeEncryptionKey(window.location.hash);
+
     window.addEventListener('beforeunload', beforeUnload);
     window.addEventListener('pagehide', cancel);
 
     worker = new Worker(new URL('./download-worker.ts', import.meta.url), { type: 'module' });
 
-    function failWorker() {
+    const failWorker = () => {
       worker?.terminate();
       reject(new Error('failed'));
-    }
+    };
 
     worker.onerror = failWorker;
     worker.onmessageerror = failWorker;
 
-    worker.onmessage = function (event) {
+    worker.onmessage = (event: MessageEvent<DownloadMessage>) => {
       if (event.data.type === 'closed') {
         worker?.terminate();
         return;
@@ -114,7 +123,7 @@ export function startDownload(
         link.remove();
 
         // Do not revoke while the browser is starting the save dialog.
-        setTimeout(function () {
+        setTimeout(() => {
           URL.revokeObjectURL(url);
         }, 60000);
 
@@ -124,8 +133,13 @@ export function startDownload(
       }
     };
 
-    worker.postMessage({ type: 'start', url: `/u/${file.id}?raw`, size: file.size });
-  }).finally(function () {
+    worker.postMessage({
+      type: 'start',
+      url: `/u/${file.id}?raw`,
+      size: file.size,
+      encryptionKey
+    });
+  }).finally(() => {
     settled = true;
     window.removeEventListener('beforeunload', beforeUnload);
     window.removeEventListener('pagehide', cancel);
