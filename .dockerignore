@@ -17,3 +17,5 @@ node_modules
 .env.example
 dist
 .astro
+tmp
+data

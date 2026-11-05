@@ -33,3 +33,22 @@ pub mod uuid {
         Uuid::parse_str(&s).map_err(serde::de::Error::custom)
     }
 }
+
+pub mod query_string {
+    use serde::{Deserialize, Deserializer};
+
+    pub fn deserialize_flag<'de, D>(deserializer: D) -> Result<bool, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value = String::deserialize(deserializer)?;
+
+        match value.as_str() {
+            "" | "true" => Ok(true),
+            "false" => Ok(false),
+            _ => Err(serde::de::Error::custom(
+                "se esperaba true, false o un valor vacío",
+            )),
+        }
+    }
+}

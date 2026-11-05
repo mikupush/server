@@ -53,6 +53,12 @@
           "description": "Server templates directory. Alternatively, you can use MIKU_PUSH_SERVER_TEMPLATES_DIR to override this value.",
           "default": "dist",
           "examples": ["dist", "/usr/share/io.mikupush.server/dist"]
+        },
+        "state_directory": {
+          "type": "string",
+          "description": "Directory for local persistent state such as queued jobs. Does not apply to data stored in a configured database. Alternatively, use MIKU_PUSH_SERVER_STATE_DIRECTORY.",
+          "default": "data/state",
+          "examples": ["data/state", "/var/lib/io.mikupush.server/state"]
         }
       }
     },
@@ -138,8 +144,8 @@
         "directory": {
           "type": "string",
           "description": "Directory where uploaded files are stored. Can be a relative or absolute path. Alternatively, you can use MIKU_PUSH_UPLOAD_DIRECTORY to override this value.",
-          "default": "data",
-          "examples": ["data", "./data", "/var/lib/mikupush"]
+          "default": "data/uploads",
+          "examples": ["data/uploads", "./data/uploads", "/var/lib/io.mikupush.server/data"]
         },
         "expires_in_seconds": {
           "description": "Expiration time for uploaded files in seconds. If not set, files do not expire. Alternatively, you can use MIKU_PUSH_UPLOAD_EXPIRES_IN_SECONDS to override this value.",

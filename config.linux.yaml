@@ -4,6 +4,7 @@ server:
   static_base_path: /assets
   static_directory: /usr/share/io.mikupush.server/dist/assets
   templates_directory: /usr/share/io.mikupush.server/dist
+  state_directory: /var/lib/io.mikupush.server/state
 
 log:
   level: info

@@ -24,5 +24,17 @@
   "text": "Archivo de texto",
   "file_not_found": "El archivo solicitado no se ha encontrado.",
   "invalid_file_id": "El ID de archivo proporcionado no es válido.",
-  "system_error": "Ha ocurrido un error interno en el sistema. Por favor, inténtelo de nuevo más tarde."
+  "system_error": "Ha ocurrido un error interno en el sistema. Por favor, inténtelo de nuevo más tarde.",
+  "downloading_file": "Descargando Archivo",
+  "download_progress": "Descargando: {{percent}} %",
+  "download_keep_open": "Mantén esta pestaña abierta. Si sales o la cierras, la descarga se detendrá.",
+  "cancel_download": "Cancelar descarga",
+  "download_failed": "La descarga se ha interrumpido. Puedes volver a intentarlo.",
+  "download_speed": "Velocidad: {{speed}}",
+  "download_complete": "Descarga preparada. El fichero se ha enviado al navegador para guardarlo.",
+  "download_unsupported": "Este navegador no permite descargar al almacenamiento temporal. Usa un navegador moderno con HTTPS o localhost.",
+  "download_storage_full": "No hay suficiente almacenamiento del navegador para este fichero. Libera espacio y vuelve a intentarlo.",
+  "view_download": "Ver descarga",
+  "hide_download": "Ocultar progreso de descarga",
+  "download_cancelled": "Descarga cancelada."
 }

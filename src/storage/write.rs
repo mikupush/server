@@ -76,7 +76,7 @@ impl ObjectStorageWriter for FileSystemObjectStorageWriter {
         if let Some(destination_directory) = destination_directory
             && destination_directory.exists() == false
         {
-            std::fs::create_dir_all(destination_directory)?;
+            tokio::fs::create_dir_all(destination_directory).await?;
         }
 
         debug!("writing content to {:?}", destination);

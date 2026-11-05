@@ -23,6 +23,7 @@ pub type ResultStream = io::Result<BytesStream>;
 
 pub trait ObjectStorageReader: Send + Sync {
     fn read(&self, location: &String) -> ResultStream;
+    fn read_with_size(&self, location: &String) -> (u64, ResultStream);
     fn read_range(&self, location: &String, start: u64, end: u64) -> ResultStream;
 }
 
@@ -44,6 +45,12 @@ impl ObjectStorageReader for FakeObjectStorageReader {
         Ok(Box::new(stream))
     }
 
+    fn read_with_size(&self, _location: &String) -> (u64, ResultStream) {
+        let data = b"sample content";
+        let stream = BufReader::new(&data[..]);
+        (data.len() as u64, Ok(Box::new(stream)))
+    }
+
     fn read_range(&self, location: &String, _start: u64, _end: u64) -> ResultStream {
         self.read(location)
     }
@@ -62,6 +69,20 @@ impl ObjectStorageReader for FileSystemObjectStorageReader {
     fn read(&self, location: &String) -> ResultStream {
         let file = File::open(location)?;
         Ok(Box::new(file))
+    }
+
+    fn read_with_size(&self, location: &String) -> (u64, ResultStream) {
+        let file = match File::open(location) {
+            Ok(file) => file,
+            Err(err) => return (0, Err(err))
+        };
+
+        let metadata = match file.metadata() {
+            Ok(metadata) => metadata,
+            Err(err) => return (0, Err(err))
+        };
+
+        (metadata.len(), Ok(Box::new(file)))
     }
 
     fn read_range(&self, location: &String, start: u64, end: u64) -> ResultStream {

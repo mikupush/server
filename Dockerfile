@@ -1,4 +1,4 @@
-FROM rust:1.88 AS build
+FROM rust:1.97.1 AS build
 
 WORKDIR /builder
 
@@ -14,7 +14,7 @@ COPY . .
 
 RUN npm install && npm run build
 
-FROM debian:bookworm-slim
+FROM debian:trixie-slim
 
 WORKDIR /srv
 

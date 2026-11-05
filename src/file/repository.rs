@@ -113,7 +113,7 @@ where
 
 impl PostgresFileUploadRepository<MokaCache> {
     pub fn get_with_settings(settings: &Settings) -> Self {
-        Self::new(get_database_connection(settings), MokaCache::new())
+        Self::new(get_database_connection(settings), MokaCache::current())
     }
 }
 
@@ -180,6 +180,9 @@ where
             .do_update()
             .set(&model)
             .execute(&mut connection)?;
+
+        let cache_key = format!("mikupush:postgres:file_upload_id:{}", file_upload.id);
+        self.cache.set(cache_key.as_str(), file_upload, Some(Duration::from_secs(15)));
 
         trace_time.trace();
         Ok(())
@@ -310,7 +313,7 @@ pub mod tests {
 
     impl PostgresFileUploadRepository<MokaCache> {
         pub fn for_integration(pool: &DbPool) -> Self {
-            Self::new(pool.clone(), MokaCache::new())
+            Self::new(pool.clone(), MokaCache::initialize())
         }
     }
 }

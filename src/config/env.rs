@@ -93,6 +93,7 @@ pub struct EnvServer {
     pub static_directory: Option<String>,
     pub static_base_path: Option<String>,
     pub templates_directory: Option<String>,
+    pub state_directory: Option<String>,
 }
 
 impl EnvServer {
@@ -106,6 +107,7 @@ impl EnvServer {
             static_directory: env("MIKU_PUSH_SERVER_STATIC_DIR"),
             static_base_path: env("MIKU_PUSH_SERVER_STATIC_BASE_PATH"),
             templates_directory: env("MIKU_PUSH_SERVER_TEMPLATES_DIR"),
+            state_directory: env("MIKU_PUSH_SERVER_STATE_DIRECTORY"),
         }
     }
 }
@@ -119,7 +121,8 @@ impl Default for EnvServer {
             port: None,
             static_directory: None,
             static_base_path: None,
-            templates_directory: None
+            templates_directory: None,
+            state_directory: None
         }
     }
 }

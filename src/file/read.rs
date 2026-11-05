@@ -34,30 +34,35 @@ use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::Stream;
 use tokio_stream::wrappers::ReceiverStream;
-use tracing::error;
+use tracing::{error, warn};
 use uuid::Uuid;
+use crate::file::lock::{ChunkedReaderLocker, InMemoryChunkedReaderLocker};
 
 #[derive(Debug, Clone)]
-pub struct FileReader<FR, OBR>
+pub struct FileReader<FR, OBR, L>
 where
     FR: FileUploadRepository + Clone + Send + 'static,
     OBR: ObjectStorageReader + Clone + Send + 'static,
+    L: ChunkedReaderLocker + Clone + Send + 'static,
 {
     repository: FR,
     reader: OBR,
+    locker: L,
     settings: Settings,
 }
 
-impl<FR, OBR> FileReader<FR, OBR>
+impl<FR, OBR, L> FileReader<FR, OBR, L>
 where
     FR: FileUploadRepository + Clone + Send + 'static,
     OBR: ObjectStorageReader + Clone + Send,
+    L: ChunkedReaderLocker + Clone + Send + 'static,
 {
-    pub fn new(repository: FR, reader: OBR, settings: &Settings) -> Self {
+    pub fn new(repository: FR, reader: OBR, locker: L, settings: &Settings) -> Self {
         Self {
             repository,
             reader,
-            settings: settings.clone()
+            settings: settings.clone(),
+            locker,
         }
     }
 
@@ -65,8 +70,13 @@ where
         let file_upload = self.find_upload_by_id(&id).await?;
 
         if file_upload.chunked {
+            if let Err(err) = self.locker.lock_for(&id) {
+                warn!(upload = ?id, error = ?err, "error locking chunked read");
+            }
+
             let reader = ChunkedFileReader::new(
                 self.reader.clone(),
+                self.locker.clone(),
                 file_upload.clone(),
                 self.settings.clone()
             );
@@ -108,6 +118,18 @@ where
         Ok(reader.read_range(start, end).await?)
     }
 
+    pub async fn read_chunk(&self, id: Uuid, part: usize) -> Result<FileStreamWrapper, FileReadError> {
+        let file_upload = self.find_upload_by_id(&id).await?;
+
+        let reader = SingleFileReader {
+            details: file_upload,
+            settings: self.settings.clone(),
+            reader: self.reader.clone()
+        };
+
+        reader.read_chunk(part).await
+    }
+
     async fn find_upload_by_id(&self, id: &Uuid) -> Result<FileUpload, FileReadError> {
         let repository = self.repository.clone();
         let id = id.clone();
@@ -126,12 +148,13 @@ where
     }
 }
 
-impl FileReader<PostgresFileUploadRepository<MokaCache>, FileSystemObjectStorageReader> {
+impl FileReader<PostgresFileUploadRepository<MokaCache>, FileSystemObjectStorageReader, InMemoryChunkedReaderLocker> {
     pub fn get_with_settings(settings: &Settings) -> Self {
         Self::new(
             PostgresFileUploadRepository::get_with_settings(&settings),
             FileSystemObjectStorageReader::new(),
-            settings
+            InMemoryChunkedReaderLocker::get_instance(),
+            settings,
         )
     }
 }
@@ -141,6 +164,9 @@ const CHUNK_READ_SIZE: usize = 64 * 1024;
 pub struct FileStreamWrapper {
     pub details: FileUpload,
     pub stream: ReceiverStream<io::Result<Bytes>>,
+    // chunk size of file if you call read_chunk,
+    // if not the value will not be provided and then will be 0
+    pub chunk_size: u64,
 }
 
 #[derive(Clone)]
@@ -177,6 +203,7 @@ where
         Ok(FileStreamWrapper {
             details: self.details.clone(),
             stream: ReceiverStream::new(receiver),
+            chunk_size: 0,
         })
     }
 
@@ -203,31 +230,58 @@ where
         Ok(FileStreamWrapper {
             details: self.details.clone(),
             stream: ReceiverStream::new(receiver),
+            chunk_size: 0,
+        })
+    }
+
+    pub async fn read_chunk(&self, part: usize) -> Result<FileStreamWrapper, FileReadError> {
+        let reader = self.reader.clone();
+        let directory = self.details.content_directory(&self.settings)?;
+        let path = Path::new(&directory)
+            .join(FilePart::name(part))
+            .to_string_lossy()
+            .to_string();
+
+        let (sender, receiver) = mpsc::channel::<io::Result<Bytes>>(10);
+        let (size, stream) = tokio::task::spawn_blocking(move || reader.read_with_size(&path)).await
+            .map_err(|err| FileReadError::IO { message: err.to_string() })?;
+        let mut stream = stream?;
+
+        tokio::task::spawn_blocking(move || {
+            send_reader_bytes(&mut stream, &sender);
+        });
+
+        Ok(FileStreamWrapper {
+            details: self.details.clone(),
+            stream: ReceiverStream::new(receiver),
+            chunk_size: size,
         })
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct ChunkedFileReader<OBR>
+pub struct ChunkedFileReader<OBR, L>
 where
-    OBR: ObjectStorageReader + Clone + Send + 'static
+    OBR: ObjectStorageReader + Clone + Send + 'static,
+    L: ChunkedReaderLocker + Clone + Send + 'static
 {
     reader: OBR,
-    last_index: i32,
+    locker: L,
     details: FileUpload,
     settings: Settings,
 }
 
-impl<OBR> ChunkedFileReader<OBR>
+impl<OBR, L> ChunkedFileReader<OBR, L>
 where
-    OBR: ObjectStorageReader + Clone + Send + 'static
+    OBR: ObjectStorageReader + Clone + Send + 'static,
+    L: ChunkedReaderLocker + Clone + Send + 'static
 {
-    pub fn new(reader: OBR, details: FileUpload, settings: Settings) -> Self {
+    pub fn new(reader: OBR, locker: L, details: FileUpload, settings: Settings) -> Self {
         Self {
             reader,
+            locker,
             details,
             settings,
-            last_index: -1,
         }
     }
 
@@ -239,15 +293,20 @@ where
             if let Err(err) = this.send_bytes(sender) {
                 error!("error sending file bytes to stream: {}", err);
             }
+
+            if let Err(err) = this.locker.unlock_for(&this.details.id) {
+                warn!(upload = ?this.details.id, error = ?err, "error unlocking chunked read");
+            }
         });
 
         Ok(FileStreamWrapper {
             details: self.details.clone(),
             stream: ReceiverStream::new(receiver),
+            chunk_size: 0,
         })
     }
 
-    fn send_bytes(self, sender: Sender<io::Result<Bytes>>) -> Result<(), FileReadError> {
+    fn send_bytes(&self, sender: Sender<io::Result<Bytes>>) -> Result<(), FileReadError> {
         let directory = self.details.content_directory(&self.settings)?;
         let parts = std::fs::read_dir(&directory)?.count();
 
@@ -279,5 +338,45 @@ fn send_reader_bytes(reader: &mut impl Read, sender: &Sender<io::Result<Bytes>>)
                 break;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn unlocks_when_reading_parts_fails() {
+        let id = Uuid::new_v4();
+        let locker = InMemoryChunkedReaderLocker::new();
+        locker.lock_for(&id).unwrap();
+
+        let upload = FileUpload {
+            id,
+            name: "missing.bin".to_string(),
+            mime_type: "application/octet-stream".to_string(),
+            size: 1,
+            uploaded_at: chrono::Utc::now().naive_utc(),
+            chunked: true,
+            expires_at: None,
+        };
+
+        let mut settings = Settings::default();
+        settings.upload.directory = std::env::temp_dir()
+            .join(format!("mikupush-missing-parts-{id}"))
+            .to_string_lossy().into_owned();
+
+        let reader = ChunkedFileReader::new(
+            FileSystemObjectStorageReader::new(), locker.clone(), upload, settings,
+        );
+
+        let mut response = reader.read().await.unwrap();
+        while response.stream.next().await.is_some() {}
+
+        tokio::time::timeout(std::time::Duration::from_secs(1), async {
+            while locker.is_locked(&id).unwrap() {
+                tokio::task::yield_now().await;
+            }
+        }).await.unwrap();
     }
 }

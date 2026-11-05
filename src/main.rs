@@ -40,8 +40,9 @@ use config::Settings;
 use std::path::PathBuf;
 use std::time::Duration;
 use actix_web::middleware::DefaultHeaders;
+use crate::file::FileSystemPartCleanupWorker;
 
-pub const SERVER_VERSION: &str = "0.0.20";
+pub const SERVER_VERSION: &str = "0.0.21";
 pub const SERVER_VERSION_CODE: u64 = 1;
 
 #[derive(Debug, Parser)]
@@ -69,6 +70,9 @@ async fn main() -> std::io::Result<()> {
     // database connection pool
     let pool = setup_database_connection(&settings);
 
+    // Workers
+    FileSystemPartCleanupWorker::start_consuming(&settings);
+
     // launch scheduled jobs
     jobs::start_cleanup_expired_files(settings.clone());
 
@@ -92,10 +96,13 @@ async fn main() -> std::io::Result<()> {
             .service(routes::post_upload_part)
             .service(routes::post_upload_ack)
             .service(routes::get_download)
-            .service(routes::health)
+            .service(routes::get_download_part)
+            .service(routes::get_health)
+            .service(routes::head_health)
             .service(routes::get_file_info)
             .service(routes::get_server_info)
             .service(routes::get_server_icon)
+            .default_service(web::route().to(routes::astro_dev_server_proxy))
     })
     .keep_alive(Duration::from_secs(10))
     .bind((settings.server.host, settings.server.port))?
