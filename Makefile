@@ -11,7 +11,7 @@ server-debug:
 	cargo build
 
 server-release:
-	cargo build
+	cargo build --release
 
 linux-debug: web server-debug
 	scripts/deb-package.sh debug && scripts/tar-package.sh debug
